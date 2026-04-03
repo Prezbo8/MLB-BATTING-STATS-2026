@@ -5,19 +5,15 @@ import os
 
 print("Starting 2026 batting stats update...")
 
-# Connect to Supabase with better error handling
+# Connect to Supabase
 try:
     supabase: Client = create_client(
         os.environ["SUPABASE_URL"],
         os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     )
     print("✅ Connected to Supabase successfully")
-except KeyError as e:
-    print(f"❌ Missing environment variable: {e}")
-    print("Make sure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in GitHub Secrets")
-    raise
 except Exception as e:
-    print(f"❌ Supabase connection failed: {e}")
+    print(f"❌ Connection error: {e}")
     raise
 
 # Pull 2026 stats (min 10 PA)
@@ -29,16 +25,36 @@ cols = ['IDfg', 'Season', 'Name', 'Team', 'PA', 'BB%', 'K%', 'BB/K',
         'wRC', 'wRAA', 'wOBA', 'wRC+']
 
 df = data[cols].copy()
-df = df.rename(columns={'Team': 'Tm', 'IDfg': 'idfg'})
 
-print(f"✅ Fetched {len(df)} players with ≥10 PA")
+# Rename columns to EXACTLY match your Supabase table
+df = df.rename(columns={
+    'IDfg': 'idfg',
+    'Season': 'season',
+    'Name': 'name',
+    'Team': 'tm',
+    'PA': 'pa',
+    'BB%': 'bb_percent',
+    'K%': 'k_percent',
+    'BB/K': 'bb_k',
+    'AVG': 'avg',
+    'OBP': 'obp',
+    'SLG': 'slg',
+    'OPS': 'ops',
+    'ISO': 'iso',
+    'BABIP': 'babip',
+    'wRC': 'wrc',
+    'wRAA': 'wraa',
+    'wOBA': 'woba',
+    'wRC+': 'wrc_plus'
+})
 
-# Delete old data and insert fresh data (most reliable method)
+print(f"✅ Fetched and prepared {len(df)} players")
+
+# Clear old data and insert fresh data
 print("Clearing old data from Supabase...")
-supabase.table('batting_stats_2026').delete().neq('idfg', -1).execute()  # deletes everything
+supabase.table('batting_stats_2026').delete().neq('idfg', -1).execute()
 
 print("Inserting new data...")
-records = df.to_dict(orient='records')
-result = supabase.table('batting_stats_2026').insert(records).execute()
+result = supabase.table('batting_stats_2026').insert(df.to_dict(orient='records')).execute()
 
-print(f"🎉 Successfully loaded {len(records)} rows into Supabase!")
+print(f"🎉 Successfully loaded {len(df)} rows into Supabase!")
