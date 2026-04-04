@@ -40,11 +40,14 @@ if not table:
 
 df = pd.read_html(StringIO(str(table)))[0]
 
-# FIX: Flatten MultiIndex caused by the top pager row
+# FIX: Flatten MultiIndex and remove pager junk row
 if isinstance(df.columns, pd.MultiIndex):
     df.columns = df.columns.get_level_values(1)
 
-# DEBUG: Print columns (you can remove this later)
+# Remove the top pager row that contains "Page size"
+df = df.iloc[1:].reset_index(drop=True)
+
+# DEBUG (you can remove this line later)
 print("DEBUG COLUMNS:", df.columns.tolist())
 
 df = df[['Name', 'Team', 'PA', 'BB%', 'K%', 'BB/K', 'AVG', 'OBP', 'SLG', 'OPS',
