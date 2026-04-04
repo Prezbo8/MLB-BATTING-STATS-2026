@@ -2,8 +2,8 @@ name: Daily Fangraphs Scrape → Supabase
 
 on:
   schedule:
-    - cron: '0 12 * * *'     # Runs every day at 8:00 AM Eastern Time (EDT/EST)
-  workflow_dispatch:        # Allows you to run it manually anytime
+    - cron: '0 12 * * *'     # 8:00 AM EST every day
+  workflow_dispatch:         # Allows manual run
 
 jobs:
   scrape:
@@ -19,8 +19,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       
-      - name: Run scraper
+      - name: Run all 5 scrapers
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python scrape_fangraphs.py
+        run: |
+          python scrape_no_splits.py
+          python scrape_vs_r.py
+          python scrape_vs_l.py
+          python scrape_home.py
+          python scrape_away.py
