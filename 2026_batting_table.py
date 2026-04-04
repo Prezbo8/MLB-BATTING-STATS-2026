@@ -2,6 +2,7 @@ from pybaseball import batting_stats
 import pandas as pd
 from supabase import create_client, Client
 import os
+import requests
 
 print("Starting 2026 batting stats update...")
 
@@ -26,7 +27,7 @@ cols = ['IDfg', 'Season', 'Name', 'Team', 'PA', 'BB%', 'K%', 'BB/K',
 
 df = data[cols].copy()
 
-# Rename columns to EXACTLY match your Supabase table
+# Rename columns to match Supabase table
 df = df.rename(columns={
     'IDfg': 'idfg',
     'Season': 'season',
@@ -58,3 +59,27 @@ print("Inserting new data...")
 result = supabase.table('batting_stats_2026').insert(df.to_dict(orient='records')).execute()
 
 print(f"🎉 Successfully loaded {len(df)} rows into Supabase!")
+
+# ============== SEND FREE TELEGRAM MESSAGE ==============
+print("Sending Telegram notification...")
+try:
+    token = os.environ["TELEGRAM_TOKEN"]
+    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+    
+    message = f"✅ 2026 MLB Batting Stats Updated!\n\n{len(df)} players loaded into Supabase (min 10 PA)"
+
+    response = requests.post(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        json={
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+    )
+    
+    if response.status_code == 200:
+        print("✅ Telegram message sent successfully!")
+    else:
+        print(f"⚠️ Telegram failed: {response.text}")
+except Exception as e:
+    print(f"⚠️ Could not send Telegram message: {e}")
