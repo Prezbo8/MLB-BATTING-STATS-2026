@@ -4,7 +4,7 @@ from supabase import create_client, Client
 import os
 import requests
 
-print("Starting 2026 batting stats update...")
+print("🚀 Starting 2026 batting stats update (5 tables)...")
 
 # Connect to Supabase
 try:
@@ -17,56 +17,72 @@ except Exception as e:
     print(f"❌ Connection error: {e}")
     raise
 
-# Pull 2026 stats (min 10 PA)
-print("Fetching data from FanGraphs...")
-data = batting_stats(2026, qual=10)
-
+# Column mapping (same for every table)
 cols = ['IDfg', 'Season', 'Name', 'Team', 'PA', 'BB%', 'K%', 'BB/K',
         'AVG', 'OBP', 'SLG', 'OPS', 'ISO', 'BABIP',
         'wRC', 'wRAA', 'wOBA', 'wRC+']
 
-df = data[cols].copy()
+rename_map = {
+    'IDfg': 'idfg', 'Season': 'season', 'Name': 'name', 'Team': 'tm',
+    'PA': 'pa', 'BB%': 'bb_percent', 'K%': 'k_percent', 'BB/K': 'bb_k',
+    'AVG': 'avg', 'OBP': 'obp', 'SLG': 'slg', 'OPS': 'ops',
+    'ISO': 'iso', 'BABIP': 'babip',
+    'wRC': 'wrc', 'wRAA': 'wraa', 'wOBA': 'woba', 'wRC+': 'wrc_plus'
+}
 
-# Rename columns to match Supabase table
-df = df.rename(columns={
-    'IDfg': 'idfg',
-    'Season': 'season',
-    'Name': 'name',
-    'Team': 'tm',
-    'PA': 'pa',
-    'BB%': 'bb_percent',
-    'K%': 'k_percent',
-    'BB/K': 'bb_k',
-    'AVG': 'avg',
-    'OBP': 'obp',
-    'SLG': 'slg',
-    'OPS': 'ops',
-    'ISO': 'iso',
-    'BABIP': 'babip',
-    'wRC': 'wrc',
-    'wRAA': 'wraa',
-    'wOBA': 'woba',
-    'wRC+': 'wrc_plus'
-})
+def update_table(table_name, data):
+    if len(data) == 0:
+        print(f"   ⚠️ No data returned for {table_name}")
+        return
+    df = data[cols].copy()
+    df = df.rename(columns=rename_map)
+    print(f"   → {len(df)} rows prepared for {table_name}")
+    
+    # Clear old data + insert fresh data
+    supabase.table(table_name).delete().neq('idfg', -1).execute()
+    supabase.table(table_name).insert(df.to_dict(orient='records')).execute()
+    print(f"   ✅ {table_name} updated successfully!")
 
-print(f"✅ Fetched and prepared {len(df)} players")
+# ==================== FETCH ALL 5 DATASETS ====================
+print("Fetching data from FanGraphs...")
 
-# Clear old data and insert fresh data
-print("Clearing old data from Supabase...")
-supabase.table('batting_stats_2026').delete().neq('idfg', -1).execute()
+# 1. Overall
+data_overall = batting_stats(2026, qual=10)
+update_table('batting_stats_2026', data_overall)
 
-print("Inserting new data...")
-result = supabase.table('batting_stats_2026').insert(df.to_dict(orient='records')).execute()
+# 2. vs LHP
+data_lhp = batting_stats(2026, qual=10, month=13)
+update_table('batting_stats_2026_vs_lhp', data_lhp)
 
-print(f"🎉 Successfully loaded {len(df)} rows into Supabase!")
+# 3. vs RHP
+data_rhp = batting_stats(2026, qual=10, month=14)
+update_table('batting_stats_2026_vs_rhp', data_rhp)
 
-# ============== SEND FREE TELEGRAM MESSAGE ==============
+# 4. Home
+data_home = batting_stats(2026, qual=10, month=15)
+update_table('batting_stats_2026_home', data_home)
+
+# 5. Away
+data_away = batting_stats(2026, qual=10, month=16)
+update_table('batting_stats_2026_away', data_away)
+
+print("🎉 All 5 tables updated successfully!")
+
+# ============== SEND TELEGRAM NOTIFICATION ==============
 print("Sending Telegram notification...")
 try:
     token = os.environ["TELEGRAM_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
     
-    message = f"✅ 2026 MLB Batting Stats Updated!\n\n{len(df)} players loaded into Supabase (min 10 PA)"
+    message = f"""✅ **2026 MLB Batting Stats Updated!**
+
+• Overall: {len(data_overall)} players
+• vs LHP: {len(data_lhp)} players
+• vs RHP: {len(data_rhp)} players
+• Home: {len(data_home)} players
+• Away: {len(data_away)} players
+
+All tables refreshed (min 10 PA)"""
 
     response = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
