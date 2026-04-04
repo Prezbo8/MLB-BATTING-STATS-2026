@@ -51,19 +51,19 @@ data_overall = batting_stats(2026, qual=10)
 update_table('batting_stats_2026', data_overall)
 
 # 2. vs LHP
-data_lhp = batting_stats(2026, qual=10, month=13)
+data_lhp = batting_stats(2026, qual=10, month="13")      # ← changed to string
 update_table('batting_stats_2026_vs_lhp', data_lhp)
 
 # 3. vs RHP
-data_rhp = batting_stats(2026, qual=10, month=14)
+data_rhp = batting_stats(2026, qual=10, month="14")      # ← changed to string
 update_table('batting_stats_2026_vs_rhp', data_rhp)
 
 # 4. Home
-data_home = batting_stats(2026, qual=10, month=15)
+data_home = batting_stats(2026, qual=10, month="15")     # ← changed to string
 update_table('batting_stats_2026_home', data_home)
 
 # 5. Away
-data_away = batting_stats(2026, qual=10, month=16)
+data_away = batting_stats(2026, qual=10, month="16")     # ← changed to string
 update_table('batting_stats_2026_away', data_away)
 
 print("🎉 All 5 tables updated successfully!")
