@@ -1,4 +1,4 @@
-split,date_range,start_date,end_date,#,Season,Tm,PA,BB%,K%,BB/K,AVG,OBP,SLG,OPS,ISO,BABIP,wRC,wRAA,wOBA,wRC+,scraped_date
+split,date_range,start_date,end_date,#,Season,Tm,PA,BB%,K%,BB/K,AVG,OBP,SLG,OPS,ISO,BABIP,wRC,wRAA,wOBA,wRC+,updated_at
 no_split,season,2026-3-18,2026-4-10,1,2026.0,HOU,529.0,12.7%,19.1%,0.7,0.271,0.371,0.453,0.825,0.182,0.315,83.0,22.9,0.37,144.0,2026-04-10
 no_split,season,2026-3-18,2026-4-10,2,2026.0,LAD,471.0,9.8%,21.7%,0.5,0.287,0.361,0.48,0.84,0.193,0.33,75.0,22.2,0.376,137.0,2026-04-10
 no_split,season,2026-3-18,2026-4-10,3,2026.0,WSN,476.0,9.2%,20.8%,0.4,0.266,0.339,0.431,0.77,0.165,0.311,66.0,12.7,0.349,119.0,2026-04-10
