@@ -1,0 +1,11 @@
+{
+  "name": "MLB 2026 Team Offense Analyzer",
+  "short_name": "MLB 2026",
+  "icons": [
+    { "src": "/MLB-BATTING-STATS-2026/web-app-manifest-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/MLB-BATTING-STATS-2026/web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "theme_color": "#080a0f",
+  "background_color": "#080a0f",
+  "display": "standalone"
+}
