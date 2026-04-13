@@ -1253,7 +1253,7 @@ function updateSummaryBar(activeTab) {
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
         const fullW = track.scrollWidth / 2;
-        const speed = 150; // px/s
+        const speed = 200; // px/s
         const dur   = Math.max(30, Math.round(fullW / speed));
         track.style.animation = `ticker-scroll ${dur}s linear infinite`;
 
