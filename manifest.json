@@ -1,0 +1,23 @@
+{
+  "name": "MLB 2026 Team Offense Analyzer",
+  "short_name": "MLB 2026",
+  "description": "MLB 2026 team and player offensive stats analyzer",
+  "start_url": "/MLB-BATTING-STATS-2026/",
+  "display": "standalone",
+  "background_color": "#080a0f",
+  "theme_color": "#080a0f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/MLB-BATTING-STATS-2026/favicon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/MLB-BATTING-STATS-2026/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
