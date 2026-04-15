@@ -1,0 +1,57 @@
+name: Scrape Lineups (RotoWire)
+
+on:
+  schedule:
+    # Every 30 min, 15:00–02:00 UTC (covers 11 AM–9 PM ET year-round)
+    - cron: '0,30 15-23 * * *'
+    - cron: '0,30 0,1 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install \
+            playwright \
+            beautifulsoup4 \
+            lxml \
+            pytz \
+            requests \
+            supabase
+
+      - name: Install Playwright Chromium
+        run: playwright install chromium --with-deps
+
+      - name: Run scraper
+        env:
+          SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python scrape_lineups.py --force
+          else
+            python scrape_lineups.py
+          fi
+
+      - name: Upload debug HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rotowire-debug-html
+          path: rotowire_debug.html
+          retention-days: 2
