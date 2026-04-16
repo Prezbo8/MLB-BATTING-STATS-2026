@@ -159,7 +159,7 @@ def parse_lineup_card(card):
         if ph:
             name_el = ph.select_one(".lineup__player-highlight-name")
             raw_name = name_el.get_text(strip=True) if name_el else ""
-            pitcher_name = normalize_name(re.sub(r'\s+[LRS]$', '', raw_name).strip())
+            pitcher_name = normalize_name(re.sub(r'\s*[LRS]$', '', raw_name).strip())
             hand_el = ph.select_one(".lineup__throws")
             if hand_el:
                 h = hand_el.get_text(strip=True).upper()
