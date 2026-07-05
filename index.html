@@ -862,43 +862,43 @@
                 <span id="scrape-date-val">—</span>
             </div>
             <div class="nav-scroll-wrap at-start" id="nav-scroll-wrap">
-            <nav id="main-nav">
+            <nav id="main-nav" role="tablist" aria-label="Dashboard sections">
                 <!-- BATTING GROUP -->
                 <div class="nav-group">
-                    <span class="nav-group-label">⚾ Batting</span>
+                    <span class="nav-group-label" aria-hidden="true">⚾ Batting</span>
                     <div class="nav-group-tabs">
-                        <button class="tab-btn active" id="tab-0" onclick="switchTab(0)">📊 Rankings</button>
-                        <button class="tab-btn" id="tab-1" onclick="switchTab(1)">⚔️ Compare</button>
-                        <button class="tab-btn" id="tab-2" onclick="switchTab(2)">🧑 Players</button>
+                        <button class="tab-btn active" id="tab-0" onclick="switchTab(0)" role="tab" aria-selected="true" aria-controls="panel-0" aria-label="Batting rankings" tabindex="0">📊 Rankings</button>
+                        <button class="tab-btn" id="tab-1" onclick="switchTab(1)" role="tab" aria-selected="false" aria-controls="panel-1" aria-label="Batting team compare" tabindex="-1">⚔️ Compare</button>
+                        <button class="tab-btn" id="tab-2" onclick="switchTab(2)" role="tab" aria-selected="false" aria-controls="panel-2" aria-label="Batting player rankings" tabindex="-1">🧑 Players</button>
                     </div>
                 </div>
-                <div class="nav-sep"></div>
+                <div class="nav-sep" aria-hidden="true"></div>
                 <!-- LINEUP GROUP -->
                 <div class="nav-group">
-                    <span class="nav-group-label">📋 Lineup</span>
+                    <span class="nav-group-label" aria-hidden="true">📋 Lineup</span>
                     <div class="nav-group-tabs">
-                        <button class="tab-btn" id="tab-3" onclick="switchTab(3)">Preview</button>
-                        <button class="tab-btn" id="tab-4" onclick="switchTab(4)">Stats</button>
+                        <button class="tab-btn" id="tab-3" onclick="switchTab(3)" role="tab" aria-selected="false" aria-controls="panel-3" aria-label="Lineup preview" tabindex="-1">Preview</button>
+                        <button class="tab-btn" id="tab-4" onclick="switchTab(4)" role="tab" aria-selected="false" aria-controls="panel-4" aria-label="Lineup stats" tabindex="-1">Stats</button>
                     </div>
                 </div>
-                <div class="nav-sep"></div>
+                <div class="nav-sep" aria-hidden="true"></div>
                 <!-- HOT/COLD GROUP -->
                 <div class="nav-group">
-                    <span class="nav-group-label">🔥❄️ Hot/Cold</span>
+                    <span class="nav-group-label" aria-hidden="true">🔥❄️ Hot/Cold</span>
                     <div class="nav-group-tabs">
-                        <button class="tab-btn" id="tab-5" onclick="switchTab(5)">Teams</button>
-                        <button class="tab-btn" id="tab-6" onclick="switchTab(6)">Players</button>
-                        <button class="tab-btn" id="tab-7" onclick="switchTab(7)">🏃 R/G</button>
-                        <button class="tab-btn" id="tab-8" onclick="switchTab(8)">📰 Report</button>
+                        <button class="tab-btn" id="tab-5" onclick="switchTab(5)" role="tab" aria-selected="false" aria-controls="panel-5" aria-label="Hot and cold teams" tabindex="-1">Teams</button>
+                        <button class="tab-btn" id="tab-6" onclick="switchTab(6)" role="tab" aria-selected="false" aria-controls="panel-6" aria-label="Hot and cold players" tabindex="-1">Players</button>
+                        <button class="tab-btn" id="tab-7" onclick="switchTab(7)" role="tab" aria-selected="false" aria-controls="panel-7" aria-label="Runs per game" tabindex="-1">🏃 R/G</button>
+                        <button class="tab-btn" id="tab-8" onclick="switchTab(8)" role="tab" aria-selected="false" aria-controls="panel-8" aria-label="Daily report" tabindex="-1">📰 Report</button>
                     </div>
                 </div>
-                <div class="nav-sep"></div>
+                <div class="nav-sep" aria-hidden="true"></div>
                 <!-- PITCHING GROUP -->
                 <div class="nav-group nav-group-pitching">
-                    <span class="nav-group-label">⚡ Pitching</span>
+                    <span class="nav-group-label" aria-hidden="true">⚡ Pitching</span>
                     <div class="nav-group-tabs">
-                        <button class="tab-btn" id="tab-10" onclick="switchTab(10)">🏆 Rankings</button>
-                        <button class="tab-btn" id="tab-11" onclick="switchTab(11)">⚔️ Compare</button>
+                        <button class="tab-btn" id="tab-10" onclick="switchTab(10)" role="tab" aria-selected="false" aria-controls="panel-10" aria-label="Pitching rankings" tabindex="-1">🏆 Rankings</button>
+                        <button class="tab-btn" id="tab-11" onclick="switchTab(11)" role="tab" aria-selected="false" aria-controls="panel-11" aria-label="Pitching compare" tabindex="-1">⚔️ Compare</button>
                     </div>
                 </div>
             </nav>
@@ -917,7 +917,7 @@
     </div>
 
     <!-- PANEL 0: RANKINGS -->
-    <div id="panel-0" class="tab-panel">
+    <div id="panel-0" class="tab-panel" role="tabpanel" aria-labelledby="tab-0">
         <div class="section-header">
             <div class="section-title">Team Rankings</div>
             <div class="filters-row">
@@ -978,7 +978,7 @@
     </div>
 
     <!-- PANEL 1: COMPARER -->
-    <div id="panel-1" class="tab-panel hidden">
+    <div id="panel-1" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-1">
         <div class="section-header" style="margin-bottom:1rem;">
             <div class="section-title">Team Comparer</div>
         </div>
@@ -1004,7 +1004,7 @@
         </div>
     </div>
     <!-- PANEL 2: PLAYERS -->
-    <div id="panel-2" class="tab-panel hidden">
+    <div id="panel-2" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-2">
         <div class="section-header">
             <div class="section-title">Player Rankings</div>
             <div class="filters-row">
@@ -1077,7 +1077,7 @@
     </div>
 
     <!-- PANEL 3: LINEUP PREVIEW -->
-    <div id="panel-3" class="tab-panel hidden">
+    <div id="panel-3" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-3">
         <div class="section-header">
             <div class="section-title">Lineup Preview</div>
             <div class="lineup-controls">
@@ -1092,7 +1092,7 @@
     </div>
 
     <!-- PANEL 4: LINEUP STATS -->
-    <div id="panel-4" class="tab-panel hidden">
+    <div id="panel-4" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-4">
         <div class="section-header">
             <div class="section-title">Lineup Stats</div>
             <div class="lineup-controls">
@@ -1116,7 +1116,7 @@
     </div>
 
     <!-- PANEL 5: HOT/COLD TEAMS -->
-    <div id="panel-5" class="tab-panel hidden">
+    <div id="panel-5" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-5">
         <div class="section-header">
             <div class="section-title">🔥❄️ Hot vs Cold — Teams</div>
             <div class="hc-filters">
@@ -1161,7 +1161,7 @@
     </div>
 
     <!-- PANEL 6: HOT/COLD PLAYERS -->
-    <div id="panel-6" class="tab-panel hidden">
+    <div id="panel-6" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-6">
         <div class="section-header">
             <div class="section-title">🔥❄️ Hot vs Cold — Players</div>
             <div class="hc-filters">
@@ -1214,7 +1214,7 @@
         </div>
     </div>
     <!-- PANEL 7: RUNS PER GAME -->
-    <div id="panel-7" class="tab-panel hidden">
+    <div id="panel-7" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-7">
         <div class="section-header">
             <div class="section-title">Runs Per Game</div>
             <div class="filters-row">
@@ -1248,7 +1248,7 @@
         </div>
     </div>
     <!-- PANEL 8: DAILY REPORT -->
-    <div id="panel-8" class="tab-panel hidden">
+    <div id="panel-8" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-8">
         <div class="section-header">
             <div class="section-title">Daily Report</div>
             <div class="filters-row">
@@ -1282,7 +1282,7 @@
 
 
     <!-- PANEL 10: 🏆 Pitcher Rankings -->
-    <div id="panel-10" class="tab-panel hidden">
+    <div id="panel-10" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-10">
         <div class="section-header" style="margin-bottom:0;">
             <div class="section-title">⚾ Pitcher Stats</div>
             <div class="pts-pill-toggle" role="group" aria-label="View toggle">
@@ -1459,7 +1459,7 @@
     </div>
         </div>
     <!-- PANEL 11: PITCHER COMPARE -->
-    <div id="panel-11" class="tab-panel hidden">
+    <div id="panel-11" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-11">
         <div class="section-header" style="margin-bottom:1rem;">
             <div class="section-title">⚔️ Pitcher Compare</div>
             <button class="export-png-btn" id="pc-export-btn" onclick="pcExportPNG()" title="Copy comparison as image">
@@ -1642,6 +1642,9 @@ function loadFromRows(rows) {
         });
     }
     loadRankings();
+    // Deep links can land on the Compare tab before data arrives — re-render
+    // it now that allData is populated
+    if (!document.getElementById('panel-1').classList.contains('hidden')) renderAllSplits();
     updateSummaryBar();
 }
 
@@ -1890,7 +1893,7 @@ function sortTable(key) {
     loadRankings();
 }
 
-function onFilterChange() { loadRankings(); }
+function onFilterChange() { loadRankings(); syncHash(false); }
 
 // ── ALL SPLITS CONFIG ────────────────────────────────────────────────────
 const DATE_RANGES = [
@@ -1921,6 +1924,7 @@ function handleTeamInput(side) {
         document.getElementById('all-splits-container').innerHTML =
             `<div class="compare-empty" style="padding:2.5rem;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.85rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Select both teams above to see all splits &amp; date ranges</div>`;
     }
+    syncHash(false);
 }
 
 function buildMiniCompareCard(awayTm, homeTm, splitVal, drVal, drLabel) {
@@ -2538,7 +2542,7 @@ function sortPlayerTable(key) {
     loadPlayerRankings();
 }
 
-function onPlayerFilterChange() { loadPlayerRankings(); }
+function onPlayerFilterChange() { loadPlayerRankings(); syncHash(false); }
 
 let playerDataLoaded  = false;
 let lineupLoaded2     = false;
@@ -2571,9 +2575,15 @@ function switchTab(n) {
     if (n===10) { ptEnsure().then(function(){ prkFilter(); }).catch(err => pitcherErr(err, 'prk-body', 23)); }
     if (n===11) { Promise.all([ptEnsure(), psEnsure()]).then(pcRenderCompare).catch(err => pitcherErr(err, 'pc-container')); }
     if (n===12) { psEnsure().then(psFilter).catch(err => pitcherErr(err, 'ps-body', 38)); }
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+        b.classList.remove('active');
+        b.setAttribute('aria-selected','false');
+        b.setAttribute('tabindex','-1');
+    });
     var activeBtn = document.getElementById('tab-'+n);
     activeBtn.classList.add('active');
+    activeBtn.setAttribute('aria-selected','true');
+    activeBtn.setAttribute('tabindex','0');
     activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
     document.getElementById('panel-'+n).classList.remove('hidden');
@@ -2607,7 +2617,81 @@ function switchTab(n) {
         });
     }
     if (n===8) { initDailyReport(); }
+    syncHash(true);
 }
+
+// ── TAB KEYBOARD NAVIGATION ───────────────────────────────────────────────
+// Roving tabindex per ARIA tabs pattern: arrows/Home/End move focus,
+// Enter/Space activates (native button behavior fires the onclick).
+(function() {
+    const nav = document.getElementById('main-nav');
+    if (!nav) return;
+    nav.addEventListener('keydown', function(e) {
+        if (!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+        const tabs = Array.from(nav.querySelectorAll('.tab-btn'));
+        let i = tabs.indexOf(document.activeElement);
+        if (i === -1) i = tabs.findIndex(t => t.classList.contains('active'));
+        if (e.key === 'ArrowLeft')  i = (i - 1 + tabs.length) % tabs.length;
+        if (e.key === 'ArrowRight') i = (i + 1) % tabs.length;
+        if (e.key === 'Home') i = 0;
+        if (e.key === 'End')  i = tabs.length - 1;
+        e.preventDefault();
+        tabs[i].focus();
+    });
+})();
+
+// ── URL STATE (deep-linking) ──────────────────────────────────────────────
+// Hash carries the active tab, rankings/player filters, and compare teams
+// (e.g. #tab=1&away=LAD&home=HOU). Only non-default values are written.
+const HASH_FIELDS = [
+    ['range',  'date-range',          'season'],
+    ['split',  'split-type',          'no_split'],
+    ['q',      'team-search-input',   ''],
+    ['prange', 'p-date-range',        'season'],
+    ['psplit', 'p-split-type',        'no_split'],
+    ['ppa',    'p-min-pa',            '50'],
+    ['pq',     'player-search-input', ''],
+    ['away',   'away-input',          ''],
+    ['home',   'home-input',          ''],
+];
+let _applyingHash = false;
+
+function syncHash(isTabSwitch) {
+    if (_applyingHash) return;
+    const params = new URLSearchParams();
+    const active = document.querySelector('.tab-btn.active');
+    const tab = active ? active.id.replace('tab-','') : '0';
+    if (tab !== '0') params.set('tab', tab);
+    for (const [key, id, def] of HASH_FIELDS) {
+        const el = document.getElementById(id);
+        if (el && el.value.trim() !== def) params.set(key, el.value.trim());
+    }
+    const qs  = params.toString();
+    const url = qs ? '#' + qs : location.pathname + location.search;
+    // Tab switches push a history entry (back returns to the previous tab);
+    // filter tweaks replace it so typing doesn't flood history.
+    if (isTabSwitch) history.pushState(null, '', url);
+    else             history.replaceState(null, '', url);
+}
+
+function applyHash() {
+    const params = new URLSearchParams(location.hash.slice(1));
+    _applyingHash = true;
+    try {
+        for (const [key, id, def] of HASH_FIELDS) {
+            const el = document.getElementById(id);
+            if (el) el.value = params.get(key) ?? def;
+        }
+        if (params.get('away')) handleTeamInput('away');
+        if (params.get('home')) handleTeamInput('home');
+        const tab = parseInt(params.get('tab') || '0', 10);
+        switchTab(document.getElementById('tab-'+tab) ? tab : 0);
+    } finally {
+        _applyingHash = false;
+    }
+}
+
+window.addEventListener('popstate', applyHash);
 
 // ── HOT / COLD ────────────────────────────────────────────────────────────────
 const HC_STAT_FMT = {
@@ -3476,6 +3560,7 @@ function reportExportPDF(btn) {
 window.onload = function() {
     const dl = document.getElementById('team-list');
     allTeams.forEach(tm => { const o=document.createElement('option'); o.value=tm; dl.appendChild(o); });
+    if (location.hash) applyHash();
     fetchFromSupabase();
     ensureRpgData().then(() => updateSummaryBar()).catch(() => {});
 };
