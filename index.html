@@ -801,6 +801,21 @@
         .table-card thead th:nth-child(1),
         .table-card thead th:nth-child(2),
         .table-card thead th:nth-child(3) { background: var(--surface3); z-index: 21; }
+        /* ── LEAGUE AVERAGE PINNED ROW ───────────────────────────── */
+        /* Sticks just below the header; --thead-h is set by the render JS */
+        tr.lg-avg td {
+            position: sticky; top: var(--thead-h, 36px); z-index: 5;
+            background: var(--surface3);
+            border-bottom: 1px solid var(--border2);
+        }
+        .table-card tbody tr.lg-avg td:nth-child(-n+3) { background: var(--surface3); z-index: 6; }
+        .table-card tbody tr.lg-avg:hover td { background: var(--surface3); }
+        tr.lg-avg td.num, tr.lg-avg td.wrc-cell { color: var(--text2); }
+        .lg-avg-label { font-family: var(--display); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text2); white-space: nowrap; }
+
+        /* ── TEAM COLOR HOVER ACCENT ─────────────────────────────── */
+        .table-card tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--team-color, transparent); }
+
         /* ── EXPORT PNG BUTTON ───────────────────────────────────── */
         .export-png-btn {
             display: inline-flex; align-items: center; gap: 6px;
@@ -1846,10 +1861,30 @@ function tierColor(tier) {
 
 const SORT_KEYS = { wrcPlus:'wrcPlus',woba:'woba',ops:'ops',avg:'avg',obp:'obp',slg:'slg',iso:'iso',babip:'babip',kPct:'kPct',bbPct:'bbPct',pa:'pa' };
 
+// PA-weighted league averages across a set of rows (rate stats weighted by
+// plate appearances; pa itself is the plain mean)
+function paWeightedAvg(rows) {
+    const keys = ['wrcPlus','woba','ops','avg','obp','slg','iso','babip','kPct','bbPct'];
+    const totPa = rows.reduce((s, r) => s + (r.pa || 0), 0) || 1;
+    const out = {};
+    keys.forEach(k => { out[k] = rows.reduce((s, r) => s + r[k] * (r.pa || 0), 0) / totPa; });
+    out.pa = totPa / (rows.length || 1);
+    return out;
+}
+
+// Set --thead-h on the table card so the pinned lg-avg row sticks right
+// below the header
+function setTheadOffset(tbody) {
+    const card  = tbody.closest('.table-card');
+    const thead = tbody.closest('table').querySelector('thead');
+    if (card && thead && thead.offsetHeight) card.style.setProperty('--thead-h', thead.offsetHeight + 'px');
+}
+
 function loadRankings() {
     const dr = document.getElementById('date-range').value;
     const st = document.getElementById('split-type').value;
     let data = getFilteredData(st, dr);
+    const fullData = data; // pre-search snapshot — lg avg stays league-wide
     const badge = document.getElementById('date-range-badge');
     if (data.length > 0) { badge.textContent = `${data[0].startDate} → ${data[0].endDate}`; badge.style.display='block'; }
     else { badge.style.display='none'; }
@@ -1885,12 +1920,29 @@ function loadRankings() {
     }
 
     const tc = (key, val) => { const m = statMeta.find(s=>s.key===key); return m ? 't-'+getTier(m,val) : ''; };
-    tbody.innerHTML = sorted.map((row,i) => {
+    const lg = paWeightedAvg(fullData);
+    const lgAvgHtml = `<tr class="lg-avg">
+        <td class="rank-cell">—</td>
+        <td><span class="lg-avg-label">LG AVG</span></td>
+        <td class="wrc-cell">${Math.round(lg.wrcPlus)}</td>
+        <td class="num">${lg.woba.toFixed(3)}</td>
+        <td class="num">${lg.ops.toFixed(3)}</td>
+        <td class="num">${lg.avg.toFixed(3)}</td>
+        <td class="num">${lg.obp.toFixed(3)}</td>
+        <td class="num">${lg.slg.toFixed(3)}</td>
+        <td class="num">${lg.iso.toFixed(3)}</td>
+        <td class="num">${lg.babip.toFixed(3)}</td>
+        <td class="num">${lg.kPct.toFixed(1)}%</td>
+        <td class="num">${lg.bbPct.toFixed(1)}%</td>
+        <td class="num">${Math.round(lg.pa)}</td>
+    </tr>`;
+    tbody.innerHTML = lgAvgHtml + sorted.map((row,i) => {
         const rank = i+1;
         const rankHtml = rank<=3 ? `<span class="rank-badge rank-${rank}">${rank}</span>` : `<span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);">${rank}</span>`;
         const szn = seasonMap[row.tm];
         const arr = (key, hb) => szn ? trendArrow(key, row[key], szn[key], hb) : '';
-        return `<tr class="animated" style="animation-delay:${Math.min(i*16,280)}ms">
+        const tmColor = (teamColorsPdf[row.tm]||{}).primary || 'transparent';
+        return `<tr class="animated" style="animation-delay:${Math.min(i*16,280)}ms;--team-color:${tmColor}">
             <td class="rank-cell">${rankHtml}</td>
             <td><div class="team-cell"><img src="${teamLogos[row.tm]||''}" class="team-logo" alt="${row.tm}" onerror="this.style.opacity='.1'"><span class="team-abbr">${teamAbbrHtml(row.tm,'md')}</span></div></td>
             <td class="wrc-cell ${tc('wrcPlus',row.wrcPlus)}">${row.wrcPlus}${arr('wrcPlus',true)}</td>
@@ -1906,6 +1958,7 @@ function loadRankings() {
             <td class="num">${row.pa}</td>
         </tr>`;
     }).join('');
+    setTheadOffset(tbody);
     updateSummaryBar();
 }
 
@@ -2504,6 +2557,7 @@ function loadPlayerRankings() {
     const tbody   = document.getElementById('player-rankings-body');
 
     let data = playerData[`${st}-${dr}`] || [];
+    const fullData = data; // pre-filter snapshot — lg avg stays league-wide
 
     if (data.length > 0) {
         badge.textContent = `${data[0].startDate} → ${data[0].endDate}`;
@@ -2526,12 +2580,30 @@ function loadPlayerRankings() {
     }
 
     const tc = (key, val) => { const m = statMeta.find(s => s.key === key); return m ? 't-' + getTier(m, val) : ''; };
-    tbody.innerHTML = sorted.map((row, i) => {
+    const lg = paWeightedAvg(fullData);
+    const lgAvgHtml = `<tr class="lg-avg">
+        <td class="rank-cell">—</td>
+        <td><span class="lg-avg-label">LG AVG</span></td>
+        <td></td>
+        <td class="wrc-cell">${Math.round(lg.wrcPlus)}</td>
+        <td class="num">${lg.woba.toFixed(3)}</td>
+        <td class="num">${lg.ops.toFixed(3)}</td>
+        <td class="num">${lg.avg.toFixed(3)}</td>
+        <td class="num">${lg.obp.toFixed(3)}</td>
+        <td class="num">${lg.slg.toFixed(3)}</td>
+        <td class="num">${lg.iso.toFixed(3)}</td>
+        <td class="num">${lg.babip.toFixed(3)}</td>
+        <td class="num">${lg.kPct.toFixed(1)}%</td>
+        <td class="num">${lg.bbPct.toFixed(1)}%</td>
+        <td class="num">—</td>
+    </tr>`;
+    tbody.innerHTML = lgAvgHtml + sorted.map((row, i) => {
         const rank = i + 1;
         const rankHtml = rank <= 3
             ? `<span class="rank-badge rank-${rank}">${rank}</span>`
             : `<span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);">${rank}</span>`;
-        return `<tr class="animated" style="animation-delay:${Math.min(i * 12, 280)}ms">
+        const tmColor = (teamColorsPdf[row.tm]||{}).primary || 'transparent';
+        return `<tr class="animated" style="animation-delay:${Math.min(i * 12, 280)}ms;--team-color:${tmColor}">
             <td class="rank-cell">${rankHtml}</td>
             <td><div class="team-cell"><span style="font-family:var(--body);font-size:0.85rem;color:var(--text);">${row.name}</span></div></td>
             <td><div class="team-cell"><img src="${teamLogos[row.tm] || ''}" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" onerror="this.style.opacity='.1'" alt="${row.tm}"><span class="team-abbr" style="font-size:0.75rem;">${teamAbbrHtml(row.tm,'sm')}</span></div></td>
@@ -2548,6 +2620,7 @@ function loadPlayerRankings() {
             <td class="num">${row.pa}</td>
         </tr>`;
     }).join('');
+    setTheadOffset(tbody);
 }
 
 function sortPlayerTable(key) {
