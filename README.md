@@ -7,7 +7,8 @@ The site reads from Supabase; the CSVs in `data/` are the pipeline's archived ou
 
 ```
 index.html, mobile.html, ipad.html   the dashboard (GitHub Pages serves from root)
-favicon*, manifest.json, *.png       site assets
+assets/                              favicons and app icons
+manifest.json, site.webmanifest      PWA manifests
 scripts/                             all scrapers, mergers, scorers (run by Actions)
 data/                                pipeline outputs and static inputs
   _ALL_SPLITS_COMBINED.csv           team batting splits (daily)
