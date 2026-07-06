@@ -2,8 +2,8 @@ name: Scrape FanGraphs Player Splits
 
 on:
   schedule:
-    # Daily at 14:00 UTC (10 AM ET) — after the team scraper at 13:00 UTC
-    - cron: '0 14 * * *'
+    # Daily at 11:00 UTC (7 AM EDT) — player splits run in the 7-9 AM ET window
+    - cron: '0 11 * * *'
   workflow_dispatch:
 
 permissions:

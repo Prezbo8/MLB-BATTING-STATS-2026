@@ -8,8 +8,8 @@ name: MLB Pitcher Pipeline
 
 on:
   schedule:
-    # Daily at 10:00 UTC (6 AM ET)
-    - cron: '0 10 * * *'
+    # Daily at 05:00 UTC (1 AM EDT) — pitcher chains run in the 1-3 AM ET window
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 permissions:
