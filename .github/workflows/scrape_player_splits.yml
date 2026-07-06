@@ -1,0 +1,37 @@
+name: Scrape FanGraphs Player Splits
+
+on:
+  schedule:
+    # Daily at 14:00 UTC (10 AM ET) — after the team scraper at 13:00 UTC
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # lets the built-in GITHUB_TOKEN update _ALL_PLAYER_SPLITS_COMBINED.csv
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # scrape takes ~2 min; headroom for the 45-min retry budget
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Run scraper
+        env:
+          GITHUB_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scrape_player_splits.py
