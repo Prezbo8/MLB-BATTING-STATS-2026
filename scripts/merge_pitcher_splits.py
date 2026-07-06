@@ -10,8 +10,8 @@ import pandas as pd
 
 # Static 2021-2025 raw CSVs are committed in this repo dir;
 # the two splits scrapers write fresh 2026/career raws into it each run.
-INPUT_DIR   = "pitcher_splits_data"
-OUTPUT_PATH = "pitcher_splits_data/master_splits.csv"
+INPUT_DIR   = "data/pitcher_splits_data"
+OUTPUT_PATH = "data/pitcher_splits_data/master_splits.csv"
 
 PERIODS = ["2021","2022","2023","2024","2025","2026","career"]
 

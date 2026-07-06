@@ -1,9 +1,9 @@
 """
-Pitcher Splits — Career Scraper 2017-2026 (API version)
+Pitcher Splits — 2026 Season Scraper (API version)
 Fully self-contained. Fetches 4 splits x 3 statgroups from the FanGraphs
 splits JSON API (no browser), merges on playerId, saves CSV.
 
-Output matches the old Selenium scraper's splits_career_raw.csv format:
+Output matches the old Selenium scraper's splits_2026_raw.csv format:
 percent stats on the 0-100 scale, grid-style rounding.
 
 All-or-nothing: if any table still fails after retries, exits 1 and
@@ -19,13 +19,13 @@ import requests
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-OUTPUT_DIR   = "pitcher_splits_data"
-OUTPUT_CSV   = os.path.join(OUTPUT_DIR, "splits_career_raw.csv")
-PERIOD       = "career"
-GROUP_BY     = "career"
-AUTO_PT      = "true"      # career: FanGraphs auto min-IP filter (server-side)
-SPLIT_PREFIX = [42]       # career qualifier split, as in the original URL
-START_DATE   = "2017-03-01"
+OUTPUT_DIR   = "data/pitcher_splits_data"
+OUTPUT_CSV   = os.path.join(OUTPUT_DIR, "splits_2026_raw.csv")
+PERIOD       = "2026"
+GROUP_BY     = "season"
+AUTO_PT      = "false"     # 2026: include ALL pitchers regardless of TBF
+SPLIT_PREFIX = []          # career adds the [42] qualifier split; 2026 doesn't
+START_DATE   = "2026-03-01"
 END_DATE     = "2026-11-01"
 
 DELAY        = 3

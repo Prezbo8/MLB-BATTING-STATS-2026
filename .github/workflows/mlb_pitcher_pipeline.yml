@@ -42,35 +42,35 @@ jobs:
 
       # ── Chain A: pitcher overalls ────────────────────────────────────
       - name: Scrape pitcher career stats (2017-2026)
-        run: python scrape_pitcher_career.py
+        run: python scripts/scrape_pitcher_career.py
 
       - name: Scrape pitcher 2026 stats
-        run: python scrape_pitcher_2026.py
+        run: python scripts/scrape_pitcher_2026.py
 
       - name: Merge pitcher overall data
         run: |
-          cp pitcher/historical/*.csv pitcher_data/
-          python merge_pitcher_overall.py
+          cp data/pitcher/historical/*.csv pitcher_data/
+          python scripts/merge_pitcher_overall.py
 
       - name: Score pitcher overall data
-        run: python score_pitcher_overall.py
+        run: python scripts/score_pitcher_overall.py
 
       # ── Chain B: pitcher splits (runs even if Chain A failed) ───────
       - name: Scrape pitcher splits 2026
         id: splits2026
         if: success() || failure()
-        run: python scrape_pitcher_splits_2026.py
+        run: python scripts/scrape_pitcher_splits_2026.py
 
       - name: Scrape pitcher splits career
         id: splitscareer
         if: steps.splits2026.conclusion == 'success'
-        run: python scrape_pitcher_splits_career.py
+        run: python scripts/scrape_pitcher_splits_career.py
 
       - name: Merge pitcher splits
         id: splitsmerge
         if: steps.splitscareer.conclusion == 'success'
-        run: python merge_pitcher_splits.py
+        run: python scripts/merge_pitcher_splits.py
 
       - name: Score pitcher splits
         if: steps.splitsmerge.conclusion == 'success'
-        run: python score_pitcher_splits.py
+        run: python scripts/score_pitcher_splits.py

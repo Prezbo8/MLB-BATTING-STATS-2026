@@ -43,9 +43,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python scrape_lineups.py --force
+            python scripts/scrape_lineups.py --force
           else
-            python scrape_lineups.py
+            python scripts/scrape_lineups.py
           fi
 
       - name: Upload debug HTML

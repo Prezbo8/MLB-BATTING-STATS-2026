@@ -1,7 +1,8 @@
 """
-FanGraphs Team Splits Leaderboard Scraper (API version)
-========================================================
-Fetches 20 tables from the FanGraphs splits JSON API (no browser needed),
+FanGraphs Player Splits Leaderboard Scraper (API version)
+==========================================================
+Fetches 20 tables of PLAYER batting stats (5 splits x 4 date ranges, PA > 1)
+from the FanGraphs splits JSON API (no browser needed),
 saves to CSV, pushes to GitHub, upserts to Supabase.
 
 Secrets come from environment variables (set as GitHub Actions secrets):
@@ -10,7 +11,7 @@ Steps whose env vars are missing are skipped (handy for local dry runs).
 
 Usage:
     pip install pandas requests
-    python scrape_team_splits.py
+    python scrape_player_splits.py
 """
 
 import os
@@ -32,14 +33,14 @@ SUPABASE_KEY     = os.environ.get("SUPABASE_KEY", "")
 GITHUB_USERNAME = "Prezbo8"
 GITHUB_REPO     = "MLB-BATTING-STATS-2026"
 GITHUB_BRANCH   = "main"
-GITHUB_CSV_PATH = "_ALL_SPLITS_COMBINED.csv"   # path inside the repo
+GITHUB_CSV_PATH = "data/_ALL_PLAYER_SPLITS_COMBINED.csv"   # path inside the repo
 
 # ── Supabase ──────────────────────────────────────────────────────────────────
-SUPABASE_TABLE = "fangraphs_splits"
+SUPABASE_TABLE = "fangraphs_player_splits"
 
 # ── Settings ──────────────────────────────────────────────────────────────────
-OUTPUT_DIR          = "fangraphs_splits"
-COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_SPLITS_COMBINED.csv")
+OUTPUT_DIR          = "fangraphs_player_splits"
+COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_PLAYER_SPLITS_COMBINED.csv")
 DELAY_BETWEEN_CALLS = 3
 RETRY_BACKOFFS      = [15, 30, 60, 120, 300, 600]  # last value repeats
 RETRY_BUDGET_SECONDS = 45 * 60   # give up (and push nothing) after this long
@@ -55,7 +56,7 @@ HEADERS = {
 }
 
 # Output columns, in the same order the old Selenium scraper produced them
-STAT_COLS = ["#", "Season", "Tm", "PA", "BB%", "K%", "BB/K", "AVG", "OBP",
+STAT_COLS = ["#", "Season", "Name", "Tm", "PA", "BB%", "K%", "BB/K", "AVG", "OBP",
              "SLG", "OPS", "ISO", "BABIP", "wRC", "wRAA", "wOBA", "wRC+"]
 
 # ── Splits & date ranges ──────────────────────────────────────────────────────
@@ -103,8 +104,8 @@ def fetch_split(split_arr, start_date, end_date):
         "strStartDate": start_date,
         "strEndDate": end_date,
         "strSplitTeams": False,
-        "dctFilters": [{"stat": "PA", "comp": "gt", "low": 0, "high": -99, "auto": False}],
-        "strStatType": "team",
+        "dctFilters": [{"stat": "PA", "comp": "gt", "low": 1, "high": -99, "auto": False}],
+        "strStatType": "player",
         "strAutoPt": "false",
         "arrPlayerId": [],
         "arrWxTemperature": None,
@@ -124,6 +125,7 @@ def build_table(rows):
     out = pd.DataFrame()
     out["#"]      = range(1, len(df) + 1)
     out["Season"] = df["Season"].astype(float)
+    out["Name"]   = df["playerName"]
     out["Tm"]     = df["TeamNameAbb"]
     out["PA"]     = df["PA"].astype(float)
     out["BB%"]    = (df["BB%"] * 100).map(lambda v: f"{v:.1f}%")
@@ -195,14 +197,15 @@ def upsert_to_supabase(csv_path):
 
     df.columns = [c.strip() for c in df.columns]
     df = df.rename(columns={
-        "Season": "season", "Tm": "tm", "PA": "pa",
+        "Season": "season", "Name": "name", "Tm": "tm", "PA": "pa",
         "BB%": "bb_pct", "K%": "k_pct", "BB/K": "bb_per_k",
         "AVG": "avg", "OBP": "obp", "SLG": "slg", "OPS": "ops",
         "ISO": "iso", "BABIP": "babip", "wRC": "wrc",
         "wRAA": "wraa", "wOBA": "woba", "wRC+": "wrcplus",
     })
     valid_cols = [
-        "split", "date_range", "start_date", "end_date", "season", "tm", "pa",
+        "split", "date_range", "start_date", "end_date",
+        "season", "name", "tm", "pa",
         "bb_pct", "k_pct", "bb_per_k", "avg", "obp", "slg", "ops", "iso",
         "babip", "wrc", "wraa", "woba", "wrcplus", "updated_at"
     ]
@@ -272,12 +275,12 @@ def main():
     ]
     total = len(all_tables)
 
-    print(f"\n🚀 FanGraphs Splits Scraper (API) — {today_str}")
+    print(f"\n🚀 FanGraphs Player Splits Scraper (API) — {today_str}")
     print(f"   {total} tables | Season start: {SEASON_START}")
     print(f"   Output -> ./{OUTPUT_DIR}/\n")
 
     send_telegram(
-        f"⚾ <b>FanGraphs Scraper Started</b>\n"
+        f"⚾ <b>FanGraphs Player Scraper Started</b>\n"
         f"📅 {today_str}\n"
         f"📊 Scraping {total} tables..."
     )
@@ -315,7 +318,7 @@ def main():
                     df.insert(3, "end_date",   ed)
                     path = os.path.join(OUTPUT_DIR, f"{name}.csv")
                     df.to_csv(path, index=False)
-                    print(f"       ✅ {len(df)} teams -> {path}")
+                    print(f"       ✅ {len(df)} players -> {path}")
                     saved_paths.append(path)
                 else:
                     print(f"       ❌ Failed — will retry")
@@ -331,7 +334,7 @@ def main():
         err = traceback.format_exc()
         print(f"\n💥 Crash:\n{err}")
         send_telegram(
-            f"💥 <b>FanGraphs Scraper CRASHED</b>\n"
+            f"💥 <b>FanGraphs Player Scraper CRASHED</b>\n"
             f"📅 {today_str}\n"
             f"❌ {str(e)[:200]}"
         )
@@ -343,7 +346,7 @@ def main():
         print(f"\n❌ Only {ok}/{total} tables succeeded after {elapsed} min of retries.")
         print("   Nothing pushed — existing GitHub/Supabase data left untouched.")
         send_telegram(
-            f"❌ <b>FanGraphs Scraper GAVE UP</b>\n"
+            f"❌ <b>FanGraphs Player Scraper GAVE UP</b>\n"
             f"📅 {today_str}\n"
             f"📊 Only {ok}/{total} tables after {elapsed} min of retries\n"
             f"🚫 Nothing pushed — old data left in place\n"
@@ -383,7 +386,7 @@ def main():
     print(supabase_msg)
 
     send_telegram(
-        f"{status} <b>FanGraphs Scraper Done</b>\n"
+        f"{status} <b>FanGraphs Player Scraper Done</b>\n"
         f"📅 {today_str}\n"
         f"📊 {ok}/{total} tables saved\n"
         f"📁 {combined_rows} total rows\n"

@@ -19,8 +19,8 @@ from datetime import date
 # ─────────────────────────────────────────
 # PATHS
 # ─────────────────────────────────────────
-MASTER_CSV  = "pitcher_splits_data/master_splits.csv"
-SCORED_CSV  = "pitcher_splits_data/scored_splits.csv"
+MASTER_CSV  = "data/pitcher_splits_data/master_splits.csv"
+SCORED_CSV  = "data/pitcher_splits_data/scored_splits.csv"
 
 # ─────────────────────────────────────────
 # SUPABASE (from environment)

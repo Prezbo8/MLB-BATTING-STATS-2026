@@ -1,8 +1,8 @@
 fangraphs_splits/
 pitcher_data/
 fangraphs_player_splits/
-pitcher_splits_data/splits_2026_raw.csv
-pitcher_splits_data/splits_career_raw.csv
-pitcher_splits_data/master_splits.csv
-pitcher_splits_data/scored_splits.csv
+data/pitcher_splits_data/splits_2026_raw.csv
+data/pitcher_splits_data/splits_career_raw.csv
+data/pitcher_splits_data/master_splits.csv
+data/pitcher_splits_data/scored_splits.csv
 rpg_data/
