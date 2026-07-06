@@ -640,7 +640,10 @@ def main():
 
     send_telegram("\n".join(lines))
 
-    if (GITHUB_TOKEN and github_ok < total_jobs) or (SUPABASE_KEY and supabase_ok < total_jobs):
+    # Supabase failures are non-fatal here: the per-stat-type tables have never
+    # existed in the project (the dashboard uses pitcher_scores/pitcher_split_scores
+    # and the repo CSVs). Only a failed GitHub CSV push fails the run.
+    if GITHUB_TOKEN and github_ok < total_jobs:
         raise SystemExit(1)
 
 
