@@ -1879,7 +1879,7 @@ function paWeightedAvg(rows) {
 const TEAM_CELL_SECONDARY = new Set(['WSN','MIN','SFG','TEX','CLE','NYM','CIN']);
 // Hand-picked band colors that beat both primary and secondary
 const TEAM_CELL_OVERRIDES = {
-    LAD: '#89CFF0',  // baby blue
+    LAD: '#FFFFFF',  // white
     CHC: '#0E3386',  // navy
     STL: '#FFFFFF',  // white
     ATL: '#13274F',  // navy
@@ -1887,7 +1887,15 @@ const TEAM_CELL_OVERRIDES = {
     PIT: '#000000',  // black
 };
 // Hand-picked abbr text colors (otherwise black/white by luminance)
-const TEAM_CELL_TEXT = { PIT: '#FDB827' };
+const TEAM_CELL_TEXT = {
+    PIT: '#FDB827',  // gold
+    LAD: '#005A9C',  // Dodger blue
+    ATH: '#003831',  // green
+    NYY: '#003087',  // navy
+    STL: '#C41E3A',  // red
+    KCR: '#004687',  // royal blue
+    SDP: '#2F241D',  // brown
+};
 function teamCellColor(tm) {
     if (TEAM_CELL_OVERRIDES[tm]) return TEAM_CELL_OVERRIDES[tm];
     const c = teamColorsPdf[tm] || {};
