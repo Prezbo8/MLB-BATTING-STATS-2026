@@ -270,7 +270,7 @@
         /* TABLE */
         .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; max-height: 76vh; }
         .table-scroll { /* no-op — table-card handles scroll */ }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
         thead tr { background: var(--surface2); border-bottom: 1px solid var(--border); }
         th { font-family: var(--display); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 11px 14px; white-space: nowrap; position: relative; }
         th .th-inner { display: flex; align-items: center; gap: 4px; }
@@ -779,12 +779,13 @@
             background: var(--surface);
             box-shadow: 3px 0 8px rgba(0,0,0,0.45);
         }
-        .table-card tr:hover td:nth-child(1),
-        .table-card tr:hover td:nth-child(2),
-        .table-card tr:hover td:nth-child(3) { background: rgba(255,255,255,0.04); }
+        .table-card tbody tr:hover td:nth-child(1),
+        .table-card tbody tr:hover td:nth-child(2),
+        .table-card tbody tr:hover td:nth-child(3) { background: var(--surface2); }
+        /* Corner cells (sticky top AND left) must sit above plain headers (z 20) */
         .table-card thead th:nth-child(1),
         .table-card thead th:nth-child(2),
-        .table-card thead th:nth-child(3) { background: var(--surface3); z-index: 3; }
+        .table-card thead th:nth-child(3) { background: var(--surface3); z-index: 21; }
         /* ── EXPORT PNG BUTTON ───────────────────────────────────── */
         .export-png-btn {
             display: inline-flex; align-items: center; gap: 6px;
