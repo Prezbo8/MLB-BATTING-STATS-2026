@@ -2,8 +2,9 @@ name: Scrape FanGraphs Team Splits
 
 on:
   schedule:
-    # Daily at 10:00 UTC (6 AM ET) — after all games are final
-    - cron: '0 10 * * *'
+    # Daily at 9 AM Eastern. GitHub cron is UTC: 13:00 UTC = 9 AM EDT (Mar–Nov).
+    # During EST (Nov–Mar) this fires at 8 AM Eastern.
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 permissions:
