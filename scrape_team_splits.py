@@ -41,8 +41,8 @@ SUPABASE_TABLE = "fangraphs_splits"
 OUTPUT_DIR          = "fangraphs_splits"
 COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_SPLITS_COMBINED.csv")
 DELAY_BETWEEN_CALLS = 3
-RETRY_DELAY         = 15
-MAX_RETRY_ROUNDS    = 3
+RETRY_BACKOFFS      = [15, 30, 60, 120, 300, 600]  # last value repeats
+RETRY_BUDGET_SECONDS = 45 * 60   # give up (and push nothing) after this long
 SEASON_START        = "2026-3-18"
 
 API_URL = "https://www.fangraphs.com/api/leaders/splits/splits-leaders"
@@ -287,13 +287,17 @@ def main():
     try:
         failed = []
         pending = list(all_tables)
-        for round_no in range(MAX_RETRY_ROUNDS + 1):
-            if not pending:
-                break
+        round_no = 0
+        while pending:
             if round_no > 0:
-                print(f"\n── Retry round {round_no}/{MAX_RETRY_ROUNDS}: {len(pending)} table(s) ──")
-                print(f"   Waiting {RETRY_DELAY}s...")
-                time.sleep(RETRY_DELAY)
+                delay = RETRY_BACKOFFS[min(round_no - 1, len(RETRY_BACKOFFS) - 1)]
+                if time.time() - start_time + delay > RETRY_BUDGET_SECONDS:
+                    print(f"\n⏰ Retry budget ({RETRY_BUDGET_SECONDS // 60} min) exhausted "
+                          f"with {len(pending)} table(s) still failing.")
+                    break
+                print(f"\n── Retry round {round_no}: {len(pending)} table(s) ──")
+                print(f"   Waiting {delay}s...")
+                time.sleep(delay)
             failed = []
             for n, table in enumerate(pending, 1):
                 sl, sa, rl, sd, ed = table
@@ -318,6 +322,7 @@ def main():
                     failed.append(table)
                 time.sleep(DELAY_BETWEEN_CALLS)
             pending = failed
+            round_no += 1
 
         ok = total - len(failed)
         failed_names = [f"{t[0]}__{t[2]}" for t in failed]
@@ -331,6 +336,20 @@ def main():
             f"❌ {str(e)[:200]}"
         )
         raise
+
+    # ── All-or-nothing: never push partial data ───────────────────────────────
+    if failed:
+        elapsed = round((time.time() - start_time) / 60, 1)
+        print(f"\n❌ Only {ok}/{total} tables succeeded after {elapsed} min of retries.")
+        print("   Nothing pushed — existing GitHub/Supabase data left untouched.")
+        send_telegram(
+            f"❌ <b>FanGraphs Scraper GAVE UP</b>\n"
+            f"📅 {today_str}\n"
+            f"📊 Only {ok}/{total} tables after {elapsed} min of retries\n"
+            f"🚫 Nothing pushed — old data left in place\n"
+            f"❌ Failed: {', '.join(failed_names)}"
+        )
+        raise SystemExit(1)
 
     # ── Build combined CSV ────────────────────────────────────────────────────
     combined_rows = 0

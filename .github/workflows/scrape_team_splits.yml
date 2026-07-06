@@ -12,7 +12,7 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60   # scrape takes ~1 min; headroom for the 45-min retry budget
 
     steps:
       - name: Checkout repo
