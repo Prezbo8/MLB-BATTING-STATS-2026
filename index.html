@@ -72,7 +72,8 @@
         }
         .header-inner { max-width: 1440px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 1rem; }
         .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-        .brand-icon { width: 42px; height: 42px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 0 24px rgba(230,57,70,0.45); flex-shrink: 0; }
+        .brand-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .brand-icon svg { width: 100%; height: 100%; }
         .brand-name { font-family: var(--display); font-size: 1.9rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
         .brand-sub  { font-family: var(--display); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
         .header-right { display: flex; align-items: center; gap: 10px; }
@@ -188,7 +189,9 @@
 
         /* ── SUMMARY TICKER ──────────────────────────────────────────────────── */
         #summary-bar {
-            display: none;
+            /* Height reserved from first paint so the ticker filling in
+               doesn't shove the page down (layout shift) */
+            display: block;
             overflow: hidden;
             background: var(--surface);
             border: 1px solid var(--border);
@@ -198,15 +201,21 @@
             height: 62px;
             user-select: none;
         }
-        #summary-bar.visible { display: block; }
+        /* Shimmer placeholder until the ticker is built */
+        #summary-bar:not(.visible) {
+            background: linear-gradient(100deg, var(--surface) 40%, var(--surface2) 50%, var(--surface) 60%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s linear infinite;
+        }
+        @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
         /* Left/right fade masks */
-        #summary-bar::before,
-        #summary-bar::after {
+        #summary-bar.visible::before,
+        #summary-bar.visible::after {
             content: ''; position: absolute; top: 0; bottom: 0; width: 48px; z-index: 4; pointer-events: none;
         }
-        #summary-bar::before { left:  0; background: linear-gradient(to right, var(--surface) 0%, transparent 100%); }
-        #summary-bar::after  { right: 0; background: linear-gradient(to left,  var(--surface) 0%, transparent 100%); }
+        #summary-bar.visible::before { left:  0; background: linear-gradient(to right, var(--surface) 0%, transparent 100%); }
+        #summary-bar.visible::after  { right: 0; background: linear-gradient(to left,  var(--surface) 0%, transparent 100%); }
 
         .ticker-track {
             display: flex; align-items: center; height: 62px;
@@ -296,6 +305,12 @@
         .rank-3 { background: #a07850; color: #fff; }
         .team-cell { display: flex; align-items: center; gap: 10px; }
         .team-logo { width: 34px; height: 34px; object-fit: contain; flex-shrink: 0; }
+        /* Navy/dark team marks get a light chip so they read on the dark bg.
+           Every logo <img> sets alt to the team abbr, so this hits all templates. */
+        img[alt="NYY"], img[alt="CLE"], img[alt="DET"], img[alt="MIN"],
+        img[alt="SEA"], img[alt="TBR"], img[alt="HOU"], img[alt="MIL"],
+        img[alt="KCR"], img[alt="TEX"], img[alt="SDP"], img[alt="ATL"],
+        img[alt="COL"] { background: #dfe3ec; border-radius: 50%; padding: 3px; }
         .team-abbr { font-family: var(--display); font-size: 1.05rem; font-weight: 800; letter-spacing: 0.05em; }
         td.num { font-family: var(--mono); font-size: 0.88rem; font-weight: 400; text-align: right; color: var(--text2); }
         td.wrc-cell { font-family: var(--mono); font-size: 1.08rem; font-weight: 500; text-align: right; }
@@ -851,7 +866,17 @@
 <header>
     <div class="header-inner">
         <div class="brand">
-            <div class="brand-icon">⚾</div>
+            <div class="brand-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MLB 2026 logo">
+                <ellipse cx="32" cy="56" rx="22" ry="6" fill="#f97316" opacity="0.4"/>
+                <path d="M14 40 Q8 26 16 12 Q14 24 22 26 Q12 14 20 2 Q22 16 30 20 Q24 8 32 0 Q40 8 34 20 Q42 12 44 2 Q52 14 50 26 Q58 20 56 10 Q64 24 50 40" fill="#f97316"/>
+                <path d="M16 38 Q10 26 18 14 Q16 24 24 26 Q14 14 22 4 Q24 16 32 20 Q40 12 42 4 Q50 16 48 26 Q56 22 54 12 Q60 26 52 40" fill="#fbbf24" opacity="0.85"/>
+                <circle cx="32" cy="40" r="22" fill="#f5f0e0" stroke="#191919" stroke-width="1.5"/>
+                <path d="M20 30 Q15 36 15 40 Q15 46 20 52" fill="none" stroke="#b90f0f" stroke-width="2" stroke-linecap="round"/>
+                <path d="M17 31 L21 34 M16 37 L20 38 M16 43 L20 43 M17 49 L21 46" fill="none" stroke="#b90f0f" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M44 30 Q49 36 49 40 Q49 46 44 52" fill="none" stroke="#b90f0f" stroke-width="2" stroke-linecap="round"/>
+                <path d="M47 31 L43 34 M48 37 L44 38 M48 43 L44 43 M47 49 L43 46" fill="none" stroke="#b90f0f" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M26 34 Q24 28 28 22 Q28 28 32 26 Q30 20 34 14 Q38 20 36 26 Q40 22 40 16 Q44 22 42 32" fill="#f97316" opacity="0.65"/>
+            </svg></div>
             <div>
                 <div class="brand-name">MLB 2026</div>
                 <div class="brand-sub">Team Offense Analyzer</div>
@@ -3563,7 +3588,11 @@ window.onload = function() {
     allTeams.forEach(tm => { const o=document.createElement('option'); o.value=tm; dl.appendChild(o); });
     if (location.hash) applyHash();
     fetchFromSupabase();
-    ensureRpgData().then(() => updateSummaryBar()).catch(() => {});
+    ensureRpgData().then(() => updateSummaryBar()).catch(() => {
+        // Ticker data unavailable — hide the placeholder instead of shimmering forever
+        const bar = document.getElementById('summary-bar');
+        if (bar && !bar.classList.contains('visible')) bar.style.display = 'none';
+    });
 };
 </script>
 
