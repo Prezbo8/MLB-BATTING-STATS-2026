@@ -309,6 +309,10 @@
         td.team-color-cell { padding: 2px 12px; }
         td.team-color-cell .team-logo { width: 42px; height: 42px; }
         td.team-color-cell .team-abbr { font-size: 1.2rem; }
+        /* Faint white outline around every team logo */
+        .team-logo, .ticker-item-logo, td.team-color-cell img {
+            filter: drop-shadow(0 0 1px rgba(255,255,255,0.55)) drop-shadow(0 0 1px rgba(255,255,255,0.35));
+        }
         .team-abbr { font-family: var(--display); font-size: 1.05rem; font-weight: 800; letter-spacing: 0.05em; }
         td.num { font-family: var(--mono); font-size: 0.88rem; font-weight: 400; text-align: right; color: var(--text2); }
         td.wrc-cell { font-family: var(--mono); font-size: 1.08rem; font-weight: 500; text-align: right; }
@@ -1872,10 +1876,25 @@ function paWeightedAvg(rows) {
 
 // Teams whose logo is drawn in (roughly) their primary color — use the
 // secondary color for the cell band so the logo stays visible
-const TEAM_CELL_SECONDARY = new Set(['LAD','WSN','MIN','SFG','TEX','CLE','NYM','CIN']);
+const TEAM_CELL_SECONDARY = new Set(['WSN','MIN','SFG','TEX','CLE','NYM','CIN']);
+// Hand-picked band colors that beat both primary and secondary
+const TEAM_CELL_OVERRIDES = {
+    LAD: '#89CFF0',  // baby blue
+    CHC: '#0E3386',  // navy
+    STL: '#FFFFFF',  // white
+    ATL: '#13274F',  // navy
+    NYY: '#C4CED4',  // silver
+    PIT: '#000000',  // black
+};
+// Hand-picked abbr text colors (otherwise black/white by luminance)
+const TEAM_CELL_TEXT = { PIT: '#FDB827' };
 function teamCellColor(tm) {
+    if (TEAM_CELL_OVERRIDES[tm]) return TEAM_CELL_OVERRIDES[tm];
     const c = teamColorsPdf[tm] || {};
     return (TEAM_CELL_SECONDARY.has(tm) ? c.secondary : c.primary) || 'transparent';
+}
+function teamCellText(tm) {
+    return TEAM_CELL_TEXT[tm] || contrastText(teamCellColor(tm));
 }
 
 // Black or white text, whichever contrasts with the given hex background
@@ -1958,7 +1977,7 @@ function loadRankings() {
         const tmColor = (teamColorsPdf[row.tm]||{}).primary || 'transparent';
         return `<tr class="animated" style="animation-delay:${Math.min(i*16,280)}ms;--team-color:${tmColor}">
             <td class="rank-cell">${rankHtml}</td>
-            <td class="team-color-cell" style="background:${teamCellColor(row.tm)};"><div class="team-cell"><img src="${teamLogos[row.tm]||''}" class="team-logo" alt="${row.tm}" onerror="this.style.opacity='.1'"><span class="team-abbr" style="color:${contrastText(teamCellColor(row.tm))};">${row.tm==='WAS'?'WSN':row.tm}</span></div></td>
+            <td class="team-color-cell" style="background:${teamCellColor(row.tm)};"><div class="team-cell"><img src="${teamLogos[row.tm]||''}" class="team-logo" alt="${row.tm}" onerror="this.style.opacity='.1'"><span class="team-abbr" style="color:${teamCellText(row.tm)};">${row.tm==='WAS'?'WSN':row.tm}</span></div></td>
             <td class="wrc-cell ${tc('wrcPlus',row.wrcPlus)}">${row.wrcPlus}${arr('wrcPlus',true)}</td>
             <td class="num ${tc('woba',row.woba)}">${row.woba.toFixed(3)}${arr('woba',true)}</td>
             <td class="num ${tc('ops',row.ops)}">${row.ops.toFixed(3)}${arr('ops',true)}</td>
@@ -2620,7 +2639,7 @@ function loadPlayerRankings() {
         return `<tr class="animated" style="animation-delay:${Math.min(i * 12, 280)}ms;--team-color:${tmColor}">
             <td class="rank-cell">${rankHtml}</td>
             <td><div class="team-cell"><span style="font-family:var(--body);font-size:0.85rem;color:var(--text);">${row.name}</span></div></td>
-            <td class="team-color-cell" style="background:${teamCellColor(row.tm)};"><div class="team-cell"><img src="${teamLogos[row.tm] || ''}" style="width:30px;height:30px;object-fit:contain;flex-shrink:0;" onerror="this.style.opacity='.1'" alt="${row.tm}"><span class="team-abbr" style="font-size:0.85rem;color:${contrastText(teamCellColor(row.tm))};">${row.tm==='WAS'?'WSN':row.tm}</span></div></td>
+            <td class="team-color-cell" style="background:${teamCellColor(row.tm)};"><div class="team-cell"><img src="${teamLogos[row.tm] || ''}" style="width:30px;height:30px;object-fit:contain;flex-shrink:0;" onerror="this.style.opacity='.1'" alt="${row.tm}"><span class="team-abbr" style="font-size:0.85rem;color:${teamCellText(row.tm)};">${row.tm==='WAS'?'WSN':row.tm}</span></div></td>
             <td class="wrc-cell ${tc('wrcPlus', row.wrcPlus)}">${row.wrcPlus}</td>
             <td class="num ${tc('woba',   row.woba)}">${row.woba.toFixed(3)}</td>
             <td class="num ${tc('ops',    row.ops)}">${row.ops.toFixed(3)}</td>
