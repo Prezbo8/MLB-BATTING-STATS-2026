@@ -15,6 +15,7 @@ Scoring flow:
 import os
 import gc
 import math
+import time
 import numpy as np
 import pandas as pd
 import requests
@@ -70,6 +71,8 @@ WEIGHTS_WITHOUT_2026 = {
 # STAT WEIGHTS
 # (col_name, weight, direction)
 # direction: 1=higher better, -1=lower better
+# Weights are relative — they sum to 1.02, not 1.00, and that's fine:
+# scoring divides by the sum of weights actually present per pitcher.
 # ─────────────────────────────────────────
 STAT_WEIGHTS = [
     ("Pitching+",  0.11,  1),
@@ -151,6 +154,47 @@ def get_tier(score):
 
 
 # ─────────────────────────────────────────
+# PLAYER KEY
+# Composite scores must group the same human, and names collide (two
+# different Logan Allens are active). Freshly scraped rows carry a
+# FanGraphs playerid; the static historical CSVs don't.
+# ─────────────────────────────────────────
+def _norm_pid(v):
+    """playerid may arrive as int, float (12345.0) or string."""
+    if pd.isna(v):
+        return None
+    s = str(v).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s or None
+
+
+def assign_player_key(df):
+    """
+    player_key = playerid when the row has one; otherwise the playerid that
+    row's name maps to when the name is unambiguous (exactly one id across
+    all id-bearing rows); otherwise the name itself.
+    """
+    df = df.copy()
+    if "playerid" in df.columns:
+        pids = df["playerid"].map(_norm_pid)
+    else:
+        pids = pd.Series([None] * len(df), index=df.index, dtype=object)
+
+    with_id = pd.DataFrame({"name": df["name"], "pid": pids}).dropna(subset=["pid"])
+    ids_per_name = with_id.groupby("name")["pid"].nunique()
+    unique_names = ids_per_name[ids_per_name == 1].index
+    name_to_pid  = (with_id[with_id["name"].isin(unique_names)]
+                    .drop_duplicates("name").set_index("name")["pid"])
+
+    df["player_key"] = pids.fillna(df["name"].map(name_to_pid)).fillna(df["name"])
+    n_ids = pids.notna().sum()
+    print(f"   player_key: {n_ids} rows with scraped playerid, "
+          f"{len(df) - n_ids} matched by name")
+    return df
+
+
+# ─────────────────────────────────────────
 # STEP 1 — PERCENTILE RANKS WITHIN SEASON
 # ─────────────────────────────────────────
 def compute_season_scores(df):
@@ -188,13 +232,15 @@ def compute_season_scores(df):
 # ─────────────────────────────────────────
 def compute_composite_scores(df, year_weights):
     """
-    For each pitcher (name), compute a weighted avg of their season_scores
-    using year_weights. Normalize to 0-100. All rows share the same composite.
+    For each pitcher (player_key), compute a weighted avg of their
+    season_scores using year_weights, then convert to a percentile rank
+    (0-100) so tier cutoffs mean "top X%" and aren't hostage to outliers.
+    All of a pitcher's rows share the same composite.
     """
     df = df.copy()
     composite_map = {}
 
-    for name, grp in df.groupby("name"):
+    for key, grp in df.groupby("player_key"):
         num   = 0.0
         denom = 0.0
         for _, row in grp.iterrows():
@@ -210,21 +256,16 @@ def compute_composite_scores(df, year_weights):
             yw     = year_weights.get(season_key, 0.0)
             num   += score * yw
             denom += yw
-        composite_map[name] = round(num / denom, 2) if denom > 0 else np.nan
+        composite_map[key] = round(num / denom, 2) if denom > 0 else np.nan
 
-    # Normalize 0-100 across all pitchers
+    # Percentile rank 0-100 across all pitchers
     raw_scores = pd.Series(composite_map)
     raw_scores = raw_scores.dropna()
     if len(raw_scores) > 0:
-        min_s = raw_scores.min()
-        max_s = raw_scores.max()
-        if max_s > min_s:
-            normalized = ((raw_scores - min_s) / (max_s - min_s) * 100).round(2)
-        else:
-            normalized = raw_scores
+        normalized = (raw_scores.rank(pct=True) * 100).round(2)
         composite_map = normalized.to_dict()
 
-    df["composite_score"] = df["name"].map(composite_map)
+    df["composite_score"] = df["player_key"].map(composite_map)
     df["tier"]            = df["composite_score"].apply(get_tier)
     return df
 
@@ -249,47 +290,83 @@ def clean_records(df):
     return records
 
 
+def sb_request(method, url, headers, json=None, timeout=30):
+    """Supabase call with up to 3 attempts (5s/15s backoff) on network
+    errors and 5xx. Returns the last Response, or None if all attempts
+    raised."""
+    last = None
+    for attempt in range(3):
+        if attempt:
+            wait = (5, 15)[attempt - 1]
+            print(f"   🔄 retry {attempt+1}/3 in {wait}s...")
+            time.sleep(wait)
+        try:
+            last = requests.request(method, url, headers=headers,
+                                    json=json, timeout=timeout)
+            if last.status_code < 500:
+                return last
+            print(f"   ⚠️  [{last.status_code}] {last.text[:150]}")
+        except requests.RequestException as e:
+            print(f"   ⚠️  {e}")
+    return last
+
+
 def delete_season(season_val):
-    """Delete rows where season = season_val (works for int years and 'career')."""
+    """Delete rows where season = season_val (works for int years and
+    'career'). Returns True on success — callers must NOT insert the
+    season's fresh rows if this failed, or the table gets duplicates."""
     print(f"   🗑️  Deleting season={season_val}...")
-    r = requests.delete(
+    r = sb_request(
+        "DELETE",
         f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?season=eq.{season_val}",
         headers=SUPABASE_HEADERS,
-        timeout=30,
     )
-    if r.status_code in (200, 204):
+    if r is not None and r.status_code in (200, 204):
         print(f"   ✅ Cleared")
-    else:
-        print(f"   ❌ Failed [{r.status_code}]: {r.text[:200]}")
+        return True
+    code = r.status_code if r is not None else "no response"
+    print(f"   ❌ Failed [{code}]")
+    return False
 
 
 def season_exists(season_val):
-    r = requests.get(
+    """On any failure, assume the season exists — skipping a reinsert is
+    harmless, reinserting on top of existing rows duplicates them."""
+    r = sb_request(
+        "GET",
         f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?season=eq.{season_val}&limit=1",
         headers=SUPABASE_HEADERS,
         timeout=15,
     )
-    return r.status_code == 200 and len(r.json()) > 0
+    if r is None or r.status_code != 200:
+        print(f"   ⚠️  Could not check season={season_val} — assuming it exists")
+        return True
+    try:
+        return len(r.json()) > 0
+    except ValueError:
+        return True
 
 
 def insert_batches(records, label="", upsert=False):
     pushed = 0
     headers = SUPABASE_HEADERS.copy()
     if upsert:
-        headers["Prefer"] = "resolution=merge-duplicates"
+        headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
     for i in range(0, len(records), BATCH_SIZE):
         batch = records[i : i + BATCH_SIZE]
-        r = requests.post(
+        r = sb_request(
+            "POST",
             f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
             headers=headers,
             json=batch,
-            timeout=30,
         )
-        if r.status_code in (200, 201):
+        if r is not None and r.status_code in (200, 201):
             pushed += len(batch)
             print(f"   ✅ {label} batch {i//BATCH_SIZE+1}: {len(batch)} rows")
         else:
-            print(f"   ❌ {label} batch {i//BATCH_SIZE+1} failed [{r.status_code}]: {r.text[:300]}")
+            code = r.status_code if r is not None else "no response"
+            body = r.text[:300] if r is not None else ""
+            print(f"   ❌ {label} batch {i//BATCH_SIZE+1} failed [{code}]: {body}")
     return pushed
 
 
@@ -306,33 +383,42 @@ def upsert_to_supabase(df, force_reseed=False):
     force_reseed=False: only delete+reinsert 2026 and career (daily)
     """
     df_san = sanitize_df_cols(df)
+    # pitcher_scores has no playerid/player_key columns (yet) — PostgREST
+    # rejects whole batches containing unknown columns.
+    df_san = df_san.drop(columns=["playerid", "player_key"], errors="ignore")
 
     if not SUPABASE_KEY:
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
         return True
 
+    all_ok = True
     if force_reseed:
         print("   🗑️  Full reseed — clearing all rows...")
-        r = requests.delete(
+        r = sb_request(
+            "DELETE",
             f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?updated_at=gte.2000-01-01T00:00:00Z",
             headers=SUPABASE_HEADERS,
-            timeout=30,
         )
-        print(f"   {'✅ Cleared' if r.status_code in (200,204) else f'❌ Failed [{r.status_code}]'}")
+        if r is None or r.status_code not in (200, 204):
+            print("   ❌ Clear failed — aborting push, old data left in place")
+            return False
+        print("   ✅ Cleared")
         seasons_to_insert = [2021, 2022, 2023, 2024, 2025, 2026, "career"]
     else:
-        # Daily: only refresh 2026 and career
-        for season_val in [2026, "career"]:
-            delete_season(season_val)
         seasons_to_insert = []
         for year in [2021, 2022, 2023, 2024, 2025]:
             if season_exists(year):
                 print(f"   ⏭️  season={year} already exists — skipping")
             else:
                 seasons_to_insert.append(year)
-        seasons_to_insert += [2026, "career"]
-
-    all_ok = True
+        # Daily: refresh 2026 and career, but only where the delete worked
+        for season_val in [2026, "career"]:
+            if delete_season(season_val):
+                seasons_to_insert.append(season_val)
+            else:
+                print(f"   🚫 season={season_val}: delete failed — "
+                      f"old rows kept, reinsert skipped")
+                all_ok = False
     for season_val in seasons_to_insert:
         df_yr = df_san[df_san["season"] == season_val]
         if df_yr.empty:
@@ -362,6 +448,7 @@ def run():
     df["season"] = df["season"].apply(lambda x: int(x) if x.isdigit() else x)
     has_2026 = (df["season"].astype(str) == '2026').any()
     year_weights = WEIGHTS_WITH_2026 if has_2026 else WEIGHTS_WITHOUT_2026
+    df = assign_player_key(df)
     print(f"   {len(df)} rows × {len(df.columns)} cols")
     print(f"   Mode: {'WITH 2026' if has_2026 else 'WITHOUT 2026'}")
     print(f"   Year weights: {year_weights}")

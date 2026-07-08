@@ -10,7 +10,7 @@ Daily mode:
   - Historical rows (2021-2025) inserted once, never touched again
 """
 
-import os, math
+import os, math, time
 import numpy as np
 import pandas as pd
 import requests
@@ -39,6 +39,8 @@ SB_HEADERS = {
 
 # ─────────────────────────────────────────
 # STAT WEIGHTS (splits only stats)
+# Weights are relative — they sum to 1.10, not 1.00, and that's fine:
+# scoring divides by the sum of weights actually present per pitcher.
 # ─────────────────────────────────────────
 SPLIT_STAT_WEIGHTS = [
     ("k_bb_pct",  0.16,  1),
@@ -82,6 +84,47 @@ def get_tier(score):
     return "Ass"
 
 # ─────────────────────────────────────────
+# PLAYER KEY
+# Composites must group the same human, and names collide (two different
+# Logan Allens are active). The 2026/career raws carry a FanGraphs
+# playerid; the static 2021-2025 raws don't.
+# ─────────────────────────────────────────
+def _norm_pid(v):
+    """playerid may arrive as int, float (12345.0) or string."""
+    if pd.isna(v):
+        return None
+    s = str(v).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s or None
+
+
+def assign_player_key(df):
+    """
+    player_key = playerid when the row has one; otherwise the playerid that
+    row's name maps to when the name is unambiguous (exactly one id across
+    all id-bearing rows); otherwise the name itself.
+    """
+    df = df.copy()
+    if "playerid" in df.columns:
+        pids = df["playerid"].map(_norm_pid)
+    else:
+        pids = pd.Series([None] * len(df), index=df.index, dtype=object)
+
+    with_id = pd.DataFrame({"name": df["name"], "pid": pids}).dropna(subset=["pid"])
+    ids_per_name = with_id.groupby("name")["pid"].nunique()
+    unique_names = ids_per_name[ids_per_name == 1].index
+    name_to_pid  = (with_id[with_id["name"].isin(unique_names)]
+                    .drop_duplicates("name").set_index("name")["pid"])
+
+    df["player_key"] = pids.fillna(df["name"].map(name_to_pid)).fillna(df["name"])
+    n_ids = pids.notna().sum()
+    print(f"   player_key: {n_ids} rows with scraped playerid, "
+          f"{len(df) - n_ids} matched by name")
+    return df
+
+
+# ─────────────────────────────────────────
 # SCORING
 # ─────────────────────────────────────────
 def compute_season_scores(df):
@@ -109,11 +152,13 @@ def compute_season_scores(df):
 
 
 def compute_composite_scores(df):
-    """Weighted avg of season_scores across periods per (name, split). Normalized 0-100."""
+    """Weighted avg of season_scores across periods per (player_key, split),
+    then percentile-ranked 0-100 within each split so tier cutoffs mean
+    "top X%" and aren't hostage to outliers."""
     df = df.copy()
     composite_map = {}
 
-    for (name, split), grp in df.groupby(["name","split"]):
+    for (key, split), grp in df.groupby(["player_key","split"]):
         num, denom = 0.0, 0.0
         for _, row in grp.iterrows():
             period = str(row["period"])
@@ -122,21 +167,17 @@ def compute_composite_scores(df):
             yw = YEAR_WEIGHTS.get(period, 0.0)
             num += float(score) * yw
             denom += yw
-        composite_map[(name, split)] = round(num / denom, 2) if denom > 0 else np.nan
+        composite_map[(key, split)] = round(num / denom, 2) if denom > 0 else np.nan
 
-    # Normalize per split group 0-100
+    # Percentile rank per split group 0-100
     for split_name in df["split"].unique():
-        keys   = [(n, s) for (n, s) in composite_map if s == split_name]
-        values = [composite_map[k] for k in keys if not math.isnan(composite_map.get(k, float('nan')))]
-        if not values: continue
-        mn, mx = min(values), max(values)
-        for k in keys:
-            v = composite_map.get(k, float('nan'))
-            if math.isnan(v): continue
-            composite_map[k] = round((v - mn) / (mx - mn) * 100, 2) if mx > mn else 50.0
+        vals = pd.Series({k: v for k, v in composite_map.items()
+                          if k[1] == split_name}).dropna()
+        if vals.empty: continue
+        composite_map.update((vals.rank(pct=True) * 100).round(2).to_dict())
 
     df["composite_split_score"] = df.apply(
-        lambda r: composite_map.get((r["name"], r["split"]), np.nan), axis=1
+        lambda r: composite_map.get((r["player_key"], r["split"]), np.nan), axis=1
     )
     df["split_tier"] = df["composite_split_score"].apply(get_tier)
     return df
@@ -158,34 +199,62 @@ def clean_records(df):
         records.append(r)
     return records
 
+def sb_request(method, url, json=None, timeout=30):
+    """Supabase call with up to 3 attempts (5s/15s backoff) on network
+    errors and 5xx. Returns the last Response, or None if all attempts
+    raised."""
+    last = None
+    for attempt in range(3):
+        if attempt:
+            wait = (5, 15)[attempt - 1]
+            print(f"   🔄 retry {attempt+1}/3 in {wait}s...")
+            time.sleep(wait)
+        try:
+            last = requests.request(method, url, headers=SB_HEADERS,
+                                    json=json, timeout=timeout)
+            if last.status_code < 500:
+                return last
+            print(f"   ⚠️  [{last.status_code}] {last.text[:150]}")
+        except requests.RequestException as e:
+            print(f"   ⚠️  {e}")
+    return last
+
 def delete_period(period):
+    """Returns True on success — callers must NOT insert the period's fresh
+    rows if this failed, or the table gets duplicates."""
     print(f"   🗑️  Deleting period={period}...")
-    r = requests.delete(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?period=eq.{period}",
-        headers=SB_HEADERS, timeout=30,
-    )
-    print(f"   {'✅ Cleared' if r.status_code in (200,204) else f'❌ [{r.status_code}]'}")
+    r = sb_request("DELETE", f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?period=eq.{period}")
+    if r is not None and r.status_code in (200, 204):
+        print("   ✅ Cleared")
+        return True
+    print(f"   ❌ [{r.status_code if r is not None else 'no response'}]")
+    return False
 
 def period_exists(period):
-    r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?period=eq.{period}&limit=1",
-        headers=SB_HEADERS, timeout=15,
-    )
-    return r.status_code == 200 and len(r.json()) > 0
+    """On any failure, assume the period exists — skipping a reinsert is
+    harmless, reinserting on top of existing rows duplicates them."""
+    r = sb_request("GET", f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?period=eq.{period}&limit=1",
+                   timeout=15)
+    if r is None or r.status_code != 200:
+        print(f"   ⚠️  Could not check period={period} — assuming it exists")
+        return True
+    try:
+        return len(r.json()) > 0
+    except ValueError:
+        return True
 
 def insert_batches(records, label=""):
     pushed = 0
     for i in range(0, len(records), BATCH_SIZE):
         batch = records[i:i+BATCH_SIZE]
-        r = requests.post(
-            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
-            headers=SB_HEADERS, json=batch, timeout=30,
-        )
-        if r.status_code in (200, 201):
+        r = sb_request("POST", f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}", json=batch)
+        if r is not None and r.status_code in (200, 201):
             pushed += len(batch)
             print(f"   ✅ {label} batch {i//BATCH_SIZE+1}: {len(batch)} rows")
         else:
-            print(f"   ❌ {label} batch {i//BATCH_SIZE+1} [{r.status_code}]: {r.text[:200]}")
+            code = r.status_code if r is not None else "no response"
+            body = r.text[:200] if r is not None else ""
+            print(f"   ❌ {label} batch {i//BATCH_SIZE+1} [{code}]: {body}")
     return pushed
 
 def upsert_to_supabase(df, force_reseed=False):
@@ -197,27 +266,37 @@ def upsert_to_supabase(df, force_reseed=False):
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
         return True
 
+    # pitcher_split_scores has no playerid/player_key columns (yet) —
+    # PostgREST rejects whole batches containing unknown columns.
+    df = df.drop(columns=["playerid", "player_key"], errors="ignore")
+
+    all_ok = True
     if force_reseed:
         print("   🗑️  Full reseed — clearing all rows...")
-        r = requests.delete(
+        r = sb_request(
+            "DELETE",
             f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?updated_at=gte.2000-01-01T00:00:00Z",
-            headers=SB_HEADERS, timeout=30,
         )
-        print(f"   {'✅ Cleared' if r.status_code in (200,204) else f'❌ [{r.status_code}]'}")
+        if r is None or r.status_code not in (200, 204):
+            print("   ❌ Clear failed — aborting push, old data left in place")
+            return False
+        print("   ✅ Cleared")
         periods_to_insert = ["2021","2022","2023","2024","2025","2026","career"]
     else:
-        # Daily: only refresh 2026 and career
-        for p in ["2026","career"]:
-            delete_period(p)
         periods_to_insert = []
         for p in ["2021","2022","2023","2024","2025"]:
             if period_exists(p):
                 print(f"   ⏭️  period={p} already exists — skipping")
             else:
                 periods_to_insert.append(p)
-        periods_to_insert += ["2026","career"]
+        # Daily: refresh 2026 and career, but only where the delete worked
+        for p in ["2026","career"]:
+            if delete_period(p):
+                periods_to_insert.append(p)
+            else:
+                print(f"   🚫 period={p}: delete failed — old rows kept, reinsert skipped")
+                all_ok = False
 
-    all_ok = True
     for period in periods_to_insert:
         df_p = df[df["period"] == period].copy()
         # Drop rows where name is null or empty
@@ -243,9 +322,10 @@ def run(force_reseed=False):
     # 1. Load
     print(f"\n── Step 1: Loading {MASTER_CSV} ──")
     if not os.path.exists(MASTER_CSV):
-        print(f"❌ {MASTER_CSV} not found. Run splits_merger.py first.")
-        return
+        print(f"❌ {MASTER_CSV} not found. Run merge_pitcher_splits.py first.")
+        raise SystemExit(1)
     df = pd.read_csv(MASTER_CSV, low_memory=False)
+    df = assign_player_key(df)
     print(f"   {len(df)} rows × {len(df.columns)} cols")
     print(f"   Periods: {sorted(df['period'].unique().tolist())}")
     print(f"   Splits:  {sorted(df['split'].unique().tolist())}")

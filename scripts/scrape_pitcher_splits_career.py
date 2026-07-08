@@ -177,6 +177,7 @@ def build_split_frame(split_name, split_arr):
         for csv_col, sg, api_key, kind in COLUMN_SPEC:
             row = sg_rows[sg].get(pid) if sg != 1 else base
             rec[csv_col] = fmt(row.get(api_key), kind) if row else None
+        rec["playerid"] = pid
         rec["split"]  = split_name
         rec["period"] = PERIOD
         records.append(rec)
@@ -205,7 +206,7 @@ def run():
         raise SystemExit(1)
 
     final = pd.concat(all_frames, ignore_index=True)
-    final = final.drop_duplicates(subset=["name", "split", "period"], keep="first")
+    final = final.drop_duplicates(subset=["playerid", "split", "period"], keep="first")
     final.to_csv(OUTPUT_CSV, index=False)
     print(f"\n💾 Saved: {OUTPUT_CSV} ({len(final)} rows, {len(final.columns)} cols)")
     tg(f"✅ <b>Splits {PERIOD} Done</b>\n📊 {len(final)} rows\n📅 {today}")

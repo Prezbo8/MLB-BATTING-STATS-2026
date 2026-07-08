@@ -58,7 +58,7 @@ def load_tab(filepath, year):
     df["team"]   = df["team"].astype(str).str.strip()
     df["season"] = year
     for col in df.columns:
-        if col not in ("name", "team", "season"):
+        if col not in ("name", "team", "season", "playerid"):
             df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
@@ -116,7 +116,10 @@ def run():
     print("=" * 60)
 
     master_path = os.path.join(OUTPUT_DIR, "master_all.csv")
-    first_write = True
+    # Periods can have different column sets (e.g. playerid only exists in
+    # freshly scraped files), so build master_all via concat — it aligns
+    # columns by name instead of blindly appending rows.
+    master_frames = []
 
     # ── Annual years ──────────────────────────────────────────
     for year in YEARS:
@@ -126,13 +129,7 @@ def run():
         year_path = os.path.join(OUTPUT_DIR, f"master_{year}.csv")
         df.to_csv(year_path, index=False)
         print(f"   💾 master_{year}.csv saved")
-        df.to_csv(master_path, index=False,
-                  mode="w" if first_write else "a",
-                  header=first_write)
-        first_write = False
-        del df
-        gc.collect()
-        print(f"   🧹 Memory freed")
+        master_frames.append(df)
 
     # ── Career ────────────────────────────────────────────────
     df_career = merge_tabs(CAREER_TAB_FILES, "career", label="Career (2017-2026)")
@@ -140,11 +137,13 @@ def run():
         career_path = os.path.join(OUTPUT_DIR, "master_career.csv")
         df_career.to_csv(career_path, index=False)
         print(f"   💾 master_career.csv saved")
-        df_career.to_csv(master_path, index=False,
-                         mode="a", header=False)
-        del df_career
+        master_frames.append(df_career)
+
+    if master_frames:
+        master = pd.concat(master_frames, ignore_index=True, sort=False)
+        master.to_csv(master_path, index=False)
+        del master_frames, master
         gc.collect()
-        print(f"   🧹 Memory freed")
 
     print(f"\n{'=' * 60}")
     print(f"✅ MERGE COMPLETE → {master_path}")
