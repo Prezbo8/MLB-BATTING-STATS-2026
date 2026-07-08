@@ -383,9 +383,10 @@ def upsert_to_supabase(df, force_reseed=False):
     force_reseed=False: only delete+reinsert 2026 and career (daily)
     """
     df_san = sanitize_df_cols(df)
-    # pitcher_scores has no playerid/player_key columns (yet) — PostgREST
-    # rejects whole batches containing unknown columns.
-    df_san = df_san.drop(columns=["playerid", "player_key"], errors="ignore")
+    # Push the FanGraphs playerid (unique (playerid, season) lets two
+    # same-named pitchers coexist); player_key is internal-only and the
+    # table has no such column, so drop it before push.
+    df_san = df_san.drop(columns=["player_key"], errors="ignore")
 
     if not SUPABASE_KEY:
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")

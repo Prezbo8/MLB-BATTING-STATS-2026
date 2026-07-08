@@ -266,9 +266,10 @@ def upsert_to_supabase(df, force_reseed=False):
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
         return True
 
-    # pitcher_split_scores has no playerid/player_key columns (yet) —
-    # PostgREST rejects whole batches containing unknown columns.
-    df = df.drop(columns=["playerid", "player_key"], errors="ignore")
+    # Push the FanGraphs playerid (unique (playerid, period, split) lets
+    # two same-named pitchers coexist); player_key is internal-only and the
+    # table has no such column, so drop it before push.
+    df = df.drop(columns=["player_key"], errors="ignore")
 
     all_ok = True
     if force_reseed:
