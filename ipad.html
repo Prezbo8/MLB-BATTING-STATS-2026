@@ -792,13 +792,13 @@ const RPG_ABBR = {'LA Dodgers':'LAD','Houston':'HOU','Washington':'WSN','Milwauk
 
 const statMeta = [
   {key:'wrcPlus',label:'wRC+', fmt:v=>Math.round(v),    hb:true,  t:[120,110,100,90]},
-  {key:'ops',    label:'OPS',  fmt:v=>v.toFixed(3),     hb:true,  t:[0.780,0.750,0.720,0.690]},
-  {key:'woba',   label:'wOBA', fmt:v=>v.toFixed(3),     hb:true,  t:[0.340,0.320,0.310,0.295]},
-  {key:'avg',    label:'AVG',  fmt:v=>v.toFixed(3),     hb:true,  t:[0.270,0.260,0.245,0.230]},
-  {key:'obp',    label:'OBP',  fmt:v=>v.toFixed(3),     hb:true,  t:[0.340,0.325,0.310,0.295]},
-  {key:'slg',    label:'SLG',  fmt:v=>v.toFixed(3),     hb:true,  t:[0.450,0.425,0.400,0.375]},
-  {key:'iso',    label:'ISO',  fmt:v=>v.toFixed(3),     hb:true,  t:[0.180,0.165,0.150,0.135]},
-  {key:'babip',  label:'BABIP',fmt:v=>v.toFixed(3),     hb:true,  t:[0.310,0.300,0.290,0.280]},
+  {key:'ops',    label:'OPS',  fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.780,0.750,0.720,0.690]},
+  {key:'woba',   label:'wOBA', fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.340,0.320,0.310,0.295]},
+  {key:'avg',    label:'AVG',  fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.270,0.260,0.245,0.230]},
+  {key:'obp',    label:'OBP',  fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.340,0.325,0.310,0.295]},
+  {key:'slg',    label:'SLG',  fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.450,0.425,0.400,0.375]},
+  {key:'iso',    label:'ISO',  fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.180,0.165,0.150,0.135]},
+  {key:'babip',  label:'BABIP',fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     hb:true,  t:[0.310,0.300,0.290,0.280]},
   {key:'bbPct',  label:'BB%',  fmt:v=>v.toFixed(1)+'%',hb:true,  t:[10.5,9.5,8.5,7.5]},
   {key:'kPct',   label:'K%',   fmt:v=>v.toFixed(1)+'%',hb:false, t:[19.0,21.0,23.0,25.0]},
 ];
@@ -923,13 +923,13 @@ function renderRankings(){
       <td class="rank-cell">${rh}</td>
       <td><div class="team-cell-inner"><img class="team-logo" src="${teamLogos[row.tm]||''}" onerror="this.style.opacity='.1'" alt="${row.tm}"><span class="team-abbr-text" style="color:${col}">${row.tm}</span></div></td>
       <td class="primary ${tier('wrcPlus',row.wrcPlus)}">${row.wrcPlus}</td>
-      <td class="num ${tier('woba',row.woba)}">${row.woba.toFixed(3)}</td>
-      <td class="num ${tier('ops',row.ops)}">${row.ops.toFixed(3)}</td>
-      <td class="num ${tier('avg',row.avg)}">${row.avg.toFixed(3)}</td>
-      <td class="num ${tier('obp',row.obp)}">${row.obp.toFixed(3)}</td>
-      <td class="num ${tier('slg',row.slg)}">${row.slg.toFixed(3)}</td>
-      <td class="num ${tier('iso',row.iso)}">${row.iso.toFixed(3)}</td>
-      <td class="num ${tier('babip',row.babip)}">${row.babip.toFixed(3)}</td>
+      <td class="num ${tier('woba',row.woba)}">${row.woba.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('ops',row.ops)}">${row.ops.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('avg',row.avg)}">${row.avg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('obp',row.obp)}">${row.obp.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('slg',row.slg)}">${row.slg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('iso',row.iso)}">${row.iso.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('babip',row.babip)}">${row.babip.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
       <td class="num ${tier('kPct',row.kPct)}">${row.kPct.toFixed(1)}%</td>
       <td class="num ${tier('bbPct',row.bbPct)}">${row.bbPct.toFixed(1)}%</td>
       <td class="num">${row.pa}</td>
@@ -1038,13 +1038,13 @@ function renderPlayers(){
       <td style="font-family:var(--body);font-size:0.9rem;font-weight:500;">${row.name}</td>
       <td><div class="team-cell-inner"><img src="${teamLogos[row.tm]||''}" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.opacity='.1'"><span style="font-family:var(--disp);font-size:0.82rem;font-weight:800;color:${col};">${row.tm}</span></div></td>
       <td class="primary ${tier('wrcPlus',row.wrcPlus)}">${row.wrcPlus}</td>
-      <td class="num ${tier('woba',row.woba)}">${row.woba.toFixed(3)}</td>
-      <td class="num ${tier('ops',row.ops)}">${row.ops.toFixed(3)}</td>
-      <td class="num ${tier('avg',row.avg)}">${row.avg.toFixed(3)}</td>
-      <td class="num ${tier('obp',row.obp)}">${row.obp.toFixed(3)}</td>
-      <td class="num ${tier('slg',row.slg)}">${row.slg.toFixed(3)}</td>
-      <td class="num ${tier('iso',row.iso)}">${row.iso.toFixed(3)}</td>
-      <td class="num ${tier('babip',row.babip)}">${row.babip.toFixed(3)}</td>
+      <td class="num ${tier('woba',row.woba)}">${row.woba.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('ops',row.ops)}">${row.ops.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('avg',row.avg)}">${row.avg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('obp',row.obp)}">${row.obp.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('slg',row.slg)}">${row.slg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('iso',row.iso)}">${row.iso.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
+      <td class="num ${tier('babip',row.babip)}">${row.babip.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
       <td class="num ${tier('kPct',row.kPct)}">${row.kPct.toFixed(1)}%</td>
       <td class="num ${tier('bbPct',row.bbPct)}">${row.bbPct.toFixed(1)}%</td>
       <td class="num">${row.pa}</td>
