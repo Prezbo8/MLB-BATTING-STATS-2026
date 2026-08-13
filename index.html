@@ -339,7 +339,11 @@
            right-aligns to the same edge — monospace + constant decimals then
            line the decimal points up column-wide. */
         #panel-0 th.num { padding-right: 22px; }
-        #panel-0 td.num { position: relative; padding-right: 22px; }
+        #panel-0 td.num { padding-right: 22px; }
+        /* position:relative gives the trend arrow a containing block, but must NOT
+           hit the sticky-pinned LG AVG row — its td.num has to stay position:sticky
+           or its stat cells desync from the frozen wRC+/team cells. */
+        #panel-0 tbody tr:not(.lg-avg) td.num { position: relative; }
         /* wRC+ is a frozen (position:sticky) column, which already establishes a
            containing block for the arrow — only pad it; never set position here
            or the override clobbers sticky and the left offset shifts the cell. */
