@@ -439,6 +439,7 @@
         .radar-grid { fill: none; stroke: var(--border2); stroke-width: 1; opacity: 0.6; }
         .radar-spoke { stroke: var(--border2); stroke-width: 1; opacity: 0.45; }
         .radar-axis-label { fill: var(--text2); font-family: var(--display); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .radar-axis-value { font-family: var(--mono); font-size: 9px; font-weight: 500; }
         .radar-poly { stroke-width: 2; stroke-linejoin: round; }
         .radar-poly-away { fill: var(--blue);   fill-opacity: 0.16; stroke: var(--blue);   }
         .radar-poly-home { fill: var(--orange); fill-opacity: 0.16; stroke: var(--orange); }
@@ -2161,7 +2162,7 @@ function buildCompareRadar(awayTm, homeTm) {
         return s.higherBetter ? p : 1 - p;
     };
 
-    const cx = 210, cy = 185, maxR = 128, N = axes.length, RMIN = 0.10;
+    const cx = 230, cy = 190, maxR = 120, N = axes.length, RMIN = 0.10;
     const ang = i => (-90 + i * 360 / N) * Math.PI / 180;
     const pt = (i, r) => [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))];
 
@@ -2175,11 +2176,13 @@ function buildCompareRadar(awayTm, homeTm) {
     axes.forEach((s, i) => {
         const [ex, ey] = pt(i, maxR);
         spokes += `<line class="radar-spoke" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
-        const [lx, ly] = pt(i, maxR + 18);
+        const [lx, ly] = pt(i, maxR + 16);
         const cos = Math.cos(ang(i)), sin = Math.sin(ang(i));
         const anchor = cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle';
-        const dy = sin > 0.3 ? 10 : sin < -0.3 ? -2 : 4;
+        const dy = sin > 0.3 ? 4 : sin < -0.3 ? -10 : -3;   // label baseline; value sits 11px below
+        const av = s.fmt(away[s.key]), hv = s.fmt(home[s.key]);
         labels += `<text class="radar-axis-label" x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}">${s.label}</text>`;
+        labels += `<text class="radar-axis-value" x="${lx.toFixed(1)}" y="${(ly + dy + 11).toFixed(1)}" text-anchor="${anchor}"><tspan fill="var(--blue)">${av}</tspan><tspan fill="var(--muted)"> · </tspan><tspan fill="var(--orange)">${hv}</tspan></text>`;
     });
 
     const build = (team, cls) => {
@@ -2197,7 +2200,7 @@ function buildCompareRadar(awayTm, homeTm) {
     return `<div class="compare-radar-card">
         <div class="compare-radar-title">${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm}</div>
         <div class="compare-radar-sub">Season Profile · League Percentile</div>
-        <svg class="compare-radar-svg" viewBox="0 0 420 400" role="img" aria-label="${awayTm} versus ${homeTm} season profile radar chart">
+        <svg class="compare-radar-svg" viewBox="0 0 460 420" role="img" aria-label="${awayTm} versus ${homeTm} season profile radar chart">
             ${grid}${spokes}${labels}
             ${build(away, 'away')}
             ${build(home, 'home')}
