@@ -339,7 +339,11 @@
            right-aligns to the same edge — monospace + constant decimals then
            line the decimal points up column-wide. */
         #panel-0 th.num { padding-right: 22px; }
-        #panel-0 td.num, #panel-0 td.wrc-cell { position: relative; padding-right: 22px; }
+        #panel-0 td.num { position: relative; padding-right: 22px; }
+        /* wRC+ is a frozen (position:sticky) column, which already establishes a
+           containing block for the arrow — only pad it; never set position here
+           or the override clobbers sticky and the left offset shifts the cell. */
+        #panel-0 td.wrc-cell { padding-right: 22px; }
         #panel-0 td.num .trend-arrow, #panel-0 td.wrc-cell .trend-arrow {
             position: absolute; right: 5px; top: 50%; transform: translateY(-50%); margin-left: 0;
         }
