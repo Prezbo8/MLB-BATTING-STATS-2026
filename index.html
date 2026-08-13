@@ -333,6 +333,16 @@
         .trend-up   { color: var(--elite); }
         .trend-down { color: var(--ass); }
         .trend-flat { color: var(--muted); opacity: 0.5; }
+        /* Decimal-aligned stat columns (Rankings): the trend arrow used to sit
+           inline after the value, nudging cells that have one off the decimal
+           grid vs cells that don't. Pull it out of flow so every value
+           right-aligns to the same edge — monospace + constant decimals then
+           line the decimal points up column-wide. */
+        #panel-0 th.num { padding-right: 22px; }
+        #panel-0 td.num, #panel-0 td.wrc-cell { position: relative; padding-right: 22px; }
+        #panel-0 td.num .trend-arrow, #panel-0 td.wrc-cell .trend-arrow {
+            position: absolute; right: 5px; top: 50%; transform: translateY(-50%); margin-left: 0;
+        }
         .empty-state { padding: 3.5rem 2rem; text-align: center; color: var(--muted); }
         .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.3; }
         .empty-state-text { font-family: var(--display); font-size: 0.95rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -420,6 +430,26 @@
         .stat-val-away.winner .cmp-bar-away, .stat-val-home.winner .cmp-bar-home { opacity: 0.2; }
         .stat-val-away.loser, .stat-val-home.loser   { color: var(--muted); }
         .stat-val-away.winner, .stat-val-home.winner { color: var(--text); }
+
+        /* ── COMPARE RADAR (season profile, league percentile) ──────────── */
+        .compare-radar-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1rem 1rem; margin-bottom: 1.5rem; }
+        .compare-radar-title { text-align: center; font-family: var(--display); font-size: 1.05rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); line-height: 1; }
+        .compare-radar-sub { text-align: center; font-family: var(--display); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+        .compare-radar-svg { display: block; width: 100%; max-width: 460px; height: auto; margin: 0.5rem auto 0; }
+        .radar-grid { fill: none; stroke: var(--border2); stroke-width: 1; opacity: 0.6; }
+        .radar-spoke { stroke: var(--border2); stroke-width: 1; opacity: 0.45; }
+        .radar-axis-label { fill: var(--text2); font-family: var(--display); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .radar-poly { stroke-width: 2; stroke-linejoin: round; }
+        .radar-poly-away { fill: var(--blue);   fill-opacity: 0.16; stroke: var(--blue);   }
+        .radar-poly-home { fill: var(--orange); fill-opacity: 0.16; stroke: var(--orange); }
+        .radar-vertex { stroke: var(--surface); stroke-width: 1.5; transition: r 0.12s; }
+        .radar-vertex-away { fill: var(--blue);   }
+        .radar-vertex-home { fill: var(--orange); }
+        .radar-vertex:hover { r: 6; }
+        .radar-legend { display: flex; justify-content: center; gap: 1.75rem; margin-top: 0.5rem; flex-wrap: wrap; }
+        .radar-legend-item { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.04em; }
+        .radar-legend-logo { width: 22px; height: 22px; object-fit: contain; }
+        .radar-legend-swatch { width: 20px; height: 4px; border-radius: 2px; }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -2106,6 +2136,79 @@ function buildMiniCompareCard(awayTm, homeTm, splitVal, drVal, drLabel) {
     </div>`;
 }
 
+// ── COMPARE RADAR (season profile vs league) ──────────────────────────────
+// Eight offensive axes, each scaled to the team's league percentile so that
+// different-scale stats (wRC+ ~100, wOBA ~.320, K% ~22%) share one 0–100
+// radial axis where outward = better.
+const RADAR_KEYS = ['wrcPlus','woba','ops','obp','slg','iso','bbPct','kPct'];
+
+function buildCompareRadar(awayTm, homeTm) {
+    const data = getFilteredData('no_split', 'season');
+    if (!data || data.length < 10) return '';
+    const away = data.find(t => t.tm === awayTm);
+    const home = data.find(t => t.tm === homeTm);
+    if (!away || !home) return '';
+
+    const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
+    // Percentile of v among all teams for this stat (0..1, 1 = best). Lower-is-
+    // better stats (K%) are inverted so a good value still points outward.
+    const pctOf = (s, v) => {
+        const vals = data.map(t => t[s.key]).filter(x => x != null && !isNaN(x));
+        if (!vals.length || v == null || isNaN(v)) return 0;
+        let below = 0, eq = 0;
+        vals.forEach(x => { if (x < v) below++; else if (x === v) eq++; });
+        let p = (below + eq * 0.5) / vals.length;
+        return s.higherBetter ? p : 1 - p;
+    };
+
+    const cx = 210, cy = 185, maxR = 128, N = axes.length, RMIN = 0.10;
+    const ang = i => (-90 + i * 360 / N) * Math.PI / 180;
+    const pt = (i, r) => [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))];
+
+    let grid = '';
+    [0.25, 0.5, 0.75, 1].forEach(lvl => {
+        const p = axes.map((_, i) => pt(i, lvl * maxR).map(n => n.toFixed(1)).join(',')).join(' ');
+        grid += `<polygon class="radar-grid" points="${p}"/>`;
+    });
+
+    let spokes = '', labels = '';
+    axes.forEach((s, i) => {
+        const [ex, ey] = pt(i, maxR);
+        spokes += `<line class="radar-spoke" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
+        const [lx, ly] = pt(i, maxR + 18);
+        const cos = Math.cos(ang(i)), sin = Math.sin(ang(i));
+        const anchor = cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle';
+        const dy = sin > 0.3 ? 10 : sin < -0.3 ? -2 : 4;
+        labels += `<text class="radar-axis-label" x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}">${s.label}</text>`;
+    });
+
+    const build = (team, cls) => {
+        const pts = axes.map((s, i) => pt(i, (RMIN + (1 - RMIN) * pctOf(s, team[s.key])) * maxR));
+        const poly = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+        const verts = pts.map(([x, y], i) => {
+            const s = axes[i], p = Math.round(pctOf(s, team[s.key]) * 100);
+            return `<circle class="radar-vertex radar-vertex-${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"><title>${team.tm} · ${s.label} ${s.fmt(team[s.key])} · ${p}th pct</title></circle>`;
+        }).join('');
+        return `<polygon class="radar-poly radar-poly-${cls}" points="${poly}"/>${verts}`;
+    };
+
+    const logo = tm => teamLogos[tm] ? `<img class="radar-legend-logo" src="${teamLogos[tm]}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
+
+    return `<div class="compare-radar-card">
+        <div class="compare-radar-title">${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm}</div>
+        <div class="compare-radar-sub">Season Profile · League Percentile</div>
+        <svg class="compare-radar-svg" viewBox="0 0 420 400" role="img" aria-label="${awayTm} versus ${homeTm} season profile radar chart">
+            ${grid}${spokes}${labels}
+            ${build(away, 'away')}
+            ${build(home, 'home')}
+        </svg>
+        <div class="radar-legend">
+            <div class="radar-legend-item" style="color:var(--blue);">${logo(awayTm)}<span class="radar-legend-swatch" style="background:var(--blue);"></span>${awayTm}</div>
+            <div class="radar-legend-item" style="color:var(--orange);">${logo(homeTm)}<span class="radar-legend-swatch" style="background:var(--orange);"></span>${homeTm}</div>
+        </div>
+    </div>`;
+}
+
 function renderAllSplits() {
     const awayTm = document.getElementById('away-input').value.trim().toUpperCase();
     const homeTm = document.getElementById('home-input').value.trim().toUpperCase();
@@ -2117,6 +2220,7 @@ function renderAllSplits() {
     }
 
     let html = '<div class="all-splits-wrapper">';
+    html += buildCompareRadar(awayTm, homeTm);
     SPLITS.forEach(sp => {
         const cards = DATE_RANGES.map(dr =>
             buildMiniCompareCard(awayTm, homeTm, sp.value, dr.value, dr.label)
