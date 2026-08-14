@@ -2206,7 +2206,7 @@ function buildCompareRadar(awayTm, homeTm) {
     const logo = tm => teamLogos[tm] ? `<img class="radar-legend-logo" src="${teamLogos[tm]}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
 
     return `<div class="compare-radar-card">
-        <div class="compare-radar-title">${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm}</div>
+        <div class="compare-radar-title">${teamLogos[awayTm] ? `<img src="${teamLogos[awayTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''} ${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm} ${teamLogos[homeTm] ? `<img src="${teamLogos[homeTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''}</div>
         <div class="compare-radar-sub">Season Profile · League Percentile</div>
         <svg class="compare-radar-svg" viewBox="0 0 460 420" role="img" aria-label="${awayTm} versus ${homeTm} season profile radar chart">
             ${grid}${spokes}${labels}

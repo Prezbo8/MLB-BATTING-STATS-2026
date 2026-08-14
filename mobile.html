@@ -216,6 +216,9 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-radar-leg { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 0.85rem; font-weight: 900; }
 .m-radar-leg img { width: 20px; height: 20px; object-fit: contain; }
 .m-radar-sw { width: 18px; height: 4px; border-radius: 2px; }
+.m-cmp-pick { display: flex; align-items: center; gap: 6px; }
+.m-cmp-pick select { flex: 1; min-width: 0; }
+.m-cmp-logo { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
 .m-team-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
 .m-team-abbr { font-family: var(--display); font-size: 0.95rem; font-weight: 800; }
 @keyframes rowIn { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
@@ -568,8 +571,8 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
     <div id="mp-compare" class="m-panel">
         <div class="m-section-title">Compare</div>
         <div class="m-stat-picker" style="grid-template-columns:1fr 1fr;">
-            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--blue);">✈️ Away</div><select id="c-away" onchange="renderMobileCompare()"></select></div>
-            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--orange);">🏠 Home</div><select id="c-home" onchange="renderMobileCompare()"></select></div>
+            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--blue);">✈️ Away</div><div class="m-cmp-pick"><img id="c-away-logo" class="m-cmp-logo" alt=""><select id="c-away" onchange="renderMobileCompare()"></select></div></div>
+            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--orange);">🏠 Home</div><div class="m-cmp-pick"><img id="c-home-logo" class="m-cmp-logo" alt=""><select id="c-home" onchange="renderMobileCompare()"></select></div></div>
         </div>
         <div id="m-compare-container">
             <div class="m-empty"><div class="m-empty-icon">⚔️</div><div class="m-empty-text">Pick two teams</div></div>
@@ -1269,6 +1272,9 @@ function renderMobileCompare() {
     if (!container) return;
     const away = document.getElementById('c-away')?.value;
     const home = document.getElementById('c-home')?.value;
+    const al = document.getElementById('c-away-logo'), hl = document.getElementById('c-home-logo');
+    if (al) al.src = teamLogo(away) || '';
+    if (hl) hl.src = teamLogo(home) || '';
     const html = (away && home) ? buildMobileRadar(away, home) : '';
     container.innerHTML = html || `<div class="m-empty"><div class="m-empty-icon">⚔️</div><div class="m-empty-text">${(allData['no_split-season']||[]).length ? 'Pick two teams' : 'Loading data…'}</div></div>`;
 }
@@ -1310,8 +1316,9 @@ function buildMobileRadar(awayTm, homeTm) {
         return `<polygon class="m-radar-poly m-radar-${cls}" points="${poly}"/>${v}`;
     };
     const logo = tm => teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
+    const tlogo = tm => teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : '';
     return `<div class="m-radar-card">
-        <div class="m-radar-title">${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm}</div>
+        <div class="m-radar-title">${tlogo(awayTm)} ${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm} ${tlogo(homeTm)}</div>
         <div class="m-radar-sub">Season · League Percentile</div>
         <svg class="m-radar-svg" viewBox="0 0 400 410" role="img" aria-label="${awayTm} vs ${homeTm} radar">
             ${grid}${spokes}${labels}${build(away, 'away')}${build(home, 'home')}
