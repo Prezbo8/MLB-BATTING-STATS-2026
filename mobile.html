@@ -193,6 +193,10 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-table-fit { overflow-x: hidden; }
 .m-table-fit .m-table { table-layout: fixed; }
 .m-table-fit .m-table th, .m-table-fit .m-table td { padding-left: 8px; padding-right: 9px; white-space: nowrap; }
+/* Player name cell: logo + name that truncates instead of pushing the table wide */
+.m-pl-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.m-pl-cell img { flex-shrink: 0; }
+.m-pl-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; color: var(--text); }
 .m-team-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
 .m-team-abbr { font-family: var(--display); font-size: 0.95rem; font-weight: 800; }
 @keyframes rowIn { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
@@ -497,29 +501,16 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
                 <input class="m-text-input" id="p-search" type="text" placeholder="Soto…" oninput="loadPlayers()" style="width:80px;">
             </div>
         </div>
-        <div class="m-scroll-hint">← scroll right for all stats →</div>
-        <div class="m-table-wrap">
+        <div class="m-stat-picker">
+            <div class="m-filter-group"><div class="m-filter-label">Col 1</div><select id="p-stat0" onchange="setPStat(0, this.value)"></select></div>
+            <div class="m-filter-group"><div class="m-filter-label">Col 2</div><select id="p-stat1" onchange="setPStat(1, this.value)"></select></div>
+            <div class="m-filter-group"><div class="m-filter-label">Col 3</div><select id="p-stat2" onchange="setPStat(2, this.value)"></select></div>
+        </div>
+        <div class="m-table-wrap m-table-fit">
             <table class="m-table">
-                <thead>
-                    <tr>
-                        <th class="left-align" style="width:34px;">#</th>
-                        <th class="left-align" style="min-width:110px;">Player</th>
-                        <th style="min-width:46px;">Tm</th>
-                        <th class="sort-active" id="p-th-wrcPlus" onclick="sortPlayers('wrcPlus')">wRC+ ↓</th>
-                        <th id="p-th-ops"   onclick="sortPlayers('ops')">OPS</th>
-                        <th id="p-th-avg"   onclick="sortPlayers('avg')">AVG</th>
-                        <th id="p-th-woba"  onclick="sortPlayers('woba')">wOBA</th>
-                        <th id="p-th-obp"   onclick="sortPlayers('obp')">OBP</th>
-                        <th id="p-th-slg"   onclick="sortPlayers('slg')">SLG</th>
-                        <th id="p-th-iso"   onclick="sortPlayers('iso')">ISO</th>
-                        <th id="p-th-babip" onclick="sortPlayers('babip')">BABIP</th>
-                        <th id="p-th-kPct"  onclick="sortPlayers('kPct')">K%</th>
-                        <th id="p-th-bbPct" onclick="sortPlayers('bbPct')">BB%</th>
-                        <th id="p-th-pa"    onclick="sortPlayers('pa')">PA</th>
-                    </tr>
-                </thead>
+                <thead id="p-head"></thead>
                 <tbody id="p-body">
-                    <tr><td colspan="14"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
+                    <tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
                 </tbody>
             </table>
         </div>
@@ -817,8 +808,9 @@ let rpgLoaded = false, playerLoaded = false, lineupLoaded = false;
 let playerPromise = null, lineupPromise = null;
 let rSortKey = 'wrcPlus', rSortDir = 'desc';
 let pSortKey = 'wrcPlus', pSortDir = 'desc';
-// The 3 stat columns shown in the rankings table (user-pickable, no side-scroll)
+// The 3 stat columns shown in the rankings / players tables (user-pickable, no side-scroll)
 let rStats = ['wrcPlus', 'woba', 'ops'];
+let pStats = ['wrcPlus', 'woba', 'ops'];
 const R_STAT_OPTIONS = [
     { key:'wrcPlus', label:'wRC+' }, { key:'woba', label:'wOBA' }, { key:'ops', label:'OPS' },
     { key:'avg', label:'AVG' }, { key:'obp', label:'OBP' }, { key:'slg', label:'SLG' },
@@ -1139,37 +1131,52 @@ function loadPlayers() {
         tbody.innerHTML = `<tr><td colspan="14"><div class="m-empty"><div class="m-empty-icon">🔍</div><div class="m-empty-text">${playerLoaded?'No data':'Loading…'}</div></div></td></tr>`;
         return;
     }
+    const head = document.getElementById('p-head');
+    head.innerHTML = `<tr>
+        <th class="left-align" style="width:34px;" onclick="sortPlayers('_rank')">#</th>
+        <th class="left-align" style="width:42%;" onclick="sortPlayers('_rank')">Player</th>
+        ${pStats.map(k => {
+            const o = R_STAT_OPTIONS.find(x => x.key === k) || { label: k };
+            const active = pSortKey === k;
+            const arrow = active ? (pSortDir==='desc' ? ' ↓' : ' ↑') : '';
+            return `<th class="${active?'sort-active':''}" onclick="sortPlayers('${k}')">${o.label}${arrow}</th>`;
+        }).join('')}
+    </tr>`;
     tbody.innerHTML = sorted.map((row,i) => {
         const rank = i+1;
         const rankHtml = rank<=3 ? `<span class="rank-badge rank-${rank}">${rank}</span>` : `<span style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);">${rank}</span>`;
+        const cells = pStats.map(k => {
+            const val = row[k];
+            const disp = (val==null || isNaN(val)) ? '—' : fmtStat(k, val);
+            return `<td class="num ${tc(k,val)}">${disp}</td>`;
+        }).join('');
         return `<tr class="anim" style="animation-delay:${Math.min(i*8,200)}ms">
             <td class="rank-cell">${rankHtml}</td>
-            <td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;font-size:0.78rem;">${row.name}</td>
-            <td><div style="display:flex;align-items:center;gap:4px;">${logoImg(row.tm,18)}<span style="color:${teamColor(row.tm)};font-family:var(--display);font-size:0.78rem;font-weight:800;">${row.tm==='WAS'?'WSN':row.tm}</span></div></td>
-            <td class="wrc ${tc('wrcPlus',row.wrcPlus)}">${row.wrcPlus}</td>
-            <td class="num ${tc('ops',row.ops)}">${row.ops.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('avg',row.avg)}">${row.avg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('woba',row.woba)}">${row.woba.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('obp',row.obp)}">${row.obp.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('slg',row.slg)}">${row.slg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('iso',row.iso)}">${row.iso.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('babip',row.babip)}">${row.babip.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('kPct',row.kPct)}">${row.kPct.toFixed(1)}%</td>
-            <td class="num ${tc('bbPct',row.bbPct)}">${row.bbPct.toFixed(1)}%</td>
-            <td class="num">${row.pa}</td>
+            <td><div class="m-pl-cell">${logoImg(row.tm,18)}<span class="m-pl-name">${row.name}</span></div></td>
+            ${cells}
         </tr>`;
     }).join('');
 }
 
 function sortPlayers(key) {
+    if (key === '_rank') return;
     if (pSortKey === key) pSortDir = pSortDir==='desc'?'asc':'desc';
     else { pSortKey = key; pSortDir = 'desc'; }
-    document.querySelectorAll('[id^="p-th-"]').forEach(th => {
-        th.classList.remove('sort-active');
-        th.textContent = th.textContent.replace(/ [↓↑]$/,'');
-    });
-    const el = document.getElementById('p-th-'+key);
-    if (el) { el.classList.add('sort-active'); el.textContent += (pSortDir==='desc'?' ↓':' ↑'); }
+    loadPlayers();   // header (active class + arrow) is rebuilt inside loadPlayers
+}
+
+// Populate the 3 player stat-picker dropdowns
+function initPStatPickers() {
+    for (let i = 0; i < 3; i++) {
+        const sel = document.getElementById('p-stat' + i);
+        if (!sel) continue;
+        sel.innerHTML = R_STAT_OPTIONS.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+        sel.value = pStats[i];
+    }
+}
+function setPStat(i, key) {
+    pStats[i] = key;
+    if (!pStats.includes(pSortKey)) { pSortKey = pStats[0]; pSortDir = 'desc'; }
     loadPlayers();
 }
 
@@ -1634,6 +1641,7 @@ async function loadMobileReport() {
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initRStatPickers();
+    initPStatPickers();
     fetchData();
     ensureLineups().then(() => {}).catch(()=>{});
     ensureRPG().catch(()=>{});
