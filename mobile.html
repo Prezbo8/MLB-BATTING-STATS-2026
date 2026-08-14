@@ -305,6 +305,20 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-lineup-lbl { font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .m-status-confirmed { color: var(--elite); font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); border-radius: 3px; padding: 1px 5px; }
 .m-status-projected  { color: var(--mid); font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(250,204,21,0.1); border: 1px solid rgba(250,204,21,0.25); border-radius: 3px; padding: 1px 5px; }
+/* ── LINEUP T-CHART (away | order | home) ─────────────────────────────────── */
+.m-tc-row { display: grid; grid-template-columns: 1fr 32px 1fr; align-items: stretch; border-bottom: 1px solid rgba(30,35,51,0.6); }
+.m-tc-row:last-child { border-bottom: none; }
+.m-tc-away, .m-tc-home { display: flex; align-items: center; gap: 5px; padding: 6px 9px; min-width: 0; font-size: 0.75rem; }
+.m-tc-away { justify-content: flex-end; text-align: right; }
+.m-tc-home { justify-content: flex-start; text-align: left; }
+.m-tc-num { display: flex; align-items: center; justify-content: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border); font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+.m-tc-num-lbl { font-family: var(--display); font-size: 0.5rem; font-weight: 800; letter-spacing: 0.06em; color: var(--muted); }
+.m-tc-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-tc-pos { font-family: var(--display); font-size: 0.56rem; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+.m-tc-abbr { font-family: var(--display); font-size: 0.9rem; font-weight: 900; flex-shrink: 0; }
+.m-tc-teamrow { background: var(--surface3); }
+.m-tc-pitrow { background: rgba(230,57,70,0.05); }
+.m-tc-pitrow .m-tc-name { color: var(--text); }
 .m-pitcher-row { padding: 5px 10px; border-bottom: 1px solid var(--border); background: rgba(230,57,70,0.04); display: flex; align-items: center; gap: 5px; }
 .m-pitcher-lbl { font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); flex-shrink: 0; }
 .m-pitcher-name { font-family: var(--body); font-size: 0.75rem; color: var(--text); }
@@ -1420,14 +1434,41 @@ function renderLineupsMobile() {
         container.innerHTML = `<div class="m-empty"><div class="m-empty-icon">📭</div><div class="m-empty-text">No lineups for today</div></div>`;
         return;
     }
+    const parseOrder = rec => { try { return rec?.batting_order ? JSON.parse(rec.batting_order) : []; } catch(e) { return []; } };
+    const statusBadge = s => s === 'Confirmed'
+        ? `<span class="m-status-confirmed">✓</span>`
+        : `<span class="m-status-projected">~</span>`;
+    const pitHand = h => h ? `<span class="m-tc-pos">(${h})</span>` : '';
+    const awayBatCell = p => p ? `<span class="m-tc-name">${correctPlayerName(p.name)}</span><span class="m-tc-pos">${p.position||''}</span>${batBadge(p.bat_side)}` : '';
+    const homeBatCell = p => p ? `${batBadge(p.bat_side)}<span class="m-tc-pos">${p.position||''}</span><span class="m-tc-name">${correctPlayerName(p.name)}</span>` : '';
+
     const pairs = pairLineupGames(lineupGames);
     container.innerHTML = pairs.map(({ away, home }) => {
         const awayAbbr = away?.team || '???';
         const homeAbbr = home?.team || '???';
         const gameTime = away?.game_time || home?.game_time || '';
-        const statusBadge = s => s === 'Confirmed'
-            ? `<span class="m-status-confirmed">✓ Confirmed</span>`
-            : `<span class="m-status-projected">~ Projected</span>`;
+        const awayBat = parseOrder(away), homeBat = parseOrder(home);
+        const n = Math.max(awayBat.length, homeBat.length);
+
+        // Top of the T: team row + pitcher matchup; stem = the center order column
+        let rows = `
+            <div class="m-tc-row m-tc-teamrow">
+                <div class="m-tc-away">${statusBadge(away?.lineup_status||'')}<span class="m-tc-abbr" style="color:${teamColor(awayAbbr)};">${awayAbbr}</span>${logoImg(awayAbbr,20)}</div>
+                <div class="m-tc-num"><span class="m-tc-num-lbl">VS</span></div>
+                <div class="m-tc-home">${logoImg(homeAbbr,20)}<span class="m-tc-abbr" style="color:${teamColor(homeAbbr)};">${homeAbbr}</span>${statusBadge(home?.lineup_status||'')}</div>
+            </div>
+            <div class="m-tc-row m-tc-pitrow">
+                <div class="m-tc-away"><span class="m-tc-name">${away?.pitcher_name||'TBD'}</span>${pitHand(away?.pitcher_hand)}</div>
+                <div class="m-tc-num"><span class="m-tc-num-lbl">SP</span></div>
+                <div class="m-tc-home">${pitHand(home?.pitcher_hand)}<span class="m-tc-name">${home?.pitcher_name||'TBD'}</span></div>
+            </div>`;
+        for (let i = 0; i < n; i++) {
+            rows += `<div class="m-tc-row">
+                <div class="m-tc-away">${awayBatCell(awayBat[i])}</div>
+                <div class="m-tc-num">${i+1}</div>
+                <div class="m-tc-home">${homeBatCell(homeBat[i])}</div>
+            </div>`;
+        }
         return `<div class="m-game-card">
             <div class="m-game-header">
                 <div class="m-game-matchup">
@@ -1437,42 +1478,9 @@ function renderLineupsMobile() {
                 </div>
                 <span class="m-game-time">${gameTime}</span>
             </div>
-            <div class="m-lineup-body">
-                ${buildMobileLineupSide(away, awayAbbr, 'Away', statusBadge(away?.lineup_status||''))}
-                ${buildMobileLineupSide(home, homeAbbr, 'Home', statusBadge(home?.lineup_status||''))}
-            </div>
+            <div class="m-tchart">${rows}</div>
         </div>`;
     }).join('');
-}
-
-function buildMobileLineupSide(rec, abbr, label, statusBadge) {
-    let battersHtml = '';
-    if (rec?.batting_order) {
-        let order = [];
-        try { order = JSON.parse(rec.batting_order); } catch(e) {}
-        battersHtml = order.map(p =>
-            `<div class="m-batter-row">
-                <span class="m-batter-num">${p.order}</span>
-                <span class="m-batter-name">${correctPlayerName(p.name)}</span>
-                <span class="m-batter-pos">${p.position||''}</span>
-                ${batBadge(p.bat_side)}
-            </div>`
-        ).join('');
-    } else {
-        battersHtml = `<div class="m-batter-row"><span class="m-batter-name" style="color:var(--muted);">Lineup not available</span></div>`;
-    }
-    return `<div class="m-lineup-side">
-        <div class="m-lineup-side-hdr">
-            <div class="m-lineup-side-team">${logoImg(abbr,20)}<span class="m-lineup-side-abbr" style="color:${teamColor(abbr)};">${abbr}</span></div>
-            <div style="display:flex;align-items:center;gap:4px;"><span class="m-lineup-lbl">${label}</span>${statusBadge}</div>
-        </div>
-        <div class="m-pitcher-row">
-            <span class="m-pitcher-lbl">SP</span>
-            <span class="m-pitcher-name">${rec?.pitcher_name||'TBD'}</span>
-            ${rec?.pitcher_hand ? `<span class="m-pitcher-hand">(${rec.pitcher_hand})</span>` : ''}
-        </div>
-        ${battersHtml}
-    </div>`;
 }
 
 // ── RPG ───────────────────────────────────────────────────────────────────────
