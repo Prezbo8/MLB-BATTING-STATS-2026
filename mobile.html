@@ -65,10 +65,11 @@ body::before {
 }
 .m-brand { display: flex; align-items: center; gap: 9px; }
 .m-brand-icon {
-    width: 34px; height: 34px; background: var(--accent); border-radius: 8px;
+    width: 38px; height: 38px; background: transparent;
     display: flex; align-items: center; justify-content: center;
-    font-size: 17px; box-shadow: 0 0 18px rgba(230,57,70,0.4); flex-shrink: 0;
+    flex-shrink: 0; filter: drop-shadow(0 0 7px rgba(249,115,22,0.55));
 }
+.m-brand-icon svg { width: 100%; height: 100%; display: block; }
 .m-brand-name { font-family: var(--display); font-size: 1.6rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
 .m-brand-sub  { font-family: var(--display); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-top: 1px; }
 .m-status-btn {
@@ -197,6 +198,24 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-pl-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .m-pl-cell img { flex-shrink: 0; }
 .m-pl-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; color: var(--text); }
+/* ── COMPARE RADAR ────────────────────────────────────────────────────────── */
+.m-radar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 6px 10px; }
+.m-radar-title { text-align: center; font-family: var(--display); font-size: 1rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
+.m-radar-sub { text-align: center; font-family: var(--display); font-size: 0.52rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.m-radar-svg { display: block; width: 100%; max-width: 400px; height: auto; margin: 6px auto 0; }
+.m-radar-grid { fill: none; stroke: var(--border2); stroke-width: 1; opacity: 0.6; }
+.m-radar-spoke { stroke: var(--border2); stroke-width: 1; opacity: 0.45; }
+.m-radar-axis { fill: var(--text2); font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+.m-radar-val { font-family: var(--mono); font-size: 10px; font-weight: 500; }
+.m-radar-poly { stroke-width: 2; stroke-linejoin: round; }
+.m-radar-away { fill: var(--blue); fill-opacity: 0.16; stroke: var(--blue); }
+.m-radar-home { fill: var(--orange); fill-opacity: 0.16; stroke: var(--orange); }
+.m-radar-vtx-away { fill: var(--blue); stroke: var(--surface); stroke-width: 1.5; }
+.m-radar-vtx-home { fill: var(--orange); stroke: var(--surface); stroke-width: 1.5; }
+.m-radar-legend { display: flex; justify-content: center; gap: 1.4rem; margin-top: 8px; }
+.m-radar-leg { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 0.85rem; font-weight: 900; }
+.m-radar-leg img { width: 20px; height: 20px; object-fit: contain; }
+.m-radar-sw { width: 18px; height: 4px; border-radius: 2px; }
 .m-team-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
 .m-team-abbr { font-family: var(--display); font-size: 0.95rem; font-weight: 800; }
 @keyframes rowIn { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
@@ -409,7 +428,22 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 <!-- TOP HEADER -->
 <header class="m-header">
     <div class="m-brand">
-        <div class="m-brand-icon">⚾</div>
+        <div class="m-brand-icon">
+            <svg viewBox="0 0 48 52" xmlns="http://www.w3.org/2000/svg" aria-label="Flaming baseball">
+                <!-- flames -->
+                <path fill="#ef4444" d="M24 2c3 8 10 10 9 18 3-2 6 1 6 6 3 4 1 12-5 15-3 2-4 3-10 3s-8-1-11-4c-6-4-7-13-3-16-1-6 3-9 6-7-1-6 5-9 4-14 2 2 4 1 4-2 0-1 0-2 0-2z"/>
+                <path fill="#f97316" d="M24 9c2 6 7 7 6 13 2-1 4 1 4 5 2 3 1 9-4 11-2 2-3 2-6 2s-5-1-7-3c-4-3-4-9-1-11-1-4 2-6 4-5-1-4 4-7 3-10 1 1 1 0 1-2z"/>
+                <path fill="#facc15" d="M24 17c1 4 4 5 4 9 2 2 1 7-4 9-4-2-5-6-3-9-1-3 2-4 3-5-1-2 0-3 0-4z"/>
+                <!-- baseball -->
+                <circle cx="24" cy="34" r="13" fill="#fdfdfd" stroke="#14171f" stroke-width="2"/>
+                <path d="M14.5 25.5c5 4 5 13 0 17" fill="none" stroke="#e63946" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M33.5 25.5c-5 4-5 13 0 17" fill="none" stroke="#e63946" stroke-width="1.8" stroke-linecap="round"/>
+                <g stroke="#e63946" stroke-width="1.3" stroke-linecap="round">
+                    <path d="M16.5 28l-2.2 1M17.6 31.5l-2.4 .4M17.6 36.5l-2.4-.4M16.5 40l-2.2-1"/>
+                    <path d="M31.5 28l2.2 1M30.4 31.5l2.4 .4M30.4 36.5l2.4-.4M31.5 40l2.2-1"/>
+                </g>
+            </svg>
+        </div>
         <div>
             <div class="m-brand-name">MLB 2026</div>
             <div class="m-brand-sub">Offense Analyzer</div>
@@ -527,6 +561,18 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
                     <tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- PANEL: COMPARE -->
+    <div id="mp-compare" class="m-panel">
+        <div class="m-section-title">Compare</div>
+        <div class="m-stat-picker" style="grid-template-columns:1fr 1fr;">
+            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--blue);">✈️ Away</div><select id="c-away" onchange="renderMobileCompare()"></select></div>
+            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--orange);">🏠 Home</div><select id="c-home" onchange="renderMobileCompare()"></select></div>
+        </div>
+        <div id="m-compare-container">
+            <div class="m-empty"><div class="m-empty-icon">⚔️</div><div class="m-empty-text">Pick two teams</div></div>
         </div>
     </div>
 
@@ -711,6 +757,10 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
         <span class="m-nav-icon">🧑</span>
         <span class="m-nav-label">Players</span>
     </button>
+    <button class="m-nav-btn" id="nav-compare" onclick="switchPanel('compare')">
+        <span class="m-nav-icon">⚔️</span>
+        <span class="m-nav-label">Compare</span>
+    </button>
     <button class="m-nav-btn" id="nav-hotcold" onclick="switchPanel('hotcold')">
         <span class="m-nav-icon">🔥</span>
         <span class="m-nav-label">Hot/Cold</span>
@@ -892,6 +942,7 @@ function switchPanel(id) {
     document.getElementById('nav-' + id).classList.add('active');
 
     if (id === 'players' && !playerLoaded) ensurePlayers().then(() => loadPlayers());
+    if (id === 'compare') { initComparePickers(); renderMobileCompare(); }
     if (id === 'hotcold') renderHCTeams();
     if (id === 'lineups') ensureLineups().then(() => renderLineupsMobile());
     if (id === 'rpg') ensureRPG().then(() => renderRPG());
@@ -969,6 +1020,8 @@ function loadTeamRows(rows) {
     }
     loadRankings();
     renderHCTeams();
+    initComparePickers();
+    if (document.getElementById('mp-compare')?.classList.contains('active')) renderMobileCompare();
 }
 
 function ensurePlayers() {
@@ -1192,6 +1245,82 @@ function setPStat(i, key) {
     pStats[i] = key;
     if (!pStats.includes(pSortKey)) { pSortKey = pStats[0]; pSortDir = 'desc'; }
     loadPlayers();
+}
+
+// ── COMPARE RADAR ─────────────────────────────────────────────────────────
+const RADAR_KEYS = ['wrcPlus','woba','ops','obp','slg','iso','bbPct','kPct'];
+
+function initComparePickers() {
+    const season = allData['no_split-season'] || [];
+    if (!season.length) return;
+    const teams = season.map(t => t.tm).sort();
+    const opts = teams.map(t => `<option value="${t}">${t}</option>`).join('');
+    const a = document.getElementById('c-away'), h = document.getElementById('c-home');
+    if (!a || !h) return;
+    if (a.options.length) return;   // already populated
+    a.innerHTML = opts; h.innerHTML = opts;
+    const top = [...season].sort((x, y) => (y.wrcPlus||0) - (x.wrcPlus||0));
+    a.value = top[0]?.tm || teams[0];
+    h.value = top[1]?.tm || teams[1] || teams[0];
+}
+
+function renderMobileCompare() {
+    const container = document.getElementById('m-compare-container');
+    if (!container) return;
+    const away = document.getElementById('c-away')?.value;
+    const home = document.getElementById('c-home')?.value;
+    const html = (away && home) ? buildMobileRadar(away, home) : '';
+    container.innerHTML = html || `<div class="m-empty"><div class="m-empty-icon">⚔️</div><div class="m-empty-text">${(allData['no_split-season']||[]).length ? 'Pick two teams' : 'Loading data…'}</div></div>`;
+}
+
+function buildMobileRadar(awayTm, homeTm) {
+    const data = allData['no_split-season'] || [];
+    if (data.length < 10) return '';
+    const away = data.find(t => t.tm === awayTm), home = data.find(t => t.tm === homeTm);
+    if (!away || !home) return '';
+    const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
+    const pctOf = (s, v) => {
+        const vals = data.map(t => t[s.key]).filter(x => x != null && !isNaN(x));
+        if (!vals.length || v == null || isNaN(v)) return 0;
+        let below = 0, eq = 0;
+        vals.forEach(x => { if (x < v) below++; else if (x === v) eq++; });
+        let p = (below + eq * 0.5) / vals.length;
+        return s.higherBetter ? p : 1 - p;
+    };
+    const cx = 200, cy = 175, maxR = 105, N = axes.length, RMIN = 0.10;
+    const ang = i => (-90 + i * 360 / N) * Math.PI / 180;
+    const pt = (i, r) => [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))];
+    let grid = '';
+    [0.25, 0.5, 0.75, 1].forEach(l => { grid += `<polygon class="m-radar-grid" points="${axes.map((_, i) => pt(i, l * maxR).map(n => n.toFixed(1)).join(',')).join(' ')}"/>`; });
+    let spokes = '', labels = '';
+    axes.forEach((s, i) => {
+        const [ex, ey] = pt(i, maxR);
+        spokes += `<line class="m-radar-spoke" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
+        const [lx, ly] = pt(i, maxR + 15);
+        const cos = Math.cos(ang(i)), sin = Math.sin(ang(i));
+        const anchor = cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle';
+        const dy = sin > 0.3 ? 4 : sin < -0.3 ? -9 : -3;
+        labels += `<text class="m-radar-axis" x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}">${s.label}</text>`;
+        labels += `<text class="m-radar-val" x="${lx.toFixed(1)}" y="${(ly + dy + 11).toFixed(1)}" text-anchor="${anchor}"><tspan fill="var(--blue)">${s.fmt(away[s.key])}</tspan><tspan fill="var(--muted)"> · </tspan><tspan fill="var(--orange)">${s.fmt(home[s.key])}</tspan></text>`;
+    });
+    const build = (team, cls) => {
+        const pts = axes.map((s, i) => pt(i, (RMIN + (1 - RMIN) * pctOf(s, team[s.key])) * maxR));
+        const poly = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+        const v = pts.map(([x, y]) => `<circle class="m-radar-vtx-${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"/>`).join('');
+        return `<polygon class="m-radar-poly m-radar-${cls}" points="${poly}"/>${v}`;
+    };
+    const logo = tm => teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
+    return `<div class="m-radar-card">
+        <div class="m-radar-title">${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm}</div>
+        <div class="m-radar-sub">Season · League Percentile</div>
+        <svg class="m-radar-svg" viewBox="0 0 400 410" role="img" aria-label="${awayTm} vs ${homeTm} radar">
+            ${grid}${spokes}${labels}${build(away, 'away')}${build(home, 'home')}
+        </svg>
+        <div class="m-radar-legend">
+            <div class="m-radar-leg" style="color:var(--blue);">${logo(awayTm)}<span class="m-radar-sw" style="background:var(--blue);"></span>${awayTm}</div>
+            <div class="m-radar-leg" style="color:var(--orange);">${logo(homeTm)}<span class="m-radar-sw" style="background:var(--orange);"></span>${homeTm}</div>
+        </div>
+    </div>`;
 }
 
 // ── HOT / COLD ────────────────────────────────────────────────────────────────
