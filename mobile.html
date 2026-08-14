@@ -181,6 +181,12 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-table tbody tr:active { background: var(--surface2); }
 .m-table td.num { font-family: var(--mono); font-size: 0.78rem; text-align: right; color: var(--text2); }
 .m-table td.wrc { font-family: var(--mono); font-size: 0.88rem; font-weight: 600; text-align: right; }
+/* Tier color-grading must win over the .num base color (same specificity, later wins) */
+.m-table td.t-elite { color: var(--elite); }
+.m-table td.t-good  { color: var(--good);  }
+.m-table td.t-mid   { color: var(--mid);   }
+.m-table td.t-bad   { color: var(--bad);   }
+.m-table td.t-ass   { color: var(--ass);   }
 .rank-cell { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); width: 34px; text-align: center; }
 .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-family: var(--display); font-size: 0.8rem; font-weight: 800; }
 .rank-1 { background: #f59e0b; color: #000; box-shadow: 0 0 8px rgba(245,158,11,0.4); }
