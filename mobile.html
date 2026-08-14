@@ -186,6 +186,13 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .rank-2 { background: #94a3b8; color: #000; }
 .rank-3 { background: #a07850; color: #fff; }
 .m-team-cell { display: flex; align-items: center; gap: 7px; min-width: 70px; }
+/* Stat picker: choose the 3 stat columns shown in the rankings table */
+.m-stat-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.m-stat-picker select { width: 100%; }
+/* Fit-to-width variant: 5 columns, fixed layout so it never side-scrolls */
+.m-table-fit { overflow-x: hidden; }
+.m-table-fit .m-table { table-layout: fixed; }
+.m-table-fit .m-table th, .m-table-fit .m-table td { padding-left: 8px; padding-right: 9px; white-space: nowrap; }
 .m-team-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
 .m-team-abbr { font-family: var(--display); font-size: 0.95rem; font-weight: 800; }
 @keyframes rowIn { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
@@ -428,28 +435,25 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             </div>
             <div id="r-badge" class="m-data-badge" style="display:none;"></div>
         </div>
-        <div class="m-scroll-hint">← scroll right for all stats →</div>
-        <div class="m-table-wrap">
+        <div class="m-stat-picker">
+            <div class="m-filter-group">
+                <div class="m-filter-label">Col 1</div>
+                <select id="r-stat0" onchange="setRStat(0, this.value)"></select>
+            </div>
+            <div class="m-filter-group">
+                <div class="m-filter-label">Col 2</div>
+                <select id="r-stat1" onchange="setRStat(1, this.value)"></select>
+            </div>
+            <div class="m-filter-group">
+                <div class="m-filter-label">Col 3</div>
+                <select id="r-stat2" onchange="setRStat(2, this.value)"></select>
+            </div>
+        </div>
+        <div class="m-table-wrap m-table-fit">
             <table class="m-table">
-                <thead>
-                    <tr>
-                        <th class="left-align" style="width:34px;" onclick="sortRankings('_rank')">#</th>
-                        <th class="left-align" style="min-width:80px;">Team</th>
-                        <th class="sort-active" id="r-th-wrcPlus" onclick="sortRankings('wrcPlus')">wRC+ ↓</th>
-                        <th id="r-th-ops"    onclick="sortRankings('ops')">OPS</th>
-                        <th id="r-th-avg"    onclick="sortRankings('avg')">AVG</th>
-                        <th id="r-th-woba"   onclick="sortRankings('woba')">wOBA</th>
-                        <th id="r-th-obp"    onclick="sortRankings('obp')">OBP</th>
-                        <th id="r-th-slg"    onclick="sortRankings('slg')">SLG</th>
-                        <th id="r-th-iso"    onclick="sortRankings('iso')">ISO</th>
-                        <th id="r-th-babip"  onclick="sortRankings('babip')">BABIP</th>
-                        <th id="r-th-kPct"   onclick="sortRankings('kPct')">K%</th>
-                        <th id="r-th-bbPct"  onclick="sortRankings('bbPct')">BB%</th>
-                        <th id="r-th-pa"     onclick="sortRankings('pa')">PA</th>
-                    </tr>
-                </thead>
+                <thead id="r-head"></thead>
                 <tbody id="r-body">
-                    <tr><td colspan="13"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
+                    <tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
                 </tbody>
             </table>
         </div>
@@ -813,6 +817,14 @@ let rpgLoaded = false, playerLoaded = false, lineupLoaded = false;
 let playerPromise = null, lineupPromise = null;
 let rSortKey = 'wrcPlus', rSortDir = 'desc';
 let pSortKey = 'wrcPlus', pSortDir = 'desc';
+// The 3 stat columns shown in the rankings table (user-pickable, no side-scroll)
+let rStats = ['wrcPlus', 'woba', 'ops'];
+const R_STAT_OPTIONS = [
+    { key:'wrcPlus', label:'wRC+' }, { key:'woba', label:'wOBA' }, { key:'ops', label:'OPS' },
+    { key:'avg', label:'AVG' }, { key:'obp', label:'OBP' }, { key:'slg', label:'SLG' },
+    { key:'iso', label:'ISO' }, { key:'babip', label:'BABIP' }, { key:'kPct', label:'K%' },
+    { key:'bbPct', label:'BB%' }, { key:'pa', label:'PA' },
+];
 let hcTeamSortStat = null;
 let hcPlayerSortStat = null;
 let lineupLastFetched = null;
@@ -1060,38 +1072,56 @@ function loadRankings() {
         tbody.innerHTML = `<tr><td colspan="13"><div class="m-empty"><div class="m-empty-icon">🔍</div><div class="m-empty-text">${data.length?'No match':'No data'}</div></div></td></tr>`;
         return;
     }
+    // Header rebuilt each render so the 3 chosen stats + active-sort arrow track state
+    const head = document.getElementById('r-head');
+    head.innerHTML = `<tr>
+        <th class="left-align" style="width:34px;" onclick="sortRankings('_rank')">#</th>
+        <th class="left-align" style="width:32%;" onclick="sortRankings('_rank')">Team</th>
+        ${rStats.map(k => {
+            const o = R_STAT_OPTIONS.find(x => x.key === k) || { label: k };
+            const active = rSortKey === k;
+            const arrow = active ? (rSortDir==='desc' ? ' ↓' : ' ↑') : '';
+            return `<th class="${active?'sort-active':''}" onclick="sortRankings('${k}')">${o.label}${arrow}</th>`;
+        }).join('')}
+    </tr>`;
     tbody.innerHTML = sorted.map((row, i) => {
         const rank = i+1;
         const rankHtml = rank<=3 ? `<span class="rank-badge rank-${rank}">${rank}</span>` : `<span style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);">${rank}</span>`;
+        const cells = rStats.map(k => {
+            const val = row[k];
+            const disp = (val==null || isNaN(val)) ? '—' : fmtStat(k, val);
+            return `<td class="num ${tc(k,val)}">${disp}</td>`;
+        }).join('');
         return `<tr class="anim" style="animation-delay:${Math.min(i*8,200)}ms">
             <td class="rank-cell">${rankHtml}</td>
             <td><div class="m-team-cell">${logoImg(row.tm,24)}<span style="color:${teamColor(row.tm)};font-family:var(--display);font-size:0.95rem;font-weight:900;">${row.tm==='WAS'?'WSN':row.tm}</span></div></td>
-            <td class="wrc ${tc('wrcPlus',row.wrcPlus)}">${row.wrcPlus}</td>
-            <td class="num ${tc('ops',row.ops)}">${row.ops.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('avg',row.avg)}">${row.avg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('woba',row.woba)}">${row.woba.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('obp',row.obp)}">${row.obp.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('slg',row.slg)}">${row.slg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('iso',row.iso)}">${row.iso.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('babip',row.babip)}">${row.babip.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
-            <td class="num ${tc('kPct',row.kPct)}">${row.kPct.toFixed(1)}%</td>
-            <td class="num ${tc('bbPct',row.bbPct)}">${row.bbPct.toFixed(1)}%</td>
-            <td class="num">${row.pa}</td>
+            ${cells}
         </tr>`;
     }).join('');
+}
+
+// Populate the 3 stat-picker dropdowns from R_STAT_OPTIONS
+function initRStatPickers() {
+    for (let i = 0; i < 3; i++) {
+        const sel = document.getElementById('r-stat' + i);
+        if (!sel) continue;
+        sel.innerHTML = R_STAT_OPTIONS.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+        sel.value = rStats[i];
+    }
+}
+
+// Swap the stat shown in column slot i; keep the active sort on a visible column
+function setRStat(i, key) {
+    rStats[i] = key;
+    if (!rStats.includes(rSortKey)) { rSortKey = rStats[0]; rSortDir = 'desc'; }
+    loadRankings();
 }
 
 function sortRankings(key) {
     if (key === '_rank') return;
     if (rSortKey === key) rSortDir = rSortDir==='desc'?'asc':'desc';
     else { rSortKey = key; rSortDir = 'desc'; }
-    document.querySelectorAll('[id^="r-th-"]').forEach(th => {
-        th.classList.remove('sort-active');
-        th.textContent = th.textContent.replace(/ [↓↑]$/,'');
-    });
-    const el = document.getElementById('r-th-'+key);
-    if (el) { el.classList.add('sort-active'); el.textContent += (rSortDir==='desc'?' ↓':' ↑'); }
-    loadRankings();
+    loadRankings();   // header (active class + arrow) is rebuilt inside loadRankings
 }
 
 // ── PLAYERS ──────────────────────────────────────────────────────────────────
@@ -1603,6 +1633,7 @@ async function loadMobileReport() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    initRStatPickers();
     fetchData();
     ensureLineups().then(() => {}).catch(()=>{});
     ensureRPG().catch(()=>{});
