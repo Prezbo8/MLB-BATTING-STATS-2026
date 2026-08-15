@@ -3601,74 +3601,93 @@ function leanPercentile(dataArr, key, higherBetter, v) {
     return higherBetter ? p : 1 - p;
 }
 
+const LEAN_RANGES = [['season','Season'],['last_30','L30'],['last_14','L14'],['last_7','L7']];
+const leanConf = mag => Math.round(50 + 50 * Math.tanh(2.2 * mag));
+
 // awayFacingHand = the HOME starter's hand (who the away offense faces), etc.
 function computeMatchupLean(awayAbbr, homeAbbr, awayFacingHand, homeFacingHand) {
-    const awayData = getFilteredData(leanSplitForHand(awayFacingHand), 'season');
-    const homeData = getFilteredData(leanSplitForHand(homeFacingHand), 'season');
-    if (!awayData.length || !homeData.length) return null;
-    const aRow = awayData.find(t => t.tm === awayAbbr);
-    const hRow = homeData.find(t => t.tm === homeAbbr);
-    if (!aRow || !hRow) return null;
+    // Core lean + per-team aggregate rating for one date range
+    const core = dr => {
+        const awayData = getFilteredData(leanSplitForHand(awayFacingHand), dr);
+        const homeData = getFilteredData(leanSplitForHand(homeFacingHand), dr);
+        if (!awayData.length || !homeData.length) return null;
+        const aRow = awayData.find(t => t.tm === awayAbbr);
+        const hRow = homeData.find(t => t.tm === homeAbbr);
+        if (!aRow || !hRow) return null;
+        let lean = 0, wsum = 0, aRate = 0, hRate = 0; const contribs = [];
+        REPORT_STATS.forEach(s => {
+            const w = LEAN_WEIGHTS[s.key] ?? 0;
+            const ap = leanPercentile(awayData, s.key, s.higherBetter, aRow[s.key]);
+            const hp = leanPercentile(homeData, s.key, s.higherBetter, hRow[s.key]);
+            if (ap == null || hp == null) return;
+            lean += w * (ap - hp); wsum += w; aRate += w * ap; hRate += w * hp;
+            contribs.push({ label: s.label, gap: ap - hp, contrib: w * (ap - hp) });
+        });
+        if (!wsum) return null;
+        return { lean, contribs, awayRating: Math.round(aRate / wsum * 100), homeRating: Math.round(hRate / wsum * 100) };
+    };
+    const season = core('season');
+    if (!season) return null;
 
-    let lean = 0; const contribs = [];
-    REPORT_STATS.forEach(s => {
-        const w = LEAN_WEIGHTS[s.key] ?? 0;
-        const ap = leanPercentile(awayData, s.key, s.higherBetter, aRow[s.key]);
-        const hp = leanPercentile(homeData, s.key, s.higherBetter, hRow[s.key]);
-        if (ap == null || hp == null) return;
-        const gap = ap - hp;                 // + = away better
-        lean += w * gap;
-        contribs.push({ label: s.label, gap, contrib: w * gap });
+    // Standout window: the date range whose edge is largest (|lean|)
+    let standout = null;
+    LEAN_RANGES.forEach(([val, label]) => {
+        const c = core(val);
+        if (!c) return;
+        if (!standout || Math.abs(c.lean) > Math.abs(standout.lean)) {
+            const ldr = c.lean >= 0 ? 'away' : 'home';
+            standout = { lean: c.lean, label, leader: ldr, even: Math.abs(c.lean) < 0.05,
+                         leaderAbbr: ldr === 'away' ? awayAbbr : homeAbbr, conf: leanConf(Math.abs(c.lean)) };
+        }
     });
 
-    const mag = Math.abs(lean);
-    const leader = lean >= 0 ? 'away' : 'home';
-    const conf = Math.round(50 + 50 * Math.tanh(2.2 * mag));
-    const verdict = mag < 0.05 ? 'Toss-up' : mag < 0.15 ? 'Slight Lean' : mag < 0.30 ? 'Edge' : 'Big Edge';
-    const sign = leader === 'away' ? 1 : -1;
-    const drivers = contribs
-        .filter(c => c.contrib * sign > 0)
-        .sort((a, b) => Math.abs(b.contrib) - Math.abs(a.contrib))
-        .slice(0, 3)
-        .map(c => ({ label: c.label, pts: Math.round(Math.abs(c.gap) * 100) }))
-        .filter(d => d.pts > 0);
+    const lean = season.lean, mag = Math.abs(lean), leader = lean >= 0 ? 'away' : 'home', sign = leader === 'away' ? 1 : -1;
     return {
-        leader, awayAbbr, homeAbbr, verdict, conf, even: mag < 0.05, drivers,
+        leader, awayAbbr, homeAbbr, even: mag < 0.05, conf: leanConf(mag),
+        verdict: mag < 0.05 ? 'Toss-up' : mag < 0.15 ? 'Slight Lean' : mag < 0.30 ? 'Edge' : 'Big Edge',
         leaderAbbr: leader === 'away' ? awayAbbr : homeAbbr,
-        fill: Math.min(mag / 0.45, 1),
+        awayRating: season.awayRating, homeRating: season.homeRating, standout,
         hasSplit: [awayFacingHand, homeFacingHand].some(h => h === 'L' || h === 'R'),
+        drivers: season.contribs.filter(c => c.contrib * sign > 0)
+            .sort((a, b) => Math.abs(b.contrib) - Math.abs(a.contrib))
+            .slice(0, 3).map(c => ({ label: c.label, pts: Math.round(Math.abs(c.gap) * 100) })).filter(d => d.pts > 0),
     };
 }
 
 function renderLeanBanner(L) {
-    const fillW = Math.round(L.fill * 46);
     const leaderColor = L.even ? 'var(--muted)' : (L.leader === 'away' ? 'var(--blue)' : 'var(--orange)');
-    const fillStyle = L.even
-        ? `left:47%;width:6%;background:var(--muted);`
-        : (L.leader === 'away'
-            ? `right:50%;width:${fillW}%;background:linear-gradient(270deg,rgba(96,165,250,.35),var(--blue));`
-            : `left:50%;width:${fillW}%;background:linear-gradient(90deg,rgba(251,146,60,.35),var(--orange));`);
-    const drivers = L.drivers.map(d => `<span style="font-family:var(--mono);font-size:0.72rem;color:var(--text2);background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:2px 9px;">${d.label} <b style="color:var(--elite);">+${d.pts}</b></span>`).join('');
+    const bar = (abbr, rating, color) => `
+        <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+            <span style="font-family:var(--display);font-size:1rem;font-weight:900;width:44px;text-align:right;color:${color};">${abbr}</span>
+            <div style="position:relative;flex:1;height:11px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;overflow:hidden;">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:${rating}%;border-radius:5px;background:${color};opacity:.85;"></div>
+            </div>
+            <span style="font-family:var(--mono);font-size:0.82rem;font-weight:600;width:26px;color:${color};">${rating}</span>
+        </div>`;
+    const chip = (inner, borderCol) => `<span style="font-family:var(--mono);font-size:0.72rem;color:var(--text2);background:var(--surface2);border:1px solid ${borderCol||'var(--border2)'};border-radius:99px;padding:2px 9px;">${inner}</span>`;
+    const drivers = L.drivers.map(d => chip(`${d.label} <b style="color:var(--elite);">+${d.pts}</b>`)).join('');
+    let standoutHtml = '';
+    if (L.standout) {
+        const sc = L.standout.even ? 'var(--muted)' : (L.standout.leader === 'away' ? 'var(--blue)' : 'var(--orange)');
+        standoutHtml = `<span style="font-family:var(--display);font-size:0.56rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-left:6px;">Standout</span>${chip(`${L.standout.label} · <b style="color:${sc};">${L.standout.even ? 'EVEN' : L.standout.leaderAbbr} ${L.standout.conf}</b>`, sc)}`;
+    }
     return `
     <div style="padding:15px 22px 17px;background:linear-gradient(180deg,var(--surface3),var(--surface));border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
-            <span style="font-family:var(--display);font-size:0.62rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Offensive Edge</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
+            <span style="font-family:var(--display);font-size:0.62rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Offensive Edge · Team Rating</span>
             <span style="font-family:var(--display);font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">${L.hasSplit ? 'Matchup splits' : 'Overall'} · Season</span>
         </div>
-        <div style="display:flex;align-items:center;gap:11px;">
-            <span style="font-family:var(--display);font-size:1.05rem;font-weight:900;width:44px;text-align:center;color:var(--blue);">${L.awayAbbr}</span>
-            <div style="position:relative;flex:1;height:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;overflow:hidden;">
-                <div style="position:absolute;top:0;bottom:0;border-radius:5px;${fillStyle}"></div>
-                <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--muted);opacity:.6;transform:translateX(-1px);z-index:2;"></div>
-            </div>
-            <span style="font-family:var(--display);font-size:1.05rem;font-weight:900;width:44px;text-align:center;color:var(--orange);">${L.homeAbbr}</span>
-        </div>
-        <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;margin-top:13px;flex-wrap:wrap;">
+        ${bar(L.awayAbbr, L.awayRating, 'var(--blue)')}
+        ${bar(L.homeAbbr, L.homeRating, 'var(--orange)')}
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
             <span style="font-family:var(--display);font-size:1.7rem;font-weight:900;line-height:1;color:${leaderColor};">${L.even ? 'EVEN' : L.leaderAbbr}</span>
             <span style="font-family:var(--display);font-size:1.05rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;line-height:1;color:${leaderColor};">${L.verdict}</span>
             <span style="font-family:var(--mono);font-size:1.05rem;color:var(--text2);"><b style="color:var(--text);font-size:1.35rem;">${L.conf}</b>/100</span>
         </div>
-        ${drivers ? `<div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-top:11px;flex-wrap:wrap;"><span style="font-family:var(--display);font-size:0.56rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Driven by</span>${drivers}</div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-top:11px;flex-wrap:wrap;">
+            ${drivers ? `<span style="font-family:var(--display);font-size:0.56rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Driven by</span>${drivers}` : ''}
+            ${standoutHtml}
+        </div>
     </div>`;
 }
 
