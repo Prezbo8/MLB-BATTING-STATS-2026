@@ -1,17 +1,17 @@
-name: Daily Report PDF → Telegram
+name: Daily Report Summary → Telegram
 
-# Renders the live Daily Report page for each of today's games and sends one
-# PDF per matchup to Telegram. 15:30 UTC ≈ 11:30 AM ET (after lineups/probable
-# pitchers post). Run manually any time via "Run workflow".
+# Sends a prose scouting-note text message per game to Telegram, built from the
+# live site's data. 15:30 UTC ≈ 11:30 AM ET (after lineups/probable pitchers
+# post). Run manually any time via "Run workflow".
 on:
   schedule:
     - cron: '30 15 * * *'
   workflow_dispatch:
 
 jobs:
-  report-pdf:
+  report-summary:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -24,8 +24,8 @@ jobs:
           npm install playwright@latest
           npx playwright install --with-deps chromium
 
-      - name: Render report PDFs and send to Telegram
+      - name: Build game summaries and send to Telegram
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: node scripts/report_pdf.js
+        run: node scripts/report_summary.js
