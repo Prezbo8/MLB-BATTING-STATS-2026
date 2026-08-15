@@ -38,7 +38,7 @@ const SQ = { elite: '🟩', good: '🟩', mid: '🟨', bad: '🟧', ass: '🟥' 
 function teamBlock(team) {
   const allRows = [];
   team.splits.forEach(sp => {
-    allRows.push([sp.label, ...RANGES.map(r => r[1])]);
+    allRows.push(['', ...RANGES.map(r => r[1])]);            // column-header row (no split label)
     sp.rows.forEach(r => allRows.push([r.label, ...r.cells.map(c => c.text)]));
   });
   const w = [];
@@ -48,9 +48,15 @@ function teamBlock(team) {
     const cells = row.slice(1).map((cell, i) => (tiers ? (SQ[tiers[i]] || '⬜') : '⬜') + (cell || '').padStart(w[i + 1])).join('');
     return `${label} ${cells}`;
   };
+  // Split label: its own centered row above the data, ALL CAPS, underlined via
+  // the U+0332 combining low line (real <u> doesn't render inside <pre>).
+  const WIDTH = line(['', ...RANGES.map(r => r[1])], null).length;
+  const underline = s => [...s].map(c => c + '̲').join('');
+  const center = label => ' '.repeat(Math.max(0, Math.floor((WIDTH - label.length) / 2))) + underline(label.toUpperCase());
   const out = [`${team.abbr} #${team.wrcRank}`];
   team.splits.forEach(sp => {
-    out.push(line([sp.label, ...RANGES.map(r => r[1])], null));
+    out.push(center(sp.label));
+    out.push(line(['', ...RANGES.map(r => r[1])], null));
     sp.rows.forEach(r => out.push(line([r.label, ...r.cells.map(c => c.text)], r.cells.map(c => c.tier))));
   });
   return out;
