@@ -26,14 +26,20 @@ async function tgMessage(text) {
   if (!res.ok) throw new Error(`Telegram ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
-// Monospace table: Stat | SZN | L30 | L14 | L7, right-aligned columns.
+// Season-tier → colored square (Telegram can't color text; emoji is the only
+// way). Squares are uniform width, so a per-row leading square keeps the table
+// aligned (a per-cell emoji would not).
+const SQ = { elite: '🟩', good: '🟩', mid: '🟨', bad: '🟧', ass: '🟥' };
+
+// Monospace table: [tier] Stat | SZN | L30 | L14 | L7, right-aligned columns.
 function teamTable(team) {
   const header = ['', ...RANGES.map(r => r[1])];
   const grid = [header, ...team.rows.map(r => [r.label, ...r.cells])];
   const w = [];
   for (let c = 0; c < grid[0].length; c++) w[c] = Math.max(...grid.map(r => (r[c] || '').length));
   const fmt = row => row.map((cell, c) => c === 0 ? (cell || '').padEnd(w[c]) : (cell || '').padStart(w[c])).join(' ');
-  return '<pre>' + grid.map(fmt).join('\n') + '</pre>';
+  const lines = ['⬜ ' + fmt(header), ...team.rows.map(r => `${SQ[r.tier] || '⬜'} ${fmt([r.label, ...r.cells])}`)];
+  return '<pre>' + lines.join('\n') + '</pre>';
 }
 
 (async () => {
@@ -99,7 +105,8 @@ function teamTable(team) {
               const tr = ci === 0 ? '' : trend(row[k], srow[k], m.higherBetter);
               return `${m.fmt(row[k])} #${rank}${tr}`;
             });
-            return { label: m.label, cells };
+            const tier = srow[k] != null ? getTier(m, srow[k]) : '';
+            return { label: m.label, cells, tier };
           });
           return { abbr: tm, name: MLB_FULL_NAMES[tm] || tm, wrcRank: rankOf(seasonArr, 'wrcPlus', true, tm), rows };
         };
@@ -112,8 +119,9 @@ function teamTable(team) {
       const aSP = sm.awayProbable || 'TBD', hSP = sm.homeProbable || 'TBD';
       const header = `⚾ <b>${d.away.name} @ ${d.home.name}</b>${sm.time ? ` · ${sm.time} ET` : ''}`;
       const msg = `${header}\n🎯 <b>SP:</b> ${aSP} vs ${hSP}\n`
-        + `\n🔵 <b>${d.away.abbr}</b> — #${d.away.wrcRank} offense\n${teamTable(d.away)}`
-        + `\n🟠 <b>${d.home.abbr}</b> — #${d.home.wrcRank} offense\n${teamTable(d.home)}`;
+        + `<i>🟩 great · 🟨 avg · 🟧 below · 🟥 poor · ▲▼ vs season</i>\n`
+        + `\n<b>${d.away.abbr}</b> — #${d.away.wrcRank} offense\n${teamTable(d.away)}`
+        + `\n<b>${d.home.abbr}</b> — #${d.home.wrcRank} offense\n${teamTable(d.home)}`;
 
       await tgMessage(msg);
       console.log(`  ✓ ${g.label}`);
