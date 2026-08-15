@@ -97,6 +97,24 @@ const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
 
   if (!games.length) { await tgMessage(`📭 No MLB games scheduled for ${dateStr}.`); await browser.close(); return; }
 
+  // ── #43 Morning digest: one message ranking today's games by offensive mismatch ──
+  const wrcRank = await page.evaluate(() => {
+    const arr = (allData['no_split-season'] || []).filter(r => r.wrcPlus != null).sort((a, b) => b.wrcPlus - a.wrcPlus);
+    const m = {}; arr.forEach((r, i) => m[r.tm] = { rank: i + 1 }); return m;
+  });
+  const dsq = rk => rk <= 8 ? '🟩' : rk <= 15 ? '🟨' : rk <= 22 ? '🟧' : '🟥';
+  const digestRows = games.map(g => {
+    const [a, h] = g.value.split('-'); const A = wrcRank[a], H = wrcRank[h];
+    if (!A || !H) return null;
+    return { a, h, ar: A.rank, hr: H.rank, gap: Math.abs(A.rank - H.rank), time: (schedMap[g.value] || {}).time || '' };
+  }).filter(Boolean).sort((x, y) => y.gap - x.gap);
+  if (digestRows.length) {
+    const lines = digestRows.map((r, i) => `${i + 1}. ${dsq(r.ar)}${r.a} #${r.ar}  ⚔️  ${dsq(r.hr)}${r.h} #${r.hr}  ·  Δ${r.gap}${r.time ? `  ·  ${r.time} ET` : ''}`);
+    await tgMessage(`🌅 <b>Today's Offensive Mismatches</b> · ${dateStr}\n<i>Games ranked by gap in team wRC+ rank (bigger Δ = bigger edge)</i>\n\n${lines.join('\n')}`);
+    if (!DRY_RUN) await sleep(1400);
+    console.log(`  ✓ digest (${digestRows.length} games)`);
+  }
+
   let ok = 0;
   for (const g of games) {
     const [awayAbbr, homeAbbr] = g.value.split('-');
