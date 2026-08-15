@@ -3517,6 +3517,10 @@ function teamAbbrHtml(abbr, size) {
 function initDailyReport() {
     const dateInput = document.getElementById('report-date');
     if (!dateInput.value) dateInput.value = new Date().toLocaleDateString('en-CA');
+    // #12: default to today and auto-load once (if team data is ready and not built yet)
+    if (Object.keys(allData).length && !document.querySelector('#report-container .report-game-card')) {
+        loadDailyReport();
+    }
 }
 
 // Build rank lookup for a given split + date range
@@ -3539,7 +3543,8 @@ async function loadDailyReport() {
     container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Fetching schedule for ${dateVal}…</div></div>`;
 
     try {
-        const res  = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateVal}&hydrate=team`);
+        await ensureLineups().catch(() => {});   // starting-pitcher name + handedness
+        const res  = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateVal}&hydrate=team,probablePitcher`);
         if (!res.ok) throw new Error(`MLB API HTTP ${res.status}`);
         const json = await res.json();
         const games = (json.dates?.[0]?.games) || [];
@@ -3555,7 +3560,9 @@ async function loadDailyReport() {
             const awayAbbr = MLB_NAME_TO_ABBR[awayName] || '';
             const homeAbbr = MLB_NAME_TO_ABBR[homeName] || '';
             const gameTime = g.gameDate ? new Date(g.gameDate).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
-            return { awayAbbr, homeAbbr, awayName, homeName, gameTime };
+            const awayPitcher = g.teams?.away?.probablePitcher?.fullName || '';
+            const homePitcher = g.teams?.home?.probablePitcher?.fullName || '';
+            return { awayAbbr, homeAbbr, awayName, homeName, gameTime, awayPitcher, homePitcher };
         }).filter(m => m.awayAbbr && m.homeAbbr);
 
         if (!matchups.length) {
@@ -3577,9 +3584,28 @@ async function loadDailyReport() {
 
 // ── Full matchup analysis report ─────────────────────────────────────────────
 function buildMatchupReport(m, activeSplit) {
-    const { awayAbbr, homeAbbr, gameTime } = m;
+    const { awayAbbr, homeAbbr, gameTime, awayPitcher, homePitcher } = m;
     const awayFull = MLB_FULL_NAMES[awayAbbr] || awayAbbr;
     const homeFull = MLB_FULL_NAMES[homeAbbr]  || homeAbbr;
+    // Starting pitchers: prefer projected_lineups (has handedness), fall back to
+    // the schedule's probable pitcher (name only).
+    const reportDate = document.getElementById('report-date')?.value;
+    const starter = abbr => {
+        const rec = lineupGames.find(r => r.team === abbr && r.game_date === reportDate) || lineupGames.find(r => r.team === abbr);
+        return (rec && rec.pitcher_name) ? { name: rec.pitcher_name, hand: (rec.pitcher_hand||'').toUpperCase() } : null;
+    };
+    const handBadge = h => (h==='L'||h==='R') ? `<span style="font-family:var(--display);font-size:0.55rem;font-weight:800;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;${h==='L'?'background:rgba(251,146,60,0.15);color:var(--orange);border:1px solid rgba(251,146,60,0.3);':'background:rgba(96,165,250,0.15);color:var(--blue);border:1px solid rgba(96,165,250,0.3);'}">${h}HP</span>` : '';
+    const aSP = starter(awayAbbr) || (awayPitcher ? { name: awayPitcher, hand: '' } : null);
+    const hSP = starter(homeAbbr) || (homePitcher ? { name: homePitcher, hand: '' } : null);
+    const aSPColor = (teamColors[awayAbbr]||{primary:'#60a5fa'}).primary;
+    const hSPColor = (teamColors[homeAbbr]||{primary:'#fb923c'}).primary;
+    const spRowHtml = `
+        <div style="padding:9px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
+            <span style="font-family:var(--display);font-size:0.58rem;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:var(--accent);">Starting Pitchers</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="font-family:var(--display);font-weight:800;color:${aSPColor};">${awayAbbr}</span><span style="font-family:var(--body);font-size:0.85rem;color:var(--text);">${aSP?.name||'TBD'}</span>${handBadge(aSP?.hand)}</span>
+            <span style="font-family:var(--display);font-size:0.7rem;color:var(--muted);">vs</span>
+            <span style="display:flex;align-items:center;gap:6px;">${handBadge(hSP?.hand)}<span style="font-family:var(--body);font-size:0.85rem;color:var(--text);">${hSP?.name||'TBD'}</span><span style="font-family:var(--display);font-weight:800;color:${hSPColor};">${homeAbbr}</span></span>
+        </div>`;
 
     function rankLabel(rank, total) {
         if (!rank) return { text: '—', color: 'var(--muted)' };
@@ -3698,6 +3724,7 @@ function buildMatchupReport(m, activeSplit) {
                 <span style="font-family:var(--display);font-size:0.58rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;background:rgba(230,57,70,0.1);color:var(--accent);border:1px solid rgba(230,57,70,0.25);padding:3px 8px;border-radius:4px;">Offensive Analysis · All Splits · All Date Ranges</span>
             </div>
         </div>
+        ${spRowHtml}
 
         <!-- Legend -->
         <div style="padding:8px 20px;background:var(--surface3);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:20px;flex-wrap:wrap;">

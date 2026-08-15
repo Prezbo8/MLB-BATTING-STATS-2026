@@ -395,6 +395,13 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-report-abbr { font-family: var(--display); font-size: 1.1rem; font-weight: 900; }
 .m-report-vs { font-family: var(--display); font-size: 0.75rem; font-weight: 700; color: var(--muted); }
 .m-report-body { padding: 0; }
+.m-report-sp { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; background: rgba(230,57,70,0.05); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.m-report-sp-lbl { font-family: var(--display); font-size: 0.55rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.m-report-sp-side { display: flex; align-items: center; gap: 5px; font-family: var(--body); font-size: 0.78rem; color: var(--text); }
+.m-report-sp-vs { font-family: var(--display); font-size: 0.62rem; color: var(--muted); }
+.m-hand-badge { font-family: var(--display); font-size: 0.5rem; font-weight: 800; padding: 1px 4px; border-radius: 3px; }
+.m-hand-R { background: rgba(96,165,250,0.15); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+.m-hand-L { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
 .m-report-row { display: flex; align-items: center; padding: 8px 14px; border-bottom: 1px solid rgba(30,35,51,0.5); gap: 8px; }
 .m-report-row:last-child { border-bottom: none; }
 .m-report-stat-name { font-family: var(--display); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); width: 52px; flex-shrink: 0; }
@@ -1692,6 +1699,7 @@ const REPORT_STATS = [
 async function initMobileReport() {
     const sel = document.getElementById('m-game-dropdown');
     if (sel.options.length > 1) return;
+    ensureLineups().catch(()=>{});   // for starting-pitcher lookup
     const today = new Date().toLocaleDateString('en-CA');
     try {
         const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team`);
@@ -1702,6 +1710,12 @@ async function initMobileReport() {
             const home = g.teams?.home?.team?.name || '';
             return `<option value="${today}|${away}|${home}">${away} @ ${home}</option>`;
         }).join('');
+        // #12: default to today's first game and auto-load
+        if (games.length) {
+            sel.selectedIndex = 1;
+            await ensureLineups().catch(()=>{});
+            loadMobileReport();
+        }
     } catch(e) {
         sel.innerHTML = `<option value="">Error loading games</option>`;
     }
@@ -1777,6 +1791,20 @@ async function loadMobileReport() {
         }).join('');
     }
 
+    // Starting pitchers (name + handedness) from projected_lineups
+    const starter = abbr => {
+        const rec = lineupGames.find(r => r.team === abbr && r.game_date === dateVal) || lineupGames.find(r => r.team === abbr);
+        return rec && rec.pitcher_name ? { name: rec.pitcher_name, hand: (rec.pitcher_hand||'').toUpperCase() } : null;
+    };
+    const handBadge = h => (h==='L'||h==='R') ? `<span class="m-hand-badge m-hand-${h}">${h}HP</span>` : '';
+    const aSP = starter(awayAbbr), hSP = starter(homeAbbr);
+    const spRow = `<div class="m-report-sp">
+        <span class="m-report-sp-lbl">SP</span>
+        <span class="m-report-sp-side">${aSP?.name || 'TBD'}${handBadge(aSP?.hand)}</span>
+        <span class="m-report-sp-vs">vs</span>
+        <span class="m-report-sp-side">${handBadge(hSP?.hand)}${hSP?.name || 'TBD'}</span>
+    </div>`;
+
     container.innerHTML = `<div class="m-report-card">
         <div class="m-report-header">
             <div class="m-report-team">${logoImg(awayAbbr,28)}<span class="m-report-abbr" style="color:${teamColor(awayAbbr)};">${awayAbbr}</span></div>
@@ -1784,6 +1812,7 @@ async function loadMobileReport() {
             <div class="m-report-team">${logoImg(homeAbbr,28)}<span class="m-report-abbr" style="color:${teamColor(homeAbbr)};">${homeAbbr}</span></div>
             <span style="font-family:var(--display);font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-left:auto;">${split === 'no_split' ? 'Overall' : split.replace('_',' ').toUpperCase()}</span>
         </div>
+        ${spRow}
         <div class="m-report-body">${statRows()}</div>
     </div>`;
 }
