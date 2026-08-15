@@ -3554,7 +3554,7 @@ async function loadDailyReport() {
             return;
         }
 
-        const matchups = games.map(g => {
+        let matchups = games.map(g => {
             const awayName = g.teams?.away?.team?.name || '';
             const homeName = g.teams?.home?.team?.name || '';
             const awayAbbr = MLB_NAME_TO_ABBR[awayName] || '';
@@ -3564,6 +3564,14 @@ async function loadDailyReport() {
             const homePitcher = g.teams?.home?.probablePitcher?.fullName || '';
             return { awayAbbr, homeAbbr, awayName, homeName, gameTime, awayPitcher, homePitcher };
         }).filter(m => m.awayAbbr && m.homeAbbr);
+
+        // If a single game is picked in the dropdown, show only that matchup
+        // (empty selection = "Today's MLB Games" = show all).
+        if (selectedGameTeams && selectedGameTeams.length === 2) {
+            const [aSel, hSel] = selectedGameTeams;
+            const only = matchups.filter(m => m.awayAbbr === aSel && m.homeAbbr === hSel);
+            if (only.length) matchups = only;
+        }
 
         if (!matchups.length) {
             container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Games found but no matching team data</div></div>`;
@@ -3891,9 +3899,7 @@ function handleGameSelect(gameValue) {
     const dateInput = document.getElementById('report-date');
     selectedGameTeams = gameValue ? gameValue.split('-') : null;
     dateInput.value = localDateStr();
-    if (gameValue) {
-        loadDailyReport();
-    }
+    loadDailyReport();   // reload for the picked game, or all games when cleared
 }
 
 function filterReportToGame() {
