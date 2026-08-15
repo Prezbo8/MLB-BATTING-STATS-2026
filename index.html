@@ -3583,6 +3583,95 @@ async function loadDailyReport() {
 }
 
 // ── Full matchup analysis report ─────────────────────────────────────────────
+// ── OFFENSIVE LEAN (v1) ───────────────────────────────────────────────────────
+// Weighted percentile edge, offense-vs-offense, on the split that matches the
+// opposing starter's hand. Tunable — meaningful stats dominate, luck-heavy ones
+// (BABIP/AVG) barely move it. Weights sum to 1.
+const LEAN_WEIGHTS = { wrcPlus:0.30, woba:0.20, obp:0.12, slg:0.12, iso:0.08, bbPct:0.08, kPct:0.06, avg:0.02, babip:0.02 };
+
+function leanSplitForHand(hand) { return hand === 'L' ? 'vs_lhp' : hand === 'R' ? 'vs_rhp' : 'no_split'; }
+
+// Percentile (0..1, higher = better after inverting lower-is-better stats)
+function leanPercentile(dataArr, key, higherBetter, v) {
+    const vals = dataArr.map(t => t[key]).filter(x => x != null && !isNaN(x));
+    if (!vals.length || v == null || isNaN(v)) return null;
+    let below = 0, eq = 0;
+    vals.forEach(x => { if (x < v) below++; else if (x === v) eq++; });
+    const p = (below + eq * 0.5) / vals.length;
+    return higherBetter ? p : 1 - p;
+}
+
+// awayFacingHand = the HOME starter's hand (who the away offense faces), etc.
+function computeMatchupLean(awayAbbr, homeAbbr, awayFacingHand, homeFacingHand) {
+    const awayData = getFilteredData(leanSplitForHand(awayFacingHand), 'season');
+    const homeData = getFilteredData(leanSplitForHand(homeFacingHand), 'season');
+    if (!awayData.length || !homeData.length) return null;
+    const aRow = awayData.find(t => t.tm === awayAbbr);
+    const hRow = homeData.find(t => t.tm === homeAbbr);
+    if (!aRow || !hRow) return null;
+
+    let lean = 0; const contribs = [];
+    REPORT_STATS.forEach(s => {
+        const w = LEAN_WEIGHTS[s.key] ?? 0;
+        const ap = leanPercentile(awayData, s.key, s.higherBetter, aRow[s.key]);
+        const hp = leanPercentile(homeData, s.key, s.higherBetter, hRow[s.key]);
+        if (ap == null || hp == null) return;
+        const gap = ap - hp;                 // + = away better
+        lean += w * gap;
+        contribs.push({ label: s.label, gap, contrib: w * gap });
+    });
+
+    const mag = Math.abs(lean);
+    const leader = lean >= 0 ? 'away' : 'home';
+    const conf = Math.round(50 + 50 * Math.tanh(2.2 * mag));
+    const verdict = mag < 0.05 ? 'Toss-up' : mag < 0.15 ? 'Slight Lean' : mag < 0.30 ? 'Edge' : 'Big Edge';
+    const sign = leader === 'away' ? 1 : -1;
+    const drivers = contribs
+        .filter(c => c.contrib * sign > 0)
+        .sort((a, b) => Math.abs(b.contrib) - Math.abs(a.contrib))
+        .slice(0, 3)
+        .map(c => ({ label: c.label, pts: Math.round(Math.abs(c.gap) * 100) }))
+        .filter(d => d.pts > 0);
+    return {
+        leader, awayAbbr, homeAbbr, verdict, conf, even: mag < 0.05, drivers,
+        leaderAbbr: leader === 'away' ? awayAbbr : homeAbbr,
+        fill: Math.min(mag / 0.45, 1),
+        hasSplit: [awayFacingHand, homeFacingHand].some(h => h === 'L' || h === 'R'),
+    };
+}
+
+function renderLeanBanner(L) {
+    const fillW = Math.round(L.fill * 46);
+    const leaderColor = L.even ? 'var(--muted)' : (L.leader === 'away' ? 'var(--blue)' : 'var(--orange)');
+    const fillStyle = L.even
+        ? `left:47%;width:6%;background:var(--muted);`
+        : (L.leader === 'away'
+            ? `right:50%;width:${fillW}%;background:linear-gradient(270deg,rgba(96,165,250,.35),var(--blue));`
+            : `left:50%;width:${fillW}%;background:linear-gradient(90deg,rgba(251,146,60,.35),var(--orange));`);
+    const drivers = L.drivers.map(d => `<span style="font-family:var(--mono);font-size:0.72rem;color:var(--text2);background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:2px 9px;">${d.label} <b style="color:var(--elite);">+${d.pts}</b></span>`).join('');
+    return `
+    <div style="padding:15px 22px 17px;background:linear-gradient(180deg,var(--surface3),var(--surface));border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+            <span style="font-family:var(--display);font-size:0.62rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Offensive Edge</span>
+            <span style="font-family:var(--display);font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">${L.hasSplit ? 'Matchup splits' : 'Overall'} · Season</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;">
+            <span style="font-family:var(--display);font-size:1.05rem;font-weight:900;width:44px;text-align:center;color:var(--blue);">${L.awayAbbr}</span>
+            <div style="position:relative;flex:1;height:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;overflow:hidden;">
+                <div style="position:absolute;top:0;bottom:0;border-radius:5px;${fillStyle}"></div>
+                <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--muted);opacity:.6;transform:translateX(-1px);z-index:2;"></div>
+            </div>
+            <span style="font-family:var(--display);font-size:1.05rem;font-weight:900;width:44px;text-align:center;color:var(--orange);">${L.homeAbbr}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;margin-top:13px;flex-wrap:wrap;">
+            <span style="font-family:var(--display);font-size:1.7rem;font-weight:900;line-height:1;color:${leaderColor};">${L.even ? 'EVEN' : L.leaderAbbr}</span>
+            <span style="font-family:var(--display);font-size:1.05rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;line-height:1;color:${leaderColor};">${L.verdict}</span>
+            <span style="font-family:var(--mono);font-size:1.05rem;color:var(--text2);"><b style="color:var(--text);font-size:1.35rem;">${L.conf}</b>/100</span>
+        </div>
+        ${drivers ? `<div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-top:11px;flex-wrap:wrap;"><span style="font-family:var(--display);font-size:0.56rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Driven by</span>${drivers}</div>` : ''}
+    </div>`;
+}
+
 function buildMatchupReport(m, activeSplit) {
     const { awayAbbr, homeAbbr, gameTime, awayPitcher, homePitcher } = m;
     const awayFull = MLB_FULL_NAMES[awayAbbr] || awayAbbr;
@@ -3606,6 +3695,9 @@ function buildMatchupReport(m, activeSplit) {
             <span style="font-family:var(--display);font-size:0.7rem;color:var(--muted);">vs</span>
             <span style="display:flex;align-items:center;gap:6px;">${handBadge(hSP?.hand)}<span style="font-family:var(--body);font-size:0.85rem;color:var(--text);">${hSP?.name||'TBD'}</span><span style="font-family:var(--display);font-weight:800;color:${hSPColor};">${homeAbbr}</span></span>
         </div>`;
+    // Offensive-lean banner (away offense faces the home SP's hand, and vice-versa)
+    const leanData = computeMatchupLean(awayAbbr, homeAbbr, hSP?.hand, aSP?.hand);
+    const leanHtml = leanData ? renderLeanBanner(leanData) : '';
 
     function rankLabel(rank, total) {
         if (!rank) return { text: '—', color: 'var(--muted)' };
@@ -3725,6 +3817,7 @@ function buildMatchupReport(m, activeSplit) {
             </div>
         </div>
         ${spRowHtml}
+        ${leanHtml}
 
         <!-- Legend -->
         <div style="padding:8px 20px;background:var(--surface3);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:20px;flex-wrap:wrap;">

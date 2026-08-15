@@ -402,6 +402,24 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-hand-badge { font-family: var(--display); font-size: 0.5rem; font-weight: 800; padding: 1px 4px; border-radius: 3px; }
 .m-hand-R { background: rgba(96,165,250,0.15); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
 .m-hand-L { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+/* ── OFFENSIVE LEAN BANNER ─────────────────────────────────────────────────── */
+.m-lean { padding: 12px 14px 14px; background: linear-gradient(180deg,var(--surface3),var(--surface)); border-bottom: 1px solid var(--border); }
+.m-lean-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.m-lean-lbl { font-family: var(--display); font-size: 0.55rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.m-lean-meta { font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.m-lean-row { display: flex; align-items: center; gap: 8px; }
+.m-lean-end { font-family: var(--display); font-size: 0.9rem; font-weight: 900; width: 34px; text-align: center; flex-shrink: 0; }
+.m-lean-meter { position: relative; flex: 1; height: 10px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; overflow: hidden; }
+.m-lean-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.m-lean-center { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--muted); opacity: .6; transform: translateX(-1px); z-index: 2; }
+.m-lean-verdict { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.m-lean-team { font-family: var(--display); font-size: 1.3rem; font-weight: 900; line-height: 1; }
+.m-lean-vlabel { font-family: var(--display); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; }
+.m-lean-conf { font-family: var(--mono); font-size: 0.82rem; color: var(--text2); }
+.m-lean-conf b { color: var(--text); font-size: 1.05rem; }
+.m-lean-drivers { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.m-lean-dr { font-family: var(--mono); font-size: 0.62rem; color: var(--text2); background: var(--surface2); border: 1px solid var(--border2); border-radius: 99px; padding: 1px 7px; }
+.m-lean-dr b { color: var(--elite); }
 .m-report-row { display: flex; align-items: center; padding: 8px 14px; border-bottom: 1px solid rgba(30,35,51,0.5); gap: 8px; }
 .m-report-row:last-child { border-bottom: none; }
 .m-report-stat-name { font-family: var(--display); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); width: 52px; flex-shrink: 0; }
@@ -1696,6 +1714,71 @@ const REPORT_STATS = [
     { key:'babip',   label:'BABIP', fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     higherBetter:true  },
 ];
 
+// ── OFFENSIVE LEAN (v1) — weighted percentile edge on handedness splits ────────
+const LEAN_WEIGHTS = { wrcPlus:0.30, woba:0.20, obp:0.12, slg:0.12, iso:0.08, bbPct:0.08, kPct:0.06, avg:0.02, babip:0.02 };
+function leanSplitForHand(hand) { return hand === 'L' ? 'vs_lhp' : hand === 'R' ? 'vs_rhp' : 'no_split'; }
+function leanPercentile(dataArr, key, higherBetter, v) {
+    const vals = dataArr.map(t => t[key]).filter(x => x != null && !isNaN(x));
+    if (!vals.length || v == null || isNaN(v)) return null;
+    let below = 0, eq = 0;
+    vals.forEach(x => { if (x < v) below++; else if (x === v) eq++; });
+    const p = (below + eq * 0.5) / vals.length;
+    return higherBetter ? p : 1 - p;
+}
+function computeMatchupLean(awayAbbr, homeAbbr, awayFacingHand, homeFacingHand) {
+    const gd = hand => allData[`${leanSplitForHand(hand)}-season`] || [];
+    const awayData = gd(awayFacingHand), homeData = gd(homeFacingHand);
+    if (!awayData.length || !homeData.length) return null;
+    const aRow = awayData.find(t => t.tm === awayAbbr), hRow = homeData.find(t => t.tm === homeAbbr);
+    if (!aRow || !hRow) return null;
+    let lean = 0; const contribs = [];
+    REPORT_STATS.forEach(s => {
+        const w = LEAN_WEIGHTS[s.key] ?? 0;
+        const ap = leanPercentile(awayData, s.key, s.higherBetter, aRow[s.key]);
+        const hp = leanPercentile(homeData, s.key, s.higherBetter, hRow[s.key]);
+        if (ap == null || hp == null) return;
+        const gap = ap - hp;
+        lean += w * gap;
+        contribs.push({ label: s.label, gap, contrib: w * gap });
+    });
+    const mag = Math.abs(lean);
+    const leader = lean >= 0 ? 'away' : 'home';
+    const sign = leader === 'away' ? 1 : -1;
+    return {
+        leader, awayAbbr, homeAbbr, even: mag < 0.05,
+        conf: Math.round(50 + 50 * Math.tanh(2.2 * mag)),
+        verdict: mag < 0.05 ? 'Toss-up' : mag < 0.15 ? 'Slight Lean' : mag < 0.30 ? 'Edge' : 'Big Edge',
+        leaderAbbr: leader === 'away' ? awayAbbr : homeAbbr,
+        fill: Math.min(mag / 0.45, 1),
+        hasSplit: [awayFacingHand, homeFacingHand].some(h => h === 'L' || h === 'R'),
+        drivers: contribs.filter(c => c.contrib * sign > 0)
+            .sort((a, b) => Math.abs(b.contrib) - Math.abs(a.contrib))
+            .slice(0, 3).map(c => ({ label: c.label, pts: Math.round(Math.abs(c.gap) * 100) })).filter(d => d.pts > 0),
+    };
+}
+function renderLeanBanner(L) {
+    const fillW = Math.round(L.fill * 46);
+    const leaderColor = L.even ? 'var(--muted)' : (L.leader === 'away' ? 'var(--blue)' : 'var(--orange)');
+    const fillStyle = L.even ? 'left:47%;width:6%;background:var(--muted);'
+        : (L.leader === 'away' ? `right:50%;width:${fillW}%;background:linear-gradient(270deg,rgba(96,165,250,.35),var(--blue));`
+                               : `left:50%;width:${fillW}%;background:linear-gradient(90deg,rgba(251,146,60,.35),var(--orange));`);
+    const drivers = L.drivers.map(d => `<span class="m-lean-dr">${d.label} <b>+${d.pts}</b></span>`).join('');
+    return `<div class="m-lean">
+        <div class="m-lean-top"><span class="m-lean-lbl">Offensive Edge</span><span class="m-lean-meta">${L.hasSplit ? 'Matchup splits' : 'Overall'} · Season</span></div>
+        <div class="m-lean-row">
+            <span class="m-lean-end" style="color:var(--blue);">${L.awayAbbr}</span>
+            <div class="m-lean-meter"><div class="m-lean-fill" style="${fillStyle}"></div><div class="m-lean-center"></div></div>
+            <span class="m-lean-end" style="color:var(--orange);">${L.homeAbbr}</span>
+        </div>
+        <div class="m-lean-verdict">
+            <span class="m-lean-team" style="color:${leaderColor};">${L.even ? 'EVEN' : L.leaderAbbr}</span>
+            <span class="m-lean-vlabel" style="color:${leaderColor};">${L.verdict}</span>
+            <span class="m-lean-conf"><b>${L.conf}</b>/100</span>
+        </div>
+        ${drivers ? `<div class="m-lean-drivers"><span class="m-lean-lbl">Driven by</span>${drivers}</div>` : ''}
+    </div>`;
+}
+
 async function initMobileReport() {
     const sel = document.getElementById('m-game-dropdown');
     if (sel.options.length > 1) return;
@@ -1805,6 +1888,10 @@ async function loadMobileReport() {
         <span class="m-report-sp-side">${handBadge(hSP?.hand)}${hSP?.name || 'TBD'}</span>
     </div>`;
 
+    // Offensive-lean banner (away offense faces the home SP's hand, and vice-versa)
+    const leanData = computeMatchupLean(awayAbbr, homeAbbr, hSP?.hand, aSP?.hand);
+    const leanHtml = leanData ? renderLeanBanner(leanData) : '';
+
     container.innerHTML = `<div class="m-report-card">
         <div class="m-report-header">
             <div class="m-report-team">${logoImg(awayAbbr,28)}<span class="m-report-abbr" style="color:${teamColor(awayAbbr)};">${awayAbbr}</span></div>
@@ -1813,6 +1900,7 @@ async function loadMobileReport() {
             <span style="font-family:var(--display);font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-left:auto;">${split === 'no_split' ? 'Overall' : split.replace('_',' ').toUpperCase()}</span>
         </div>
         ${spRow}
+        ${leanHtml}
         <div class="m-report-body">${statRows()}</div>
     </div>`;
 }
