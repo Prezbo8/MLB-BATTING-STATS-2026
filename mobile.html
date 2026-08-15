@@ -1725,7 +1725,6 @@ function leanPercentile(dataArr, key, higherBetter, v) {
     const p = (below + eq * 0.5) / vals.length;
     return higherBetter ? p : 1 - p;
 }
-const LEAN_RANGES = [['season','Season'],['last_30','L30'],['last_14','L14'],['last_7','L7']];
 const leanConf = mag => Math.round(50 + 50 * Math.tanh(2.2 * mag));
 function computeMatchupLean(awayAbbr, homeAbbr, awayFacingHand, homeFacingHand) {
     const core = dr => {
@@ -1748,22 +1747,12 @@ function computeMatchupLean(awayAbbr, homeAbbr, awayFacingHand, homeFacingHand) 
     };
     const season = core('season');
     if (!season) return null;
-    let standout = null;
-    LEAN_RANGES.forEach(([val, label]) => {
-        const c = core(val);
-        if (!c) return;
-        if (!standout || Math.abs(c.lean) > Math.abs(standout.lean)) {
-            const ldr = c.lean >= 0 ? 'away' : 'home';
-            standout = { lean: c.lean, label, leader: ldr, even: Math.abs(c.lean) < 0.05,
-                         leaderAbbr: ldr === 'away' ? awayAbbr : homeAbbr, conf: leanConf(Math.abs(c.lean)) };
-        }
-    });
     const lean = season.lean, mag = Math.abs(lean), leader = lean >= 0 ? 'away' : 'home', sign = leader === 'away' ? 1 : -1;
     return {
         leader, awayAbbr, homeAbbr, even: mag < 0.05, conf: leanConf(mag),
         verdict: mag < 0.05 ? 'Toss-up' : mag < 0.15 ? 'Slight Lean' : mag < 0.30 ? 'Edge' : 'Big Edge',
         leaderAbbr: leader === 'away' ? awayAbbr : homeAbbr,
-        awayRating: season.awayRating, homeRating: season.homeRating, standout,
+        awayRating: season.awayRating, homeRating: season.homeRating,
         hasSplit: [awayFacingHand, homeFacingHand].some(h => h === 'L' || h === 'R'),
         drivers: season.contribs.filter(c => c.contrib * sign > 0)
             .sort((a, b) => Math.abs(b.contrib) - Math.abs(a.contrib))
@@ -1778,11 +1767,6 @@ function renderLeanBanner(L) {
         <span class="m-lean-brate" style="color:${color};">${rating}</span>
     </div>`;
     const drivers = L.drivers.map(d => `<span class="m-lean-dr">${d.label} <b>+${d.pts}</b></span>`).join('');
-    let standoutHtml = '';
-    if (L.standout) {
-        const sc = L.standout.even ? 'var(--muted)' : (L.standout.leader === 'away' ? 'var(--blue)' : 'var(--orange)');
-        standoutHtml = `<span class="m-lean-lbl">Standout</span><span class="m-lean-dr" style="border-color:${sc};">${L.standout.label} · <b style="color:${sc};">${L.standout.even ? 'EVEN' : L.standout.leaderAbbr} ${L.standout.conf}</b></span>`;
-    }
     return `<div class="m-lean">
         <div class="m-lean-top"><span class="m-lean-lbl">Offensive Edge · Rating</span><span class="m-lean-meta">${L.hasSplit ? 'Matchup splits' : 'Overall'} · Season</span></div>
         ${bar(L.awayAbbr, L.awayRating, 'var(--blue)')}
@@ -1792,7 +1776,7 @@ function renderLeanBanner(L) {
             <span class="m-lean-vlabel" style="color:${leaderColor};">${L.verdict}</span>
             <span class="m-lean-conf"><b>${L.conf}</b>/100</span>
         </div>
-        <div class="m-lean-drivers">${drivers ? `<span class="m-lean-lbl">Driven by</span>${drivers}` : ''}${standoutHtml}</div>
+        ${drivers ? `<div class="m-lean-drivers"><span class="m-lean-lbl">Driven by</span>${drivers}</div>` : ''}
     </div>`;
 }
 
