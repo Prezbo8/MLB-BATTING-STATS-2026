@@ -6,3 +6,9 @@ data/pitcher_splits_data/splits_career_raw.csv
 data/pitcher_splits_data/master_splits.csv
 data/pitcher_splits_data/scored_splits.csv
 rpg_data/
+
+# report_pdf.js local runs
+node_modules/
+report_pdfs/
+package.json
+package-lock.json
