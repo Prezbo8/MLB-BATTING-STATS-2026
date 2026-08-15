@@ -14,6 +14,7 @@ const REPORT_URL = process.env.REPORT_URL
 
 const STATS  = ['wrcPlus', 'ops', 'avg', 'obp', 'slg', 'woba', 'iso', 'babip', 'kPct', 'bbPct'];
 const RANGES = [['season', 'SZN'], ['last_30', 'L30'], ['last_14', 'L14'], ['last_7', 'L7']];
+const SPLITS = [['no_split', 'OVR'], ['vs_lhp', 'vLHP'], ['vs_rhp', 'vRHP'], ['home', 'HOME'], ['away', 'AWAY']];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -30,28 +31,31 @@ async function tgMessage(text) {
 // one uniform-width square, so per-cell coloring stays aligned in the table.
 const SQ = { elite: '🟩', good: '🟩', mid: '🟨', bad: '🟧', ass: '🟥' };
 
-// One team's lines: header (ABBR #rank | SZN L30 L14 L7) + a row per stat, each
-// data cell = tier-square + value#rank(+trend). Columns padded on the text only.
-function teamLines(team) {
-  const headerRow = [`${team.abbr} #${team.wrcRank}`, ...RANGES.map(r => r[1])];
-  const grid = [headerRow, ...team.rows.map(r => [r.label, ...r.cells.map(c => c.text)])];
+// A team's block: name/rank line, then one sub-table per split (OVR/vLHP/vRHP/
+// HOME/AWAY), each with a split-label header row + a row per stat. Columns are
+// sized across all splits so the whole block aligns. Range cells run together
+// (the colored square separates + grades each) to stay narrow.
+function teamBlock(team) {
+  const allRows = [];
+  team.splits.forEach(sp => {
+    allRows.push([sp.label, ...RANGES.map(r => r[1])]);
+    sp.rows.forEach(r => allRows.push([r.label, ...r.cells.map(c => c.text)]));
+  });
   const w = [];
-  for (let c = 0; c < grid[0].length; c++) w[c] = Math.max(...grid.map(r => (r[c] || '').length));
-  // Label + one space, then the range cells run together (the square separates
-  // and colors each), so the whole row stays narrow enough for a phone.
+  for (let c = 0; c < 5; c++) w[c] = Math.max(...allRows.map(r => (r[c] || '').length));
   const line = (row, tiers) => {
     const label = (row[0] || '').padEnd(w[0]);
-    const cells = row.slice(1).map((cell, i) => {
-      const sq = tiers ? (SQ[tiers[i]] || '⬜') : '⬜';
-      return sq + (cell || '').padStart(w[i + 1]);
-    }).join('');
+    const cells = row.slice(1).map((cell, i) => (tiers ? (SQ[tiers[i]] || '⬜') : '⬜') + (cell || '').padStart(w[i + 1])).join('');
     return `${label} ${cells}`;
   };
-  const lines = [line(headerRow, null)];
-  team.rows.forEach(r => lines.push(line([r.label, ...r.cells.map(c => c.text)], r.cells.map(c => c.tier))));
-  return lines;
+  const out = [`${team.abbr} #${team.wrcRank}`];
+  team.splits.forEach(sp => {
+    out.push(line([sp.label, ...RANGES.map(r => r[1])], null));
+    sp.rows.forEach(r => out.push(line([r.label, ...r.cells.map(c => c.text)], r.cells.map(c => c.tier))));
+  });
+  return out;
 }
-const gameTables = (away, home) => '<pre>' + [...teamLines(away), '', ...teamLines(home)].join('\n') + '</pre>';
+const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
 
 (async () => {
   console.log(DRY_RUN ? '● DRY RUN (no Telegram)' : '● Live send', '→', REPORT_URL);
@@ -91,7 +95,7 @@ const gameTables = (away, home) => '<pre>' + [...teamLines(away), '', ...teamLin
   for (const g of games) {
     const [awayAbbr, homeAbbr] = g.value.split('-');
     try {
-      const d = await page.evaluate(({ awayAbbr, homeAbbr, STATS, RANGES }) => {
+      const d = await page.evaluate(({ awayAbbr, homeAbbr, STATS, RANGES, SPLITS }) => {
         const meta = k => statMeta.find(s => s.key === k);
         const rankOf = (arr, k, hb, tm) => {
           const s = arr.filter(r => r[k] != null).sort((a, b) => hb ? b[k] - a[k] : a[k] - b[k]);
@@ -103,33 +107,44 @@ const gameTables = (away, home) => '<pre>' + [...teamLines(away), '', ...teamLin
           return (hb ? diff > 0 : diff < 0) ? '▲' : '▼';
         };
         const team = tm => {
-          const seasonArr = allData['no_split-season'] || [];
-          const srow = seasonArr.find(r => r.tm === tm);
-          if (!srow) return null;
-          const rows = STATS.map(k => {
-            const m = meta(k);
-            const cells = RANGES.map(([rv], ci) => {
-              const arr = allData[`no_split-${rv}`] || [];
-              const row = arr.find(r => r.tm === tm);
-              if (!row || row[k] == null) return { text: '—', tier: '' };
-              const tr = ci === 0 ? '' : trend(row[k], srow[k], m.higherBetter);
-              return { text: `${m.fmt(row[k])}${tr}`, tier: getTier(m, row[k]) };
+          const overall = allData['no_split-season'] || [];
+          if (!overall.find(r => r.tm === tm)) return null;
+          const splits = SPLITS.map(([sv, slabel]) => {
+            const seasonArr = allData[`${sv}-season`] || [];
+            const srow = seasonArr.find(r => r.tm === tm);
+            if (!srow) return null;   // team not present in this split
+            const rows = STATS.map(k => {
+              const m = meta(k);
+              const cells = RANGES.map(([rv], ci) => {
+                const arr = allData[`${sv}-${rv}`] || [];
+                const row = arr.find(r => r.tm === tm);
+                if (!row || row[k] == null) return { text: '—', tier: '' };
+                const tr = ci === 0 ? '' : trend(row[k], srow[k], m.higherBetter);
+                return { text: `${m.fmt(row[k])}${tr}`, tier: getTier(m, row[k]) };
+              });
+              return { label: m.label, cells };
             });
-            return { label: m.label, cells };
-          });
-          return { abbr: tm, name: MLB_FULL_NAMES[tm] || tm, wrcRank: rankOf(seasonArr, 'wrcPlus', true, tm), rows };
+            return { label: slabel, rows };
+          }).filter(Boolean);
+          return { abbr: tm, name: MLB_FULL_NAMES[tm] || tm, wrcRank: rankOf(overall, 'wrcPlus', true, tm), splits };
         };
         return { away: team(awayAbbr), home: team(homeAbbr) };
-      }, { awayAbbr, homeAbbr, STATS, RANGES });
+      }, { awayAbbr, homeAbbr, STATS, RANGES, SPLITS });
 
       if (!d.away || !d.home) { console.log(`  – skip ${g.value} (no team data)`); continue; }
 
       const sm = schedMap[g.value] || {};
       const aSP = sm.awayProbable || 'TBD', hSP = sm.homeProbable || 'TBD';
-      const header = `⚾ <b>${d.away.abbr} @ ${d.home.abbr}</b>${sm.time ? ` · ${sm.time} ET` : ''}`;
-      const msg = `${header}\n🎯 <b>SP:</b> ${aSP} vs ${hSP}\n${gameTables(d.away, d.home)}`;
-
-      await tgMessage(msg);
+      const header = `⚾ <b>${d.away.abbr} @ ${d.home.abbr}</b>${sm.time ? ` · ${sm.time} ET` : ''}\n🎯 <b>SP:</b> ${aSP} vs ${hSP}`;
+      const combined = `${header}\n${teamPre(d.away)}\n${teamPre(d.home)}`;
+      // Telegram caps at 4096 chars; with all 5 splits, split into two (per team) if needed.
+      if (combined.length <= 3900) {
+        await tgMessage(combined);
+      } else {
+        await tgMessage(`${header}\n${teamPre(d.away)}`);
+        if (!DRY_RUN) await sleep(1400);
+        await tgMessage(teamPre(d.home));
+      }
       console.log(`  ✓ ${g.label}`);
       if (!DRY_RUN) await sleep(1400);
       ok++;
