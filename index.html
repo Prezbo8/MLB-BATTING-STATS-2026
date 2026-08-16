@@ -479,6 +479,18 @@
         /* ── MONTHLY TRENDS (line charts, x = months) ─────────────────────── */
         .mtrend-section { margin-top: 1.75rem; }
         .mtrend-head { text-align: center; font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 0.5rem 0 0.25rem; }
+        /* ── LINEUP TRENDS ────────────────────────────────────────────────── */
+        .lt-game-head { display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--display); font-size: 1.05rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin: 0.75rem 0 0.5rem; }
+        .lt-game-head img { width: 30px; height: 30px; object-fit: contain; }
+        .lt-legends { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+        .lt-legend { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+        .lt-legend-team { font-family: var(--display); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+        .lt-legend-items { display: flex; flex-wrap: wrap; gap: 5px 12px; }
+        .lt-leg { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 0.74rem; color: var(--text2); }
+        .lt-leg-sw { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+        .lt-stat-row { margin-bottom: 1.25rem; }
+        .lt-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .lt-chart-team { text-align: center; font-family: var(--display); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -992,6 +1004,7 @@
                     <div class="nav-group-tabs">
                         <button class="tab-btn" id="tab-3" onclick="switchTab(3)" role="tab" aria-selected="false" aria-controls="panel-3" aria-label="Lineup preview" tabindex="-1">Preview</button>
                         <button class="tab-btn" id="tab-4" onclick="switchTab(4)" role="tab" aria-selected="false" aria-controls="panel-4" aria-label="Lineup stats" tabindex="-1">Stats</button>
+                        <button class="tab-btn" id="tab-9" onclick="switchTab(9)" role="tab" aria-selected="false" aria-controls="panel-9" aria-label="Lineup trends" tabindex="-1">📈 Trends</button>
                     </div>
                 </div>
                 <div class="nav-sep" aria-hidden="true"></div>
@@ -1228,6 +1241,32 @@
         </div>
         <div id="lineup-stats-container">
             <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup stats…</div></div>
+        </div>
+    </div>
+
+    <!-- PANEL 9: LINEUP TRENDS -->
+    <div id="panel-9" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-9">
+        <div class="section-header">
+            <div class="section-title">📈 Lineup Trends</div>
+            <div class="lineup-controls">
+                <div class="filter-group">
+                    <div class="filter-label">Game</div>
+                    <select id="lt-game" onchange="renderLineupTrends()"></select>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-label">Split</div>
+                    <select id="lt-split" onchange="renderLineupTrends()">
+                        <option value="no_split">Overall</option>
+                        <option value="vs_lhp">vs LHP</option>
+                        <option value="vs_rhp">vs RHP</option>
+                        <option value="home">Home</option>
+                        <option value="away">Away</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="lineup-trends-container">
+            <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup trends…</div></div>
         </div>
     </div>
 
@@ -2466,6 +2505,136 @@ function renderAllSplits() {
     container.innerHTML = html;
 }
 
+// ── LINEUP TRENDS ─────────────────────────────────────────────────────────────
+// Monthly per-player line charts for a chosen game + split: two charts per stat
+// (away lineup / home lineup), one colored line per batter over the months.
+// Reads fangraphs_player_splits_history; reuses miniYAxis + the compare line style.
+const SUPABASE_PLAYER_HISTORY_TABLE = 'fangraphs_player_splits_history';
+const LINEUP_PALETTE = ['#60a5fa','#fb923c','#34d399','#f472b6','#a78bfa','#fbbf24','#22d3ee','#f87171','#a3e635'];
+let playerHistory = {};          // playerHistory[split] = { months:[...], byMonth:{month:[rows]} }
+let playerHistoryLoading = {};
+
+async function fetchPlayerHistory(split) {
+    if (playerHistory[split] || playerHistoryLoading[split]) return;
+    playerHistoryLoading[split] = true;
+    try {
+        const rows = await sbFetchAll(SUPABASE_PLAYER_HISTORY_TABLE,
+            `select=*&split=eq.${encodeURIComponent(split)}&order=date_range.asc,name.asc`);
+        const parsePct = v => parseFloat(String(v || '').replace('%', '')) || 0;
+        const parseNum = v => parseFloat(v) || 0;
+        const byMonth = {}, ms = new Set();
+        for (const r of rows) {
+            const month = (r.date_range || '').trim(), tm = (r.tm || '').trim(), name = (r.name || '').trim();
+            if (!month || !tm || !name) continue;
+            ms.add(month);
+            (byMonth[month] = byMonth[month] || []).push({
+                name, tm, pa: parseNum(r.pa), bbPct: parsePct(r.bb_pct), kPct: parsePct(r.k_pct),
+                avg: parseNum(r.avg), obp: parseNum(r.obp), slg: parseNum(r.slg), ops: parseNum(r.ops),
+                iso: parseNum(r.iso), babip: parseNum(r.babip), woba: parseNum(r.woba), wrcPlus: parseNum(r.wrcplus),
+            });
+        }
+        playerHistory[split] = { months: [...ms].sort(), byMonth };
+    } catch (e) {
+        console.error('player history fetch', e);
+    } finally {
+        playerHistoryLoading[split] = false;
+    }
+    if (!document.getElementById('panel-9').classList.contains('hidden')) renderLineupTrends();
+}
+
+// Match a lineup batter (name may carry accents/suffixes) to a history row.
+function ltMatchRow(rows, fullName, tm) {
+    const SUF = /^(jr\.?|sr\.?|ii|iii|iv)$/i;
+    const last = n => { const p = n.trim().split(/\s+/).filter(w => !SUF.test(w)); return normalizeName(p[p.length - 1] || ''); };
+    const init = n => (n.trim().split(/\s+/)[0] || '')[0]?.toLowerCase() || '';
+    const ln = last(fullName), fi = init(fullName);
+    return rows.find(p => last(p.name) === ln && init(p.name) === fi && p.tm === tm)
+        || rows.find(p => last(p.name) === ln && p.tm === tm) || null;
+}
+
+function ltBatters(rec) {
+    if (!rec?.batting_order) return [];
+    return Array.isArray(rec.batting_order) ? rec.batting_order
+        : (() => { try { return JSON.parse(rec.batting_order); } catch (e) { return []; } })();
+}
+
+function initLineupTrends() {
+    const sel = document.getElementById('lt-game');
+    if (!sel) return;
+    const pairs = pairLineupGames(lineupGames || []);
+    const prev = sel.value;
+    sel.innerHTML = pairs.map((p, i) => {
+        const a = p.away?.team || '???', h = p.home?.team || '???', t = p.away?.game_time || p.home?.game_time || '';
+        return `<option value="${i}">${a} @ ${h}${t ? ' · ' + t : ''}</option>`;
+    }).join('');
+    if (prev && sel.querySelector(`option[value="${prev}"]`)) sel.value = prev;
+}
+
+// One team's per-stat line chart: a colored line per batter over the months.
+function buildLineupTrendChart(batters, tm, split, s, teamColor) {
+    const store = playerHistory[split];
+    const months = store.months, byMonth = store.byMonth;
+    const series = batters.map((p, i) => ({
+        name: p.name, color: LINEUP_PALETTE[i % LINEUP_PALETTE.length],
+        vals: months.map(m => { const row = ltMatchRow(byMonth[m] || [], correctPlayerName(p.name), tm); return row ? row[s.key] : null; }),
+    }));
+    const lgVals = months.map(m => { const a = paWeightedAvg(byMonth[m] || []); return a ? a[s.key] : null; });
+    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
+    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    const all = [...series.flatMap(se => se.vals), ...lgVals, ...s.thresholds].filter(v => v != null && !isNaN(v));
+    if (all.length < 2) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">No monthly data</div></div>`;
+    let mn = Math.min(...all), mx = Math.max(...all);
+    if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+    const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+    const W = 210, H = 128, ptop = 10, pbot = 20, pl = 30, pr = 8;
+    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
+    const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
+    const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+    const linePts = vals => vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
+    const lgPts = linePts(lgVals);
+    const lgLine = lgPts.length >= 2 ? `<polyline class="sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
+    const layers = series.map(se => {
+        const pts = linePts(se.vals);
+        const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${se.color};stroke-width:1.75" points="${pts.join(' ')}"/>` : '';
+        const dots = se.vals.map((v, i) => (v != null && !isNaN(v)) ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.2"><title>${esc(se.name)} ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>` : '').join('');
+        return line + dots;
+    }).join('');
+    const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`).join('');
+    const yAxis = miniYAxis(s, lgAvg, dMin, dMax, yOf, pl, ptop, plotH);
+    return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label} by month">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
+}
+
+function renderLineupTrends() {
+    const c = document.getElementById('lineup-trends-container');
+    if (!c) return;
+    if (!lineupGames.length) { c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No lineups found for today</div></div>`; return; }
+    const split = document.getElementById('lt-split').value;
+    if (!playerHistory[split]) {
+        fetchPlayerHistory(split);
+        c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">${playerHistoryLoading[split] ? 'Loading player history…' : 'Loading…'}</div></div>`;
+        return;
+    }
+    const pairs = pairLineupGames(lineupGames);
+    const gi = parseInt(document.getElementById('lt-game').value, 10) || 0;
+    const pair = pairs[gi];
+    if (!pair) { c.innerHTML = `<div class="empty-state"><div class="empty-state-text">Pick a game</div></div>`; return; }
+    const awayTm = pair.away?.team || '???', homeTm = pair.home?.team || '???';
+    const awayB = ltBatters(pair.away), homeB = ltBatters(pair.home);
+    const colors = teamPairColors(awayTm, homeTm);
+    const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP', home: 'Home', away: 'Away' }[split] || split;
+    const legend = (bs, tm, tc) => `<div class="lt-legend"><div class="lt-legend-team" style="color:${tc}">${tm}</div><div class="lt-legend-items">${bs.length ? bs.map((p, i) => `<div class="lt-leg"><span class="lt-leg-sw" style="background:${LINEUP_PALETTE[i % LINEUP_PALETTE.length]}"></span>${p.order ? p.order + '. ' : ''}${esc(p.name)}</div>`).join('') : '<span style="color:var(--muted)">No lineup posted</span>'}</div></div>`;
+
+    let html = `<div class="lt-game-head"><img src="${teamLogos[awayTm] || ''}" onerror="this.style.opacity='.15'" alt=""> ${awayTm} <span style="color:var(--muted)">@</span> ${homeTm} <img src="${teamLogos[homeTm] || ''}" onerror="this.style.opacity='.15'" alt=""></div>`;
+    html += `<div class="sbar-head" style="margin-top:0;">Monthly player trends · ${splitLbl} · <span style="color:var(--text2)">╌ league avg</span></div>`;
+    html += `<div class="lt-legends">${legend(awayB, awayTm, colors.away)}${legend(homeB, homeTm, colors.home)}</div>`;
+    statMeta.forEach(s => {
+        const a = buildLineupTrendChart(awayB, awayTm, split, s, colors.away);
+        const h = buildLineupTrendChart(homeB, homeTm, split, s, colors.home);
+        html += `<div class="lt-stat-row"><div class="sbar-title">${s.label}</div><div class="lt-two">${a}${h}</div></div>`;
+    });
+    c.innerHTML = html;
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function batSideBadge(side) {
     if (!side) return '';
@@ -3114,6 +3283,16 @@ function switchTab(n) {
                 console.error('[LineupStats] fetch error:', err);
                 document.getElementById('lineup-stats-container').innerHTML =
                     `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Error: ${err.message}</div></div>`;
+            });
+    }
+    if (n===9) {
+        document.getElementById('lineup-trends-container').innerHTML =
+            `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
+        lineupPromise = null; ensureLineups()
+            .then(() => { initLineupTrends(); renderLineupTrends(); })
+            .catch(err => {
+                document.getElementById('lineup-trends-container').innerHTML =
+                    `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Error: ${esc(err.message)}</div></div>`;
             });
     }
     if (n===5) { renderHotColdTeams(); }
