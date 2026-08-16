@@ -2603,7 +2603,7 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
         // shows the batter's name (SVG <title> native tooltip).
         const dots = se.vals.map((v, i) => (v != null && !isNaN(v))
             ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.2"/>` +
-              `<circle fill="transparent" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(se.name)}" data-meta="${monthLabel(months[i])}: ${s.fmt(v)}"/>`
+              `<circle fill="transparent" pointer-events="all" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(se.name)}" data-meta="${monthLabel(months[i])}: ${s.fmt(v)}"/>`
             : '').join('');
         return line + dots;
     }).join('');
@@ -2632,9 +2632,16 @@ function wireLineupTips() {
         tip.style.top = Math.max(4, y) + 'px';
     };
     const hide = () => { tip.style.display = 'none'; };
-    cont.addEventListener('pointermove', e => { const el = hit(e); el ? show(e, el) : hide(); });
-    cont.addEventListener('pointerdown', e => { const el = hit(e); if (el) { show(e, el); } });
+    const move = e => { const el = hit(e); el ? show(e, el) : hide(); };
+    const tap  = e => { const el = hit(e); if (el) show(e, el); };
+    // Pointer events + plain mouse/click fallback (Safari can be flaky with
+    // pointer events on SVG; the mouse handlers cover it).
+    cont.addEventListener('pointermove', move);
+    cont.addEventListener('mousemove',  move);
+    cont.addEventListener('pointerdown', tap);
+    cont.addEventListener('click',       tap);
     cont.addEventListener('pointerleave', hide);
+    cont.addEventListener('mouseleave',  hide);
 }
 
 function renderLineupTrends() {
