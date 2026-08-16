@@ -2218,33 +2218,21 @@ const RADAR_KEYS = ['wrcPlus','woba','ops','obp','slg','iso','bbPct','kPct'];
 
 // Left y-axis for the mini charts: a thin axis line + 3 numeric ticks
 // (bottom / middle / top of the data range), formatted with the stat's fmt.
-// Actual [min, max] of the plotted series values (ignores thresholds/LG), for
-// the neutral min/max y-axis ticks. Returns [null, null] when nothing plots.
-function dataExtent(vals) {
-    const f = vals.filter(v => v != null && !isNaN(v));
-    return f.length ? [Math.min(...f), Math.max(...f)] : [null, null];
-}
-function miniYAxis(s, lg, mn, mx, dMin, dMax, yOf, pl, ptop, plotH) {
+// Evenly-spaced y-axis: N ticks from the data min → max (both always shown as
+// the endpoints), each colored by its grade tier. yOf must map [mn..mx] onto
+// the plot so the ticks line up with the bars/dots.
+function miniYAxis(s, mn, mx, yOf, pl, ptop, plotH, N = 5) {
     const axis = `<line x1="${pl}" y1="${ptop.toFixed(1)}" x2="${pl}" y2="${(ptop + plotH).toFixed(1)}" class="sbar-yaxis"/>`;
-    const inRange = v => v != null && !isNaN(v) && v >= dMin && v <= dMax;
-    // Ticks: grade thresholds (each colored by the tier it opens) + league avg (white).
-    const items = s.thresholds.filter(inRange).map(t => ({ v: t, y: yOf(t), fill: `var(--${getTier(s, t)})` }));
-    if (inRange(lg)) items.push({ v: lg, y: yOf(lg), fill: '#fff' });
-    // Actual data min & max (neutral), skipping any value a grade/LG tick already shows.
-    const seen = new Set(items.map(it => s.fmt(it.v)));
-    [mn, mx].forEach(v => { if (inRange(v) && !seen.has(s.fmt(v))) { items.push({ v, y: yOf(v), fill: 'var(--muted)' }); seen.add(s.fmt(v)); } });
-    items.sort((a, b) => a.y - b.y);
-    // Nudge labels apart to a minimum gap so numbers never overlap (tick mark
-    // stays at the true value; only the text is spaced out).
-    const GAP = 8;
-    let prev = -Infinity;
-    items.forEach(it => { it.ly = Math.max(it.y, prev + GAP); prev = it.ly; });
-    const overflow = items.length ? items[items.length - 1].ly - (ptop + plotH - 1) : 0;
-    if (overflow > 0) items.forEach(it => { it.ly -= overflow; });
-    const ticks = items.map(it =>
-        `<line x1="${(pl - 2.5).toFixed(1)}" y1="${it.y.toFixed(1)}" x2="${pl}" y2="${it.y.toFixed(1)}" class="sbar-yaxis"/>` +
-        `<text x="${(pl - 4).toFixed(1)}" y="${(it.ly + 2.4).toFixed(1)}" text-anchor="end" class="sbar-y" style="fill:${it.fill}">${s.fmt(it.v)}</text>`
-    ).join('');
+    if (mn == null || mx == null) return axis;
+    let lo = mn, hi = mx;
+    if (lo === hi) { const d = Math.abs(lo) * 0.1 || 1; lo -= d; hi += d; }
+    let ticks = '';
+    for (let i = 0; i < N; i++) {
+        const v = lo + (hi - lo) * i / (N - 1);
+        const y = yOf(v);
+        ticks += `<line x1="${(pl - 2.5).toFixed(1)}" y1="${y.toFixed(1)}" x2="${pl}" y2="${y.toFixed(1)}" class="sbar-yaxis"/>` +
+                 `<text x="${(pl - 4).toFixed(1)}" y="${(y + 2.4).toFixed(1)}" text-anchor="end" class="sbar-y" style="fill:var(--${getTier(s, v)})">${s.fmt(v)}</text>`;
+    }
     return axis + ticks;
 }
 
@@ -2297,10 +2285,10 @@ function buildStatBars(awayTm, homeTm) {
         const aVals = ranges.map(([rv]) => valOf(awayTm, s.key, rv));
         const hVals = ranges.map(([rv]) => valOf(homeTm, s.key, rv));
         const lg = lgSeason[s.key];
-        // Include the grade thresholds so every grade number is visible on the y-axis.
-        const all = [...aVals, ...hVals, lg, ...s.thresholds].filter(v => v != null && !isNaN(v));
-        if (!all.length) return '';
-        let mn = Math.min(...all), mx = Math.max(...all);
+        // Axis spans the actual data min→max (bars) so the y-ticks are the real range.
+        const dvals = [...aVals, ...hVals].filter(v => v != null && !isNaN(v));
+        if (!dvals.length) return '';
+        let mn = Math.min(...dvals), mx = Math.max(...dvals);
         if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
         const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
         const W = 210, H = 118, ptop = 8, pbot = 20, pl = 30, pr = 6;
@@ -2314,10 +2302,10 @@ function buildStatBars(awayTm, homeTm) {
             if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="${cHome}"><title>${homeLabel} ${rl}: ${s.fmt(hv)}</title></rect>`; }
             xl += `<text x="${(gx + gw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${rl}</text>`;
         });
-        const ly = yOf(lg);   // LG number now lives on the y-axis (white); keep the dashed line as a visual reference
-        const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="sbar-lg"/>`;
-        const [dMn, dMx] = dataExtent([...aVals, ...hVals]);
-        const yAxis = miniYAxis(s, lg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
+        // dashed league line, drawn only when the league avg falls within the data range
+        const lgLine = (lg != null && !isNaN(lg) && lg >= dMin && lg <= dMax)
+            ? `<line x1="${pl}" x2="${W - pr}" y1="${yOf(lg).toFixed(1)}" y2="${yOf(lg).toFixed(1)}" class="sbar-lg"/>` : '';
+        const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
         return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
     return `<div class="sbar-head">Stat by date range · <span style="color:${cAway}">${awayTm}</span> vs <span style="color:${cHome}">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
@@ -2404,12 +2392,13 @@ function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
     // Representative league average for the y-axis = mean of the monthly league values.
     const lgClean = lgVals.filter(v => v != null && !isNaN(v));
     const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
-    // Include the grade thresholds so every grade number is visible on the y-axis.
-    const all = [...aVals, ...hVals, ...lgVals, ...s.thresholds].filter(v => v != null && !isNaN(v));
-    if (all.length < 2) return '';
-    let mn = Math.min(...all), mx = Math.max(...all);
+    // Axis spans the actual data min→max; small pad so the extreme dots sit at
+    // the top/bottom ticks without clipping.
+    const dvals = [...aVals, ...hVals].filter(v => v != null && !isNaN(v));
+    if (dvals.length < 2) return '';
+    let mn = Math.min(...dvals), mx = Math.max(...dvals);
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
-    const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+    const pad = (mx - mn) * 0.08, dMin = mn - pad, dMax = mx + pad;
 
     const W = 210, H = 118, ptop = 10, pbot = 20, pl = 30, pr = 8;
     const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
@@ -2441,8 +2430,7 @@ function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
         `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`
     ).join('');
 
-    const [dMn, dMx] = dataExtent([...aVals, ...hVals]);
-    const yAxis = miniYAxis(s, lgAvg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
+    const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div>` +
         `<svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by month">${yAxis}${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
 }
@@ -2592,11 +2580,12 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
     const lgVals = months.map(m => { const a = paWeightedAvg(byMonth[m] || []); return a ? a[s.key] : null; });
     const lgClean = lgVals.filter(v => v != null && !isNaN(v));
     const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
-    const all = [...series.flatMap(se => se.vals), ...lgVals, ...s.thresholds].filter(v => v != null && !isNaN(v));
-    if (all.length < 2) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">No monthly data</div></div>`;
-    let mn = Math.min(...all), mx = Math.max(...all);
+    // Axis spans the actual data min→max (all batters); small pad for dot radius.
+    const dvals = series.flatMap(se => se.vals).filter(v => v != null && !isNaN(v));
+    if (dvals.length < 2) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">No monthly data</div></div>`;
+    let mn = Math.min(...dvals), mx = Math.max(...dvals);
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
-    const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+    const pad = (mx - mn) * 0.08, dMin = mn - pad, dMax = mx + pad;
     const W = 210, H = 128, ptop = 10, pbot = 20, pl = 30, pr = 8;
     const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
     const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
@@ -2607,12 +2596,16 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
     const layers = series.map(se => {
         const pts = linePts(se.vals);
         const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${se.color};stroke-width:1.75" points="${pts.join(' ')}"/>` : '';
-        const dots = se.vals.map((v, i) => (v != null && !isNaN(v)) ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.2"><title>${esc(se.name)} ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>` : '').join('');
+        // visible dot + a larger transparent hit circle so hover/click reliably
+        // shows the batter's name (SVG <title> native tooltip).
+        const dots = se.vals.map((v, i) => (v != null && !isNaN(v))
+            ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.2"/>` +
+              `<circle fill="transparent" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer"><title>${esc(se.name)} · ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>`
+            : '').join('');
         return line + dots;
     }).join('');
     const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`).join('');
-    const [dMn, dMx] = dataExtent(series.flatMap(se => se.vals));
-    const yAxis = miniYAxis(s, lgAvg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
+    const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label} by month">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
 }
 
