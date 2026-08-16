@@ -45,9 +45,9 @@ function teamBlock(team) {
   for (let c = 0; c < 5; c++) w[c] = Math.max(...allRows.map(r => (r[c] || '').length));
   const line = (row, tiers) => {
     const label = (row[0] || '').padEnd(w[0]);
-    // value first, tier square on the RIGHT; date-range columns divided by │
-    const cells = row.slice(1).map((cell, i) => (cell || '').padStart(w[i + 1]) + (tiers ? (SQ[tiers[i]] || '⬜') : '⬜')).join('│');
-    return `${label}│${cells}`;
+    // value first, tier square on the RIGHT; cells run together (square separates) to stay narrow
+    const cells = row.slice(1).map((cell, i) => (cell || '').padStart(w[i + 1]) + (tiers ? (SQ[tiers[i]] || '⬜') : '⬜')).join('');
+    return `${label} ${cells}`;
   };
   // Split label: its own centered row above the data, ALL CAPS, underlined via
   // the U+0332 combining low line (real <u> doesn't render inside <pre>).
