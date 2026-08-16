@@ -512,6 +512,10 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
                     <option value="vs_rhp">vs RHP</option>
                     <option value="home">Home</option>
                     <option value="away">Away</option>
+                    <option value="vs_lhp_home">vs LHP @ Home</option>
+                    <option value="vs_lhp_away">vs LHP @ Away</option>
+                    <option value="vs_rhp_home">vs RHP @ Home</option>
+                    <option value="vs_rhp_away">vs RHP @ Away</option>
                 </select>
             </div>
             <div class="m-filter-group">
@@ -654,6 +658,10 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
                         <option value="vs_rhp">vs RHP</option>
                         <option value="home">Home</option>
                         <option value="away">Away</option>
+                        <option value="vs_lhp_home">vs LHP @ Home</option>
+                        <option value="vs_lhp_away">vs LHP @ Away</option>
+                        <option value="vs_rhp_home">vs RHP @ Home</option>
+                        <option value="vs_rhp_away">vs RHP @ Away</option>
                     </select>
                 </div>
             </div>
@@ -1433,7 +1441,7 @@ function buildMobileStatBars(awayTm, homeTm) {
 const SUPABASE_HISTORY_TABLE = 'fangraphs_splits_history';
 const MON_ABBR = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const monthLabel = m => MON_ABBR[parseInt(m.slice(5, 7), 10)] || m;
-const TREND_SPLITS = [['no_split','Overall'],['vs_lhp','vs LHP'],['vs_rhp','vs RHP'],['home','Home'],['away','Away']];
+const TREND_SPLITS = [['no_split','Overall'],['vs_lhp','vs LHP'],['vs_rhp','vs RHP'],['home','Home'],['away','Away'],['vs_lhp_home','vs LHP @ Home'],['vs_lhp_away','vs LHP @ Away'],['vs_rhp_home','vs RHP @ Home'],['vs_rhp_away','vs RHP @ Away']];
 let teamHistory = {}, historyMonths = [], historyLoaded = false, historyLoading = false;
 
 function loadHistoryRows(rows) {

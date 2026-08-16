@@ -1066,6 +1066,10 @@
                         <option value="vs_rhp">vs RHP</option>
                         <option value="home">Home</option>
                         <option value="away">Away</option>
+                        <option value="vs_lhp_home">vs LHP @ Home</option>
+                        <option value="vs_lhp_away">vs LHP @ Away</option>
+                        <option value="vs_rhp_home">vs RHP @ Home</option>
+                        <option value="vs_rhp_away">vs RHP @ Away</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -1309,6 +1313,10 @@
                         <option value="vs_rhp">vs RHP</option>
                         <option value="home">Home</option>
                         <option value="away">Away</option>
+                        <option value="vs_lhp_home">vs LHP @ Home</option>
+                        <option value="vs_lhp_away">vs LHP @ Away</option>
+                        <option value="vs_rhp_home">vs RHP @ Home</option>
+                        <option value="vs_rhp_away">vs RHP @ Away</option>
                     </select>
                 </div>
             </div>
@@ -2138,11 +2146,15 @@ const DATE_RANGES = [
     { value: 'last_7',  label: 'Last 7 Days'  },
 ];
 const SPLITS = [
-    { value: 'no_split', label: 'Overall'  },
-    { value: 'vs_lhp',   label: 'vs LHP'   },
-    { value: 'vs_rhp',   label: 'vs RHP'   },
-    { value: 'home',     label: 'Home'      },
-    { value: 'away',     label: 'Away'      },
+    { value: 'no_split',    label: 'Overall'       },
+    { value: 'vs_lhp',      label: 'vs LHP'        },
+    { value: 'vs_rhp',      label: 'vs RHP'        },
+    { value: 'home',        label: 'Home'          },
+    { value: 'away',        label: 'Away'          },
+    { value: 'vs_lhp_home', label: 'vs LHP @ Home' },
+    { value: 'vs_lhp_away', label: 'vs LHP @ Away' },
+    { value: 'vs_rhp_home', label: 'vs RHP @ Home' },
+    { value: 'vs_rhp_away', label: 'vs RHP @ Away' },
 ];
 
 function handleTeamInput(side) {

@@ -56,11 +56,15 @@ HEADERS = {
 
 # ── Splits & month windows ────────────────────────────────────────────────────
 SPLITS = [
-    ("no_split", []),
-    ("vs_lhp",   [1]),
-    ("vs_rhp",   [2]),
-    ("home",     [7]),
-    ("away",     [8]),
+    ("no_split",     []),
+    ("vs_lhp",       [1]),
+    ("vs_rhp",       [2]),
+    ("home",         [7]),
+    ("away",         [8]),
+    ("vs_lhp_home",  [1, 7]),
+    ("vs_lhp_away",  [1, 8]),
+    ("vs_rhp_home",  [2, 7]),
+    ("vs_rhp_away",  [2, 8]),
 ]
 
 def get_month_windows():
