@@ -2218,12 +2218,21 @@ const RADAR_KEYS = ['wrcPlus','woba','ops','obp','slg','iso','bbPct','kPct'];
 
 // Left y-axis for the mini charts: a thin axis line + 3 numeric ticks
 // (bottom / middle / top of the data range), formatted with the stat's fmt.
-function miniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH) {
+// Actual [min, max] of the plotted series values (ignores thresholds/LG), for
+// the neutral min/max y-axis ticks. Returns [null, null] when nothing plots.
+function dataExtent(vals) {
+    const f = vals.filter(v => v != null && !isNaN(v));
+    return f.length ? [Math.min(...f), Math.max(...f)] : [null, null];
+}
+function miniYAxis(s, lg, mn, mx, dMin, dMax, yOf, pl, ptop, plotH) {
     const axis = `<line x1="${pl}" y1="${ptop.toFixed(1)}" x2="${pl}" y2="${(ptop + plotH).toFixed(1)}" class="sbar-yaxis"/>`;
     const inRange = v => v != null && !isNaN(v) && v >= dMin && v <= dMax;
     // Ticks: grade thresholds (each colored by the tier it opens) + league avg (white).
     const items = s.thresholds.filter(inRange).map(t => ({ v: t, y: yOf(t), fill: `var(--${getTier(s, t)})` }));
     if (inRange(lg)) items.push({ v: lg, y: yOf(lg), fill: '#fff' });
+    // Actual data min & max (neutral), skipping any value a grade/LG tick already shows.
+    const seen = new Set(items.map(it => s.fmt(it.v)));
+    [mn, mx].forEach(v => { if (inRange(v) && !seen.has(s.fmt(v))) { items.push({ v, y: yOf(v), fill: 'var(--muted)' }); seen.add(s.fmt(v)); } });
     items.sort((a, b) => a.y - b.y);
     // Nudge labels apart to a minimum gap so numbers never overlap (tick mark
     // stays at the true value; only the text is spaced out).
@@ -2307,7 +2316,8 @@ function buildStatBars(awayTm, homeTm) {
         });
         const ly = yOf(lg);   // LG number now lives on the y-axis (white); keep the dashed line as a visual reference
         const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="sbar-lg"/>`;
-        const yAxis = miniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH);
+        const [dMn, dMx] = dataExtent([...aVals, ...hVals]);
+        const yAxis = miniYAxis(s, lg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
         return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
     return `<div class="sbar-head">Stat by date range · <span style="color:${cAway}">${awayTm}</span> vs <span style="color:${cHome}">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
@@ -2431,7 +2441,8 @@ function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
         `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`
     ).join('');
 
-    const yAxis = miniYAxis(s, lgAvg, dMin, dMax, yOf, pl, ptop, plotH);
+    const [dMn, dMx] = dataExtent([...aVals, ...hVals]);
+    const yAxis = miniYAxis(s, lgAvg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div>` +
         `<svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by month">${yAxis}${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
 }
@@ -2600,7 +2611,8 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
         return line + dots;
     }).join('');
     const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`).join('');
-    const yAxis = miniYAxis(s, lgAvg, dMin, dMax, yOf, pl, ptop, plotH);
+    const [dMn, dMx] = dataExtent(series.flatMap(se => se.vals));
+    const yAxis = miniYAxis(s, lgAvg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label} by month">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
 }
 

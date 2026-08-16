@@ -1358,11 +1358,17 @@ function teamPairColors(awayTm, homeTm) {
 
 // Left y-axis: grade thresholds (tier-colored) + league avg (white), nudged
 // apart so the numbers never overlap.
-function mMiniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH) {
+function dataExtent(vals) {
+    const f = vals.filter(v => v != null && !isNaN(v));
+    return f.length ? [Math.min(...f), Math.max(...f)] : [null, null];
+}
+function mMiniYAxis(s, lg, mn, mx, dMin, dMax, yOf, pl, ptop, plotH) {
     const axis = `<line x1="${pl}" y1="${ptop.toFixed(1)}" x2="${pl}" y2="${(ptop + plotH).toFixed(1)}" class="m-sbar-yaxis"/>`;
     const inRange = v => v != null && !isNaN(v) && v >= dMin && v <= dMax;
     const items = s.thresholds.filter(inRange).map(t => ({ v: t, y: yOf(t), fill: `var(--${getTier(s, t)})` }));
     if (inRange(lg)) items.push({ v: lg, y: yOf(lg), fill: '#fff' });
+    const seen = new Set(items.map(it => s.fmt(it.v)));
+    [mn, mx].forEach(v => { if (inRange(v) && !seen.has(s.fmt(v))) { items.push({ v, y: yOf(v), fill: 'var(--muted)' }); seen.add(s.fmt(v)); } });
     items.sort((a, b) => a.y - b.y);
     const GAP = 8; let prev = -Infinity;
     items.forEach(it => { it.ly = Math.max(it.y, prev + GAP); prev = it.ly; });
@@ -1409,7 +1415,8 @@ function buildMobileStatBars(awayTm, homeTm) {
         });
         const ly = yOf(lg);
         const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="m-sbar-lg"/>`;
-        const yAxis = mMiniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH);
+        const [dMn, dMx] = dataExtent([...aVals, ...hVals]);
+        const yAxis = mMiniYAxis(s, lg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
         return `<div class="m-sbar-cell"><div class="m-sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="m-sbar-svg">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
     return `<div class="m-sbar-head">By date range · <span style="color:${cAway}">${awayTm}</span> vs <span style="color:${cHome}">${homeLabel}</span> · <span style="color:var(--text2)">╌ LG</span></div><div class="m-sbar-grid">${charts}</div>`;
@@ -1484,7 +1491,8 @@ function buildMobileMonthLineTile(split, s, awayTm, homeTm, colors) {
     const homeLayer = teamLayer(hVals, homeTm, colors.home);
     const awayLayer = teamLayer(aVals, awayTm, colors.away);
     const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="m-sbar-x">${monthLabel(m)}</text>`).join('');
-    const yAxis = mMiniYAxis(s, lgAvg, dMin, dMax, yOf, pl, ptop, plotH);
+    const [dMn, dMx] = dataExtent([...aVals, ...hVals]);
+    const yAxis = mMiniYAxis(s, lgAvg, dMn ?? mn, dMx ?? mx, dMin, dMax, yOf, pl, ptop, plotH);
     return `<div class="m-sbar-cell"><div class="m-sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="m-sbar-svg">${yAxis}${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
 }
 
