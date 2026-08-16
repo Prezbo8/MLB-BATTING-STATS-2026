@@ -479,10 +479,6 @@
         /* ── MONTHLY TRENDS (line charts, x = months) ─────────────────────── */
         .mtrend-section { margin-top: 1.75rem; }
         .mtrend-head { text-align: center; font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 0.5rem 0 0.25rem; }
-        .mtrend-away { fill: none; stroke: var(--blue);   stroke-width: 2; }
-        .mtrend-home { fill: none; stroke: var(--orange); stroke-width: 2; }
-        .mtrend-vx-away { fill: var(--blue); }
-        .mtrend-vx-home { fill: var(--orange); }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -2204,9 +2200,42 @@ function miniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH) {
     return axis + ticks;
 }
 
+// ── Team series colors for the compare charts ─────────────────────────────
+// Away = its primary; home = its primary too, unless both teams share the
+// same primary — then home falls back to its secondary. Very dark team colors
+// (navies) get a lightness floor so lines/bars stay visible on the dark tile.
+function hexToHsl(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return null;
+    const n = parseInt(m[1], 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0, l = (mx + mn) / 2, s = 0;
+    if (d) {
+        s = d / (1 - Math.abs(2 * l - 1));
+        h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        h *= 60; if (h < 0) h += 360;
+    }
+    return { h, s, l };
+}
+function readableColor(hex) {
+    const c = hexToHsl(hex); if (!c) return hex;
+    if (c.l >= 0.5) return hex;   // already light enough — keep the exact team color
+    return `hsl(${c.h.toFixed(0)},${Math.max(c.s * 100, 55).toFixed(0)}%,55%)`;   // lift dark navies to a visible shade of the same hue
+}
+function teamPairColors(awayTm, homeTm) {
+    const a = teamColorsPdf[awayTm] || {}, h = teamColorsPdf[homeTm] || {};
+    const awayHex = a.primary;
+    let homeHex = homeTm === 'LG' ? null : h.primary;
+    if (homeHex && awayHex && homeHex.toLowerCase() === awayHex.toLowerCase()) homeHex = h.secondary || homeHex;
+    return {
+        away: awayHex ? readableColor(awayHex) : 'var(--blue)',
+        home: homeHex ? readableColor(homeHex) : 'var(--orange)',
+    };
+}
+
 // Per-stat bar charts: x = date ranges, bars = away/home, numeric y-axis,
 // dotted horizontal line = season league average for that stat.
 function buildStatBars(awayTm, homeTm) {
+    const { away: cAway, home: cHome } = teamPairColors(awayTm, homeTm);
     const ranges = [['season', 'SZN'], ['last_30', 'L30'], ['last_14', 'L14'], ['last_7', 'L7']];
     const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
     const lgSeason = paWeightedAvg(getFilteredData('no_split', 'season'));
@@ -2233,8 +2262,8 @@ function buildStatBars(awayTm, homeTm) {
         ranges.forEach(([rv, rl], gi) => {
             const gx = pl + gi * gw, bw = 13, gap = 3, x0 = gx + gw / 2 - bw - gap / 2;
             const av = aVals[gi], hv = hVals[gi];
-            if (av != null && !isNaN(av)) { const by = yOf(av); bars += `<rect x="${x0.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="var(--blue)"><title>${awayTm} ${rl}: ${s.fmt(av)}</title></rect>`; }
-            if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="var(--orange)"><title>${homeLabel} ${rl}: ${s.fmt(hv)}</title></rect>`; }
+            if (av != null && !isNaN(av)) { const by = yOf(av); bars += `<rect x="${x0.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="${cAway}"><title>${awayTm} ${rl}: ${s.fmt(av)}</title></rect>`; }
+            if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="${cHome}"><title>${homeLabel} ${rl}: ${s.fmt(hv)}</title></rect>`; }
             xl += `<text x="${(gx + gw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${rl}</text>`;
         });
         const ly = yOf(lg);   // LG number now lives on the y-axis (white); keep the dashed line as a visual reference
@@ -2242,7 +2271,7 @@ function buildStatBars(awayTm, homeTm) {
         const yAxis = miniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH);
         return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
-    return `<div class="sbar-head">Stat by date range · <span style="color:var(--blue)">${awayTm}</span> vs <span style="color:var(--orange)">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
+    return `<div class="sbar-head">Stat by date range · <span style="color:${cAway}">${awayTm}</span> vs <span style="color:${cHome}">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
 }
 
 // ── MONTHLY TRENDS (line charts: x = months, y = stat) ────────────────────
@@ -2309,7 +2338,7 @@ async function fetchTeamHistory() {
 }
 
 // One per-stat mini line chart: away + home lines over months + dashed LG line.
-function buildMonthLineTile(split, s, awayTm, homeTm) {
+function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
     const byMonth = teamHistory[split] || {};
     const months = historyMonths;
     const valOf = (tm, m) => {
@@ -2346,19 +2375,19 @@ function buildMonthLineTile(split, s, awayTm, homeTm) {
     const lgPts = linePts(lgVals);
     const lgLine = lgPts.length >= 2 ? `<polyline class="sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
 
-    const teamLayer = (vals, tm, lineCls, vxCls) => {
+    const teamLayer = (vals, tm, color) => {
         if (tm === 'LG') return '';
         const pts = linePts(vals);
-        const line = pts.length >= 2 ? `<polyline class="${lineCls}" points="${pts.join(' ')}"/>` : '';
+        const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${color};stroke-width:2" points="${pts.join(' ')}"/>` : '';
         const dots = vals.map((v, i) => (v != null && !isNaN(v))
-            ? `<circle class="${vxCls}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6"><title>${tm} ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>`
+            ? `<circle style="fill:${color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6"><title>${tm} ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>`
             : '').join('');
         return line + dots;
     };
 
     // Draw order: league (behind), home, then away on top.
-    const homeLayer = teamLayer(hVals, homeTm, 'mtrend-home', 'mtrend-vx-home');
-    const awayLayer = teamLayer(aVals, awayTm, 'mtrend-away', 'mtrend-vx-away');
+    const homeLayer = teamLayer(hVals, homeTm, colors.home);
+    const awayLayer = teamLayer(aVals, awayTm, colors.away);
     const xl = months.map((m, i) =>
         `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`
     ).join('');
@@ -2376,10 +2405,11 @@ function buildMonthlyTrends(awayTm, homeTm) {
     }
     if (!historyMonths.length) return '';
     const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
+    const colors = teamPairColors(awayTm, homeTm);
 
     let sections = '';
     SPLITS.forEach(sp => {
-        const tiles = statMeta.map(s => buildMonthLineTile(sp.value, s, awayTm, homeTm)).filter(Boolean).join('');
+        const tiles = statMeta.map(s => buildMonthLineTile(sp.value, s, awayTm, homeTm, colors)).filter(Boolean).join('');
         if (!tiles) return;
         sections += `<div class="split-row-section">
             <div class="split-row-heading">${sp.label}</div>
@@ -2388,8 +2418,8 @@ function buildMonthlyTrends(awayTm, homeTm) {
     });
     if (!sections) return '';
 
-    const legend = `<div class="sbar-head">Monthly trend · <span style="color:var(--blue)">${awayTm}</span>` +
-        `${homeTm === 'LG' ? '' : ` vs <span style="color:var(--orange)">${homeLabel}</span>`} · <span style="color:var(--text2)">╌ league avg</span></div>`;
+    const legend = `<div class="sbar-head">Monthly trend · <span style="color:${colors.away}">${awayTm}</span>` +
+        `${homeTm === 'LG' ? '' : ` vs <span style="color:${colors.home}">${homeLabel}</span>`} · <span style="color:var(--text2)">╌ league avg</span></div>`;
     return `<div class="mtrend-section"><div class="mtrend-head">📈 Monthly Trends · by split &amp; stat</div>${legend}${sections}</div>`;
 }
 
