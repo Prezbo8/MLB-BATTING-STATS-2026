@@ -1307,11 +1307,11 @@ function toggleMVsLg() {
     if (h) { h.disabled = cmpVsLg; h.style.opacity = cmpVsLg ? '0.4' : ''; }
     renderMobileCompare();
 }
-// PA-weighted league average across the RADAR_KEYS (falls back to simple mean)
+// PA-weighted league average across every stat (falls back to simple mean)
 function mLgAvg(rows) {
     const totPa = rows.reduce((s, r) => s + (r.pa || 0), 0);
     const out = {};
-    RADAR_KEYS.forEach(k => {
+    statMeta.map(m => m.key).forEach(k => {
         if (totPa > 0) out[k] = rows.reduce((s, r) => s + (r[k] || 0) * (r.pa || 0), 0) / totPa;
         else { const v = rows.map(r => r[k]).filter(x => x != null && !isNaN(x)); out[k] = v.reduce((a, b) => a + b, 0) / (v.length || 1); }
     });
@@ -1474,8 +1474,8 @@ function buildMobileMonthLineTile(split, s, awayTm, homeTm, colors) {
     const aVals = months.map(m => valOf(awayTm, m));
     const hVals = homeTm === 'LG' ? months.map(() => null) : months.map(m => valOf(homeTm, m));
     const lgVals = months.map(m => valOf('LG', m));
-    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
-    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    // Actual league average = the live season league average (same value the bar charts show).
+    const lgAvg = (mLgAvg(allData['no_split-season'] || []) || {})[s.key];
     const dvals = [...aVals, ...hVals].filter(v => v != null && !isNaN(v));
     if (dvals.length < 2) return '';
     let mn = Math.min(...dvals), mx = Math.max(...dvals);

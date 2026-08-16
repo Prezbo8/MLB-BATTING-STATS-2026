@@ -2407,9 +2407,8 @@ function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
     const hVals  = homeTm === 'LG' ? months.map(() => null) : months.map(m => valOf(homeTm, m));
     const lgVals = months.map(m => valOf('LG', m));
 
-    // Representative league average for the y-axis = mean of the monthly league values.
-    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
-    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    // Actual league average for the y-axis = the live season league average (same value the bar charts show).
+    const lgAvg = (paWeightedAvg(getFilteredData('no_split', 'season') || []) || {})[s.key];
     // Axis spans the data min→max (small pad so extreme dots sit at the ticks);
     // widened to include the league avg so its white tick always shows.
     const dvals = [...aVals, ...hVals].filter(v => v != null && !isNaN(v));
@@ -2598,8 +2597,8 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
         vals: months.map(m => { const row = ltMatchRow(byMonth[m] || [], correctPlayerName(p.name), tm); return row ? row[s.key] : null; }),
     }));
     const lgVals = months.map(m => { const a = paWeightedAvg(byMonth[m] || []); return a ? a[s.key] : null; });
-    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
-    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    // Actual league average = PA-weighted over every batter across all months.
+    const lgAvg = (paWeightedAvg(months.flatMap(m => byMonth[m] || [])) || {})[s.key];
     // Axis spans the data min→max (all batters); widened to include the league avg.
     const dvals = series.flatMap(se => se.vals).filter(v => v != null && !isNaN(v));
     if (dvals.length < 2) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">No monthly data</div></div>`;
