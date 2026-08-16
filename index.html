@@ -2221,22 +2221,36 @@ const RADAR_KEYS = ['wrcPlus','woba','ops','obp','slg','iso','bbPct','kPct'];
 
 // Left y-axis for the mini charts: a thin axis line + 3 numeric ticks
 // (bottom / middle / top of the data range), formatted with the stat's fmt.
-// Evenly-spaced y-axis: N ticks from the data min → max (both always shown as
-// the endpoints), each colored by its grade tier. yOf must map [mn..mx] onto
-// the plot so the ticks line up with the bars/dots.
-function miniYAxis(s, mn, mx, yOf, pl, ptop, plotH, N = 5) {
+// Evenly-spaced y-axis: N grade-colored ticks from data min → max (endpoints),
+// plus the league average in white. yOf must map the range onto the plot so the
+// ticks line up with the bars/dots.
+function miniYAxis(s, lg, mn, mx, yOf, pl, ptop, plotH, N = 5) {
     const axis = `<line x1="${pl}" y1="${ptop.toFixed(1)}" x2="${pl}" y2="${(ptop + plotH).toFixed(1)}" class="sbar-yaxis"/>`;
     if (mn == null || mx == null) return axis;
     let lo = mn, hi = mx;
     if (lo === hi) { const d = Math.abs(lo) * 0.1 || 1; lo -= d; hi += d; }
-    let ticks = '';
+    const mark = (my, ly, fill, txt) =>
+        `<line x1="${(pl - 2.5).toFixed(1)}" y1="${my.toFixed(1)}" x2="${pl}" y2="${my.toFixed(1)}" class="sbar-yaxis"/>` +
+        `<text x="${(pl - 4).toFixed(1)}" y="${(ly + 2.4).toFixed(1)}" text-anchor="end" class="sbar-y" style="fill:${fill}">${txt}</text>`;
+    const ev = [];
+    let out = '';
     for (let i = 0; i < N; i++) {
-        const v = lo + (hi - lo) * i / (N - 1);
-        const y = yOf(v);
-        ticks += `<line x1="${(pl - 2.5).toFixed(1)}" y1="${y.toFixed(1)}" x2="${pl}" y2="${y.toFixed(1)}" class="sbar-yaxis"/>` +
-                 `<text x="${(pl - 4).toFixed(1)}" y="${(y + 2.4).toFixed(1)}" text-anchor="end" class="sbar-y" style="fill:var(--${getTier(s, v)})">${s.fmt(v)}</text>`;
+        const v = lo + (hi - lo) * i / (N - 1), y = yOf(v);
+        ev.push(y);
+        out += mark(y, y, `var(--${getTier(s, v)})`, s.fmt(v));
     }
-    return axis + ticks;
+    // league avg (white): tick at its true position, label nudged clear of any
+    // even tick it lands on so both stay readable.
+    if (lg != null && !isNaN(lg)) {
+        const y = yOf(lg);
+        const GAP = 8;
+        const near = ev.filter(ty => Math.abs(ty - y) < GAP);
+        let ly = y;
+        if (near.length) { const c = near.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a); ly = y <= c ? c - GAP : c + GAP; }
+        ly = Math.max(ptop + 3, Math.min(ptop + plotH - 1, ly));
+        out += mark(y, ly, '#fff', s.fmt(lg));
+    }
+    return axis + out;
 }
 
 // ── Team series colors for the compare charts ─────────────────────────────
@@ -2288,12 +2302,14 @@ function buildStatBars(awayTm, homeTm) {
         const aVals = ranges.map(([rv]) => valOf(awayTm, s.key, rv));
         const hVals = ranges.map(([rv]) => valOf(homeTm, s.key, rv));
         const lg = lgSeason[s.key];
-        // Axis spans the actual data min→max (bars) so the y-ticks are the real range.
+        // Axis spans the data min→max (bars); widened to include the league avg so its white tick always shows.
         const dvals = [...aVals, ...hVals].filter(v => v != null && !isNaN(v));
         if (!dvals.length) return '';
         let mn = Math.min(...dvals), mx = Math.max(...dvals);
         if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
-        const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+        const sLo = (lg != null && !isNaN(lg)) ? Math.min(mn, lg) : mn;
+        const sHi = (lg != null && !isNaN(lg)) ? Math.max(mx, lg) : mx;
+        const pad = (sHi - sLo) * 0.18, dMin = sLo - pad, dMax = sHi + pad;
         const W = 210, H = 118, ptop = 8, pbot = 20, pl = 30, pr = 6;
         const plotH = H - ptop - pbot, plotW = W - pl - pr, gw = plotW / 4;
         const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
@@ -2305,10 +2321,9 @@ function buildStatBars(awayTm, homeTm) {
             if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="${cHome}"><title>${homeLabel} ${rl}: ${s.fmt(hv)}</title></rect>`; }
             xl += `<text x="${(gx + gw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${rl}</text>`;
         });
-        // dashed league line, drawn only when the league avg falls within the data range
-        const lgLine = (lg != null && !isNaN(lg) && lg >= dMin && lg <= dMax)
+        const lgLine = (lg != null && !isNaN(lg))
             ? `<line x1="${pl}" x2="${W - pr}" y1="${yOf(lg).toFixed(1)}" y2="${yOf(lg).toFixed(1)}" class="sbar-lg"/>` : '';
-        const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
+        const yAxis = miniYAxis(s, lg, mn, mx, yOf, pl, ptop, plotH);
         return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
     return `<div class="sbar-head">Stat by date range · <span style="color:${cAway}">${awayTm}</span> vs <span style="color:${cHome}">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
@@ -2395,13 +2410,15 @@ function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
     // Representative league average for the y-axis = mean of the monthly league values.
     const lgClean = lgVals.filter(v => v != null && !isNaN(v));
     const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
-    // Axis spans the actual data min→max; small pad so the extreme dots sit at
-    // the top/bottom ticks without clipping.
+    // Axis spans the data min→max (small pad so extreme dots sit at the ticks);
+    // widened to include the league avg so its white tick always shows.
     const dvals = [...aVals, ...hVals].filter(v => v != null && !isNaN(v));
     if (dvals.length < 2) return '';
     let mn = Math.min(...dvals), mx = Math.max(...dvals);
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
-    const pad = (mx - mn) * 0.08, dMin = mn - pad, dMax = mx + pad;
+    const sLo = (lgAvg != null && !isNaN(lgAvg)) ? Math.min(mn, lgAvg) : mn;
+    const sHi = (lgAvg != null && !isNaN(lgAvg)) ? Math.max(mx, lgAvg) : mx;
+    const pad = (sHi - sLo) * 0.08, dMin = sLo - pad, dMax = sHi + pad;
 
     const W = 210, H = 118, ptop = 10, pbot = 20, pl = 30, pr = 8;
     const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
@@ -2433,7 +2450,7 @@ function buildMonthLineTile(split, s, awayTm, homeTm, colors) {
         `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`
     ).join('');
 
-    const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
+    const yAxis = miniYAxis(s, lgAvg, mn, mx, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div>` +
         `<svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by month">${yAxis}${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
 }
@@ -2583,12 +2600,14 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
     const lgVals = months.map(m => { const a = paWeightedAvg(byMonth[m] || []); return a ? a[s.key] : null; });
     const lgClean = lgVals.filter(v => v != null && !isNaN(v));
     const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
-    // Axis spans the actual data min→max (all batters); small pad for dot radius.
+    // Axis spans the data min→max (all batters); widened to include the league avg.
     const dvals = series.flatMap(se => se.vals).filter(v => v != null && !isNaN(v));
     if (dvals.length < 2) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">No monthly data</div></div>`;
     let mn = Math.min(...dvals), mx = Math.max(...dvals);
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
-    const pad = (mx - mn) * 0.08, dMin = mn - pad, dMax = mx + pad;
+    const sLo = (lgAvg != null && !isNaN(lgAvg)) ? Math.min(mn, lgAvg) : mn;
+    const sHi = (lgAvg != null && !isNaN(lgAvg)) ? Math.max(mx, lgAvg) : mx;
+    const pad = (sHi - sLo) * 0.08, dMin = sLo - pad, dMax = sHi + pad;
     const W = 210, H = 128, ptop = 10, pbot = 20, pl = 30, pr = 8;
     const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
     const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
@@ -2608,7 +2627,7 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
         return line + dots;
     }).join('');
     const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`).join('');
-    const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
+    const yAxis = miniYAxis(s, lgAvg, mn, mx, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label} by month">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
 }
 
