@@ -459,6 +459,21 @@
         .radar-legend-item { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.04em; }
         .radar-legend-logo { width: 22px; height: 22px; object-fit: contain; }
         .radar-legend-swatch { width: 20px; height: 4px; border-radius: 2px; }
+        /* ── vs LG AVG toggle ─────────────────────────────────────────────── */
+        .cmp-mode-row { display: flex; justify-content: center; margin: -0.25rem 0 1.25rem; }
+        .cmp-mode-btn { font-family: var(--display); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 15px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.15s; }
+        .cmp-mode-btn:hover { border-color: var(--accent); color: var(--text); }
+        .cmp-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 2px 12px rgba(230,57,70,0.35); }
+        /* ── per-stat bar charts under the radar ──────────────────────────── */
+        .sbar-head { text-align: center; font-family: var(--display); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 14px 0 9px; }
+        .sbar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 10px 6px; }
+        @media (max-width: 900px) { .sbar-grid { grid-template-columns: repeat(2, 1fr); } }
+        .sbar-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 6px 4px; }
+        .sbar-title { text-align: center; font-family: var(--display); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 3px; }
+        .sbar-svg { display: block; width: 100%; height: auto; }
+        .sbar-x { fill: var(--muted); font-family: var(--display); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+        .sbar-lg { stroke: var(--text2); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.75; }
+        .sbar-lglabel { fill: var(--muted); font-family: var(--mono); font-size: 8px; }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -1084,6 +1099,9 @@
                 <input id="home-input" list="team-list" class="team-search home-input" placeholder="HOU" oninput="handleTeamInput('home')">
                 <div id="home-identity" class="team-identity-display"></div>
             </div>
+        </div>
+        <div class="cmp-mode-row">
+            <button id="vslg-toggle" class="cmp-mode-btn" onclick="toggleVsLg()" title="Compare the away team against the league average">⚖ vs LG Avg</button>
         </div>
 
         <div id="all-splits-container">
@@ -2155,8 +2173,9 @@ function buildCompareRadar(awayTm, homeTm) {
     const data = getFilteredData('no_split', 'season');
     if (!data || data.length < 10) return '';
     const away = data.find(t => t.tm === awayTm);
-    const home = data.find(t => t.tm === homeTm);
+    const home = homeTm === 'LG' ? Object.assign({ tm: 'LG' }, paWeightedAvg(data)) : data.find(t => t.tm === homeTm);
     if (!away || !home) return '';
+    const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
 
     const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
     // Percentile of v among all teams for this stat (0..1, 1 = best). Lower-is-
@@ -2206,29 +2225,85 @@ function buildCompareRadar(awayTm, homeTm) {
     const logo = tm => teamLogos[tm] ? `<img class="radar-legend-logo" src="${teamLogos[tm]}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
 
     return `<div class="compare-radar-card">
-        <div class="compare-radar-title">${teamLogos[awayTm] ? `<img src="${teamLogos[awayTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''} ${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeTm} ${teamLogos[homeTm] ? `<img src="${teamLogos[homeTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''}</div>
+        <div class="compare-radar-title">${teamLogos[awayTm] ? `<img src="${teamLogos[awayTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''} ${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeLabel} ${teamLogos[homeTm] ? `<img src="${teamLogos[homeTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''}</div>
         <div class="compare-radar-sub">Season Profile · League Percentile</div>
-        <svg class="compare-radar-svg" viewBox="0 0 460 420" role="img" aria-label="${awayTm} versus ${homeTm} season profile radar chart">
+        <svg class="compare-radar-svg" viewBox="0 0 460 420" role="img" aria-label="${awayTm} versus ${homeLabel} season profile radar chart">
             ${grid}${spokes}${labels}
             ${build(away, 'away')}
             ${build(home, 'home')}
         </svg>
         <div class="radar-legend">
             <div class="radar-legend-item" style="color:var(--blue);">${logo(awayTm)}<span class="radar-legend-swatch" style="background:var(--blue);"></span>${awayTm}</div>
-            <div class="radar-legend-item" style="color:var(--orange);">${logo(homeTm)}<span class="radar-legend-swatch" style="background:var(--orange);"></span>${homeTm}</div>
+            <div class="radar-legend-item" style="color:var(--orange);">${logo(homeTm)}<span class="radar-legend-swatch" style="background:var(--orange);"></span>${homeLabel}</div>
         </div>
+        ${buildStatBars(awayTm, homeTm)}
     </div>`;
+}
+
+// Per-stat bar charts under the radar: x = date ranges, bars = away/home,
+// dotted horizontal line = season league average for that stat.
+function buildStatBars(awayTm, homeTm) {
+    const ranges = [['season', 'SZN'], ['last_30', 'L30'], ['last_14', 'L14'], ['last_7', 'L7']];
+    const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
+    const lgSeason = paWeightedAvg(getFilteredData('no_split', 'season'));
+    const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
+    const valOf = (tm, key, range) => {
+        if (tm === 'LG') { const a = paWeightedAvg(getFilteredData('no_split', range)); return a ? a[key] : null; }
+        const row = getFilteredData('no_split', range).find(t => t.tm === tm);
+        return row ? row[key] : null;
+    };
+    const charts = axes.map(s => {
+        const aVals = ranges.map(([rv]) => valOf(awayTm, s.key, rv));
+        const hVals = ranges.map(([rv]) => valOf(homeTm, s.key, rv));
+        const lg = lgSeason[s.key];
+        const all = [...aVals, ...hVals, lg].filter(v => v != null && !isNaN(v));
+        if (!all.length) return '';
+        let mn = Math.min(...all), mx = Math.max(...all);
+        if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+        const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+        const W = 210, H = 118, ptop = 8, pbot = 20, pl = 6, pr = 6;
+        const plotH = H - ptop - pbot, plotW = W - pl - pr, gw = plotW / 4;
+        const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+        let bars = '', xl = '';
+        ranges.forEach(([rv, rl], gi) => {
+            const gx = pl + gi * gw, bw = 13, gap = 3, x0 = gx + gw / 2 - bw - gap / 2;
+            const av = aVals[gi], hv = hVals[gi];
+            if (av != null && !isNaN(av)) { const by = yOf(av); bars += `<rect x="${x0.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="var(--blue)"><title>${awayTm} ${rl}: ${s.fmt(av)}</title></rect>`; }
+            if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="var(--orange)"><title>${homeLabel} ${rl}: ${s.fmt(hv)}</title></rect>`; }
+            xl += `<text x="${(gx + gw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${rl}</text>`;
+        });
+        const ly = yOf(lg);
+        const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="sbar-lg"/><text x="${(W - pr).toFixed(1)}" y="${(ly - 3).toFixed(1)}" text-anchor="end" class="sbar-lglabel">LG ${s.fmt(lg)}</text>`;
+        return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${lgLine}${bars}${xl}</svg></div>`;
+    }).filter(Boolean).join('');
+    return `<div class="sbar-head">Stat by date range · <span style="color:var(--blue)">${awayTm}</span> vs <span style="color:var(--orange)">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
+}
+
+let cmpVsLg = false;
+function toggleVsLg() {
+    cmpVsLg = !cmpVsLg;
+    const btn = document.getElementById('vslg-toggle');
+    if (btn) btn.classList.toggle('active', cmpVsLg);
+    const home = document.getElementById('home-input');
+    if (home) { home.disabled = cmpVsLg; home.style.opacity = cmpVsLg ? '0.4' : ''; }
+    renderAllSplits();
 }
 
 function renderAllSplits() {
     const awayTm = document.getElementById('away-input').value.trim().toUpperCase();
     const homeTm = document.getElementById('home-input').value.trim().toUpperCase();
     const container = document.getElementById('all-splits-container');
-    if (!allTeams.includes(awayTm) || !allTeams.includes(homeTm)) return;
+    if (!allTeams.includes(awayTm)) return;
     if (!Object.keys(allData).length) {
         container.innerHTML = `<div class="compare-empty" style="padding:2.5rem;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.85rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Upload CSV data to compare</div>`;
         return;
     }
+    // #18 — vs LG AVG single-team mode: radar + bars comparing away to the league
+    if (cmpVsLg) {
+        container.innerHTML = `<div class="all-splits-wrapper">${buildCompareRadar(awayTm, 'LG')}</div>`;
+        return;
+    }
+    if (!allTeams.includes(homeTm)) return;
 
     let html = '<div class="all-splits-wrapper">';
     html += buildCompareRadar(awayTm, homeTm);
