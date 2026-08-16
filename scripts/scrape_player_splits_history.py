@@ -125,10 +125,11 @@ def build_table(rows):
     df = pd.DataFrame(rows)
     df = df.sort_values("wRC+", ascending=False).reset_index(drop=True)
     out = pd.DataFrame()
-    out["#"]      = range(1, len(df) + 1)
-    out["Season"] = df["Season"].astype(float)
-    out["Name"]   = df["playerName"]
-    out["Tm"]     = df["TeamNameAbb"]
+    out["#"]        = range(1, len(df) + 1)
+    out["Season"]   = df["Season"].astype(float)
+    out["playerid"] = df["playerId"]
+    out["Name"]     = df["playerName"]
+    out["Tm"]       = df["TeamNameAbb"]
     out["PA"]     = df["PA"].astype(float)
     out["BB%"]    = (df["BB%"] * 100).map(lambda v: f"{v:.1f}%")
     out["K%"]     = (df["K%"] * 100).map(lambda v: f"{v:.1f}%")
@@ -169,7 +170,7 @@ def push_to_supabase(csv_path, month_keys):
     })
     valid_cols = [
         "split", "date_range", "start_date", "end_date",
-        "season", "name", "tm", "pa",
+        "season", "playerid", "name", "tm", "pa",
         "bb_pct", "k_pct", "bb_per_k", "avg", "obp", "slg", "ops", "iso",
         "babip", "wrc", "wraa", "woba", "wrcplus", "updated_at"
     ]

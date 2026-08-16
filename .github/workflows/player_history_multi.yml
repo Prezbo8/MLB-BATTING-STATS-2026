@@ -1,0 +1,32 @@
+name: Player Multi-Year History Backfill
+
+# Manual-only. Scrapes 2021-2026 per-year player batting stats (season + month
+# buckets × handedness) into fangraphs_player_history. Re-run to refresh 2026.
+on:
+  workflow_dispatch:
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # ~126 pulls at 3s + retry headroom
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Run multi-year player scraper
+        env:
+          SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/scrape_player_history_multi.py
