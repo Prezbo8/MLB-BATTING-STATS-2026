@@ -469,7 +469,9 @@
         .sbar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 10px 6px; }
         @media (max-width: 900px) { .sbar-grid { grid-template-columns: repeat(2, 1fr); } }
         .sbar-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 6px 4px; }
-        .sbar-title { text-align: center; font-family: var(--display); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 3px; }
+        .sbar-title { text-align: center; font-family: var(--display); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; text-decoration: underline; text-underline-offset: 2px; margin-bottom: 3px; }
+        .sbar-y { fill: var(--muted); font-family: var(--mono); font-size: 7px; }
+        .sbar-yaxis { stroke: var(--border); stroke-width: 0.75; opacity: 0.85; }
         .sbar-svg { display: block; width: 100%; height: auto; }
         .sbar-x { fill: var(--muted); font-family: var(--display); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
         .sbar-lg { stroke: var(--text2); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.75; }
@@ -2176,84 +2178,22 @@ function buildMiniCompareCard(awayTm, homeTm, splitVal, drVal, drLabel) {
     </div>`;
 }
 
-// ── COMPARE RADAR (season profile vs league) ──────────────────────────────
-// Eight offensive axes, each scaled to the team's league percentile so that
-// different-scale stats (wRC+ ~100, wOBA ~.320, K% ~22%) share one 0–100
-// radial axis where outward = better.
+// Stat set for the compare bar-chart small multiples (8 of the 10 stats).
 const RADAR_KEYS = ['wrcPlus','woba','ops','obp','slg','iso','bbPct','kPct'];
 
-function buildCompareRadar(awayTm, homeTm) {
-    const data = getFilteredData('no_split', 'season');
-    if (!data || data.length < 10) return '';
-    const away = data.find(t => t.tm === awayTm);
-    const home = homeTm === 'LG' ? Object.assign({ tm: 'LG' }, paWeightedAvg(data)) : data.find(t => t.tm === homeTm);
-    if (!away || !home) return '';
-    const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
-
-    const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
-    // Percentile of v among all teams for this stat (0..1, 1 = best). Lower-is-
-    // better stats (K%) are inverted so a good value still points outward.
-    const pctOf = (s, v) => {
-        const vals = data.map(t => t[s.key]).filter(x => x != null && !isNaN(x));
-        if (!vals.length || v == null || isNaN(v)) return 0;
-        let below = 0, eq = 0;
-        vals.forEach(x => { if (x < v) below++; else if (x === v) eq++; });
-        let p = (below + eq * 0.5) / vals.length;
-        return s.higherBetter ? p : 1 - p;
-    };
-
-    const cx = 230, cy = 190, maxR = 120, N = axes.length, RMIN = 0.10;
-    const ang = i => (-90 + i * 360 / N) * Math.PI / 180;
-    const pt = (i, r) => [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))];
-
-    let grid = '';
-    [0.25, 0.5, 0.75, 1].forEach(lvl => {
-        const p = axes.map((_, i) => pt(i, lvl * maxR).map(n => n.toFixed(1)).join(',')).join(' ');
-        grid += `<polygon class="radar-grid" points="${p}"/>`;
-    });
-
-    let spokes = '', labels = '';
-    axes.forEach((s, i) => {
-        const [ex, ey] = pt(i, maxR);
-        spokes += `<line class="radar-spoke" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
-        const [lx, ly] = pt(i, maxR + 16);
-        const cos = Math.cos(ang(i)), sin = Math.sin(ang(i));
-        const anchor = cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle';
-        const dy = sin > 0.3 ? 4 : sin < -0.3 ? -10 : -3;   // label baseline; value sits 11px below
-        const av = s.fmt(away[s.key]), hv = s.fmt(home[s.key]);
-        labels += `<text class="radar-axis-label" x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}">${s.label}</text>`;
-        labels += `<text class="radar-axis-value" x="${lx.toFixed(1)}" y="${(ly + dy + 11).toFixed(1)}" text-anchor="${anchor}"><tspan fill="var(--blue)">${av}</tspan><tspan fill="var(--muted)"> · </tspan><tspan fill="var(--orange)">${hv}</tspan></text>`;
-    });
-
-    const build = (team, cls) => {
-        const pts = axes.map((s, i) => pt(i, (RMIN + (1 - RMIN) * pctOf(s, team[s.key])) * maxR));
-        const poly = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-        const verts = pts.map(([x, y], i) => {
-            const s = axes[i], p = Math.round(pctOf(s, team[s.key]) * 100);
-            return `<circle class="radar-vertex radar-vertex-${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"><title>${team.tm} · ${s.label} ${s.fmt(team[s.key])} · ${p}th pct</title></circle>`;
-        }).join('');
-        return `<polygon class="radar-poly radar-poly-${cls}" points="${poly}"/>${verts}`;
-    };
-
-    const logo = tm => teamLogos[tm] ? `<img class="radar-legend-logo" src="${teamLogos[tm]}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
-
-    return `<div class="compare-radar-card">
-        <div class="compare-radar-title">${teamLogos[awayTm] ? `<img src="${teamLogos[awayTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''} ${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeLabel} ${teamLogos[homeTm] ? `<img src="${teamLogos[homeTm]}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : ''}</div>
-        <div class="compare-radar-sub">Season Profile · League Percentile</div>
-        <svg class="compare-radar-svg" viewBox="0 0 460 420" role="img" aria-label="${awayTm} versus ${homeLabel} season profile radar chart">
-            ${grid}${spokes}${labels}
-            ${build(away, 'away')}
-            ${build(home, 'home')}
-        </svg>
-        <div class="radar-legend">
-            <div class="radar-legend-item" style="color:var(--blue);">${logo(awayTm)}<span class="radar-legend-swatch" style="background:var(--blue);"></span>${awayTm}</div>
-            <div class="radar-legend-item" style="color:var(--orange);">${logo(homeTm)}<span class="radar-legend-swatch" style="background:var(--orange);"></span>${homeLabel}</div>
-        </div>
-        ${buildStatBars(awayTm, homeTm)}
-    </div>`;
+// Left y-axis for the mini charts: a thin axis line + 3 numeric ticks
+// (bottom / middle / top of the data range), formatted with the stat's fmt.
+function miniYAxis(mn, mx, yOf, s, pl, ptop, plotH) {
+    const axis = `<line x1="${pl}" y1="${ptop.toFixed(1)}" x2="${pl}" y2="${(ptop + plotH).toFixed(1)}" class="sbar-yaxis"/>`;
+    const ticks = [mn, (mn + mx) / 2, mx].map(v => {
+        const y = yOf(v);
+        return `<line x1="${(pl - 2.5).toFixed(1)}" y1="${y.toFixed(1)}" x2="${pl}" y2="${y.toFixed(1)}" class="sbar-yaxis"/>` +
+               `<text x="${(pl - 4).toFixed(1)}" y="${(y + 2.4).toFixed(1)}" text-anchor="end" class="sbar-y">${s.fmt(v)}</text>`;
+    }).join('');
+    return axis + ticks;
 }
 
-// Per-stat bar charts under the radar: x = date ranges, bars = away/home,
+// Per-stat bar charts: x = date ranges, bars = away/home, numeric y-axis,
 // dotted horizontal line = season league average for that stat.
 function buildStatBars(awayTm, homeTm) {
     const ranges = [['season', 'SZN'], ['last_30', 'L30'], ['last_14', 'L14'], ['last_7', 'L7']];
@@ -2274,7 +2214,7 @@ function buildStatBars(awayTm, homeTm) {
         let mn = Math.min(...all), mx = Math.max(...all);
         if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
         const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
-        const W = 210, H = 118, ptop = 8, pbot = 20, pl = 6, pr = 6;
+        const W = 210, H = 118, ptop = 8, pbot = 20, pl = 30, pr = 6;
         const plotH = H - ptop - pbot, plotW = W - pl - pr, gw = plotW / 4;
         const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
         let bars = '', xl = '';
@@ -2287,7 +2227,8 @@ function buildStatBars(awayTm, homeTm) {
         });
         const ly = yOf(lg);
         const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="sbar-lg"/><text x="${(W - pr).toFixed(1)}" y="${(ly - 3).toFixed(1)}" text-anchor="end" class="sbar-lglabel">LG ${s.fmt(lg)}</text>`;
-        return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${lgLine}${bars}${xl}</svg></div>`;
+        const yAxis = miniYAxis(mn, mx, yOf, s, pl, ptop, plotH);
+        return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by date range">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
     return `<div class="sbar-head">Stat by date range · <span style="color:var(--blue)">${awayTm}</span> vs <span style="color:var(--orange)">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
 }
@@ -2376,7 +2317,7 @@ function buildMonthLineTile(split, s, awayTm, homeTm) {
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
     const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
 
-    const W = 210, H = 118, ptop = 10, pbot = 20, pl = 8, pr = 8;
+    const W = 210, H = 118, ptop = 10, pbot = 20, pl = 30, pr = 8;
     const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
     const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
     const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
@@ -2406,8 +2347,9 @@ function buildMonthLineTile(split, s, awayTm, homeTm) {
         `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`
     ).join('');
 
+    const yAxis = miniYAxis(mn, mx, yOf, s, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div>` +
-        `<svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by month">${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
+        `<svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by month">${yAxis}${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
 }
 
 function buildMonthlyTrends(awayTm, homeTm) {
@@ -2454,15 +2396,16 @@ function renderAllSplits() {
         container.innerHTML = `<div class="compare-empty" style="padding:2.5rem;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.85rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Upload CSV data to compare</div>`;
         return;
     }
-    // #18 — vs LG AVG single-team mode: radar + bars comparing away to the league
+    // #18 — vs LG AVG single-team mode: bar + line charts comparing away to the league
     if (cmpVsLg) {
-        container.innerHTML = `<div class="all-splits-wrapper">${buildCompareRadar(awayTm, 'LG')}${buildMonthlyTrends(awayTm, 'LG')}</div>`;
+        container.innerHTML = `<div class="all-splits-wrapper"><div class="compare-radar-card">${buildStatBars(awayTm, 'LG')}${buildMonthlyTrends(awayTm, 'LG')}</div></div>`;
         return;
     }
     if (!allTeams.includes(homeTm)) return;
 
     let html = '<div class="all-splits-wrapper">';
-    html += buildCompareRadar(awayTm, homeTm);
+    // Bar charts (stat by date range) with the line charts (stat by month) directly under them.
+    html += `<div class="compare-radar-card">${buildStatBars(awayTm, homeTm)}${buildMonthlyTrends(awayTm, homeTm)}</div>`;
     SPLITS.forEach(sp => {
         const cards = DATE_RANGES.map(dr =>
             buildMiniCompareCard(awayTm, homeTm, sp.value, dr.value, dr.label)
@@ -2473,7 +2416,6 @@ function renderAllSplits() {
             <div class="date-range-cards">${cards.join('')}</div>
         </div>`;
     });
-    html += buildMonthlyTrends(awayTm, homeTm);
     html += '</div>';
     container.innerHTML = html;
 }
