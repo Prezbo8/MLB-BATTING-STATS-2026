@@ -474,6 +474,13 @@
         .sbar-x { fill: var(--muted); font-family: var(--display); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
         .sbar-lg { stroke: var(--text2); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.75; }
         .sbar-lglabel { fill: var(--muted); font-family: var(--mono); font-size: 8px; }
+        /* ── MONTHLY TRENDS (line charts, x = months) ─────────────────────── */
+        .mtrend-section { margin-top: 1.75rem; }
+        .mtrend-head { text-align: center; font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 0.5rem 0 0.25rem; }
+        .mtrend-away { fill: none; stroke: var(--blue);   stroke-width: 2; }
+        .mtrend-home { fill: none; stroke: var(--orange); stroke-width: 2; }
+        .mtrend-vx-away { fill: var(--blue); }
+        .mtrend-vx-home { fill: var(--orange); }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -2285,6 +2292,149 @@ function buildStatBars(awayTm, homeTm) {
     return `<div class="sbar-head">Stat by date range · <span style="color:var(--blue)">${awayTm}</span> vs <span style="color:var(--orange)">${homeLabel}</span> · <span style="color:var(--text2)">╌ league avg</span></div><div class="sbar-grid">${charts}</div>`;
 }
 
+// ── MONTHLY TRENDS (line charts: x = months, y = stat) ────────────────────
+// Reads the fangraphs_splits_history archive (one calendar-month snapshot per
+// split) and draws a small-multiples grid of per-stat line charts for every
+// split — away vs home team, plus a dashed PA-weighted league-average line.
+const SUPABASE_HISTORY_TABLE = 'fangraphs_splits_history';
+const MON_ABBR = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthLabel = m => MON_ABBR[parseInt(m.slice(5, 7), 10)] || m;
+
+let teamHistory = {};      // teamHistory[split][month] = [ {tm, pa, ...stats} ]
+let historyMonths = [];    // sorted month keys present, e.g. ['2026-03', ...]
+let historyLoaded = false, historyLoading = false;
+
+// Same row→object shape as loadFromRows, keyed by split then month.
+function loadHistoryRows(rows) {
+    teamHistory = {};
+    const monthSet = new Set();
+    const parsePct = v => parseFloat(String(v || '').replace('%', '')) || 0;
+    const parseNum = v => parseFloat(v) || 0;
+    for (const r of rows) {
+        const split = (r.split || '').trim();
+        const month = (r.date_range || '').trim();
+        const tm    = (r.tm || '').trim();
+        if (!split || !month || !tm) continue;
+        monthSet.add(month);
+        if (!teamHistory[split]) teamHistory[split] = {};
+        if (!teamHistory[split][month]) teamHistory[split][month] = [];
+        teamHistory[split][month].push({
+            tm,
+            pa:      parseNum(r.pa),
+            bbPct:   parsePct(r.bb_pct),
+            kPct:    parsePct(r.k_pct),
+            avg:     parseNum(r.avg),
+            obp:     parseNum(r.obp),
+            slg:     parseNum(r.slg),
+            ops:     parseNum(r.ops),
+            iso:     parseNum(r.iso),
+            babip:   parseNum(r.babip),
+            woba:    parseNum(r.woba),
+            wrcPlus: parseNum(r.wrcplus),
+        });
+    }
+    historyMonths = [...monthSet].sort();
+}
+
+async function fetchTeamHistory() {
+    if (historyLoaded || historyLoading) return;
+    historyLoading = true;
+    try {
+        const rows = await sbFetchAll(SUPABASE_HISTORY_TABLE,
+            'select=*&order=tm.asc,split.asc,date_range.asc');
+        loadHistoryRows(rows);
+        historyLoaded = true;
+    } catch (err) {
+        console.error('Monthly-history fetch error:', err);
+    } finally {
+        historyLoading = false;
+    }
+    // Re-render the Compare tab now that trend data is in (if it's showing)
+    if (historyLoaded && !document.getElementById('panel-1').classList.contains('hidden')) {
+        renderAllSplits();
+    }
+}
+
+// One per-stat mini line chart: away + home lines over months + dashed LG line.
+function buildMonthLineTile(split, s, awayTm, homeTm) {
+    const byMonth = teamHistory[split] || {};
+    const months = historyMonths;
+    const valOf = (tm, m) => {
+        const rows = byMonth[m];
+        if (!rows || !rows.length) return null;
+        if (tm === 'LG') { const a = paWeightedAvg(rows); return a ? a[s.key] : null; }
+        const row = rows.find(t => t.tm === tm);
+        return row ? row[s.key] : null;
+    };
+    const aVals  = months.map(m => valOf(awayTm, m));
+    const hVals  = homeTm === 'LG' ? months.map(() => null) : months.map(m => valOf(homeTm, m));
+    const lgVals = months.map(m => valOf('LG', m));
+
+    const all = [...aVals, ...hVals, ...lgVals].filter(v => v != null && !isNaN(v));
+    if (all.length < 2) return '';
+    let mn = Math.min(...all), mx = Math.max(...all);
+    if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+    const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+
+    const W = 210, H = 118, ptop = 10, pbot = 20, pl = 8, pr = 8;
+    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
+    const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
+    const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+
+    // Points list for one series, skipping missing months (line connects across gaps).
+    const linePts = vals => vals.map((v, i) =>
+        (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null
+    ).filter(Boolean);
+
+    const lgPts = linePts(lgVals);
+    const lgLine = lgPts.length >= 2 ? `<polyline class="sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
+
+    const teamLayer = (vals, tm, lineCls, vxCls) => {
+        if (tm === 'LG') return '';
+        const pts = linePts(vals);
+        const line = pts.length >= 2 ? `<polyline class="${lineCls}" points="${pts.join(' ')}"/>` : '';
+        const dots = vals.map((v, i) => (v != null && !isNaN(v))
+            ? `<circle class="${vxCls}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6"><title>${tm} ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>`
+            : '').join('');
+        return line + dots;
+    };
+
+    // Draw order: league (behind), home, then away on top.
+    const homeLayer = teamLayer(hVals, homeTm, 'mtrend-home', 'mtrend-vx-home');
+    const awayLayer = teamLayer(aVals, awayTm, 'mtrend-away', 'mtrend-vx-away');
+    const xl = months.map((m, i) =>
+        `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`
+    ).join('');
+
+    return `<div class="sbar-cell"><div class="sbar-title">${s.label}</div>` +
+        `<svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${s.label} by month">${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
+}
+
+function buildMonthlyTrends(awayTm, homeTm) {
+    if (!historyLoaded) {
+        fetchTeamHistory();
+        return `<div class="mtrend-section"><div class="mtrend-head">📈 Monthly Trends</div>` +
+            `<div class="compare-empty" style="padding:1.75rem;">${historyLoading ? 'Loading monthly history…' : 'Monthly history unavailable'}</div></div>`;
+    }
+    if (!historyMonths.length) return '';
+    const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
+
+    let sections = '';
+    SPLITS.forEach(sp => {
+        const tiles = statMeta.map(s => buildMonthLineTile(sp.value, s, awayTm, homeTm)).filter(Boolean).join('');
+        if (!tiles) return;
+        sections += `<div class="split-row-section">
+            <div class="split-row-heading">${sp.label}</div>
+            <div class="sbar-grid">${tiles}</div>
+        </div>`;
+    });
+    if (!sections) return '';
+
+    const legend = `<div class="sbar-head">Monthly trend · <span style="color:var(--blue)">${awayTm}</span>` +
+        `${homeTm === 'LG' ? '' : ` vs <span style="color:var(--orange)">${homeLabel}</span>`} · <span style="color:var(--text2)">╌ league avg</span></div>`;
+    return `<div class="mtrend-section"><div class="mtrend-head">📈 Monthly Trends · by split &amp; stat</div>${legend}${sections}</div>`;
+}
+
 let cmpVsLg = false;
 function toggleVsLg() {
     cmpVsLg = !cmpVsLg;
@@ -2306,7 +2456,7 @@ function renderAllSplits() {
     }
     // #18 — vs LG AVG single-team mode: radar + bars comparing away to the league
     if (cmpVsLg) {
-        container.innerHTML = `<div class="all-splits-wrapper">${buildCompareRadar(awayTm, 'LG')}</div>`;
+        container.innerHTML = `<div class="all-splits-wrapper">${buildCompareRadar(awayTm, 'LG')}${buildMonthlyTrends(awayTm, 'LG')}</div>`;
         return;
     }
     if (!allTeams.includes(homeTm)) return;
@@ -2323,6 +2473,7 @@ function renderAllSplits() {
             <div class="date-range-cards">${cards.join('')}</div>
         </div>`;
     });
+    html += buildMonthlyTrends(awayTm, homeTm);
     html += '</div>';
     container.innerHTML = html;
 }
