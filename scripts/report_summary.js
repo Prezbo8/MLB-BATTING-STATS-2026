@@ -45,8 +45,8 @@ function teamBlock(team) {
   for (let c = 0; c < 5; c++) w[c] = Math.max(...allRows.map(r => (r[c] || '').length));
   const line = (row, tiers) => {
     const label = (row[0] || '').padEnd(w[0]);
-    // tier square on the LEFT of each value; cells run together (square separates), narrow
-    const cells = row.slice(1).map((cell, i) => (tiers ? (SQ[tiers[i]] || '⬜') : '⬜') + (cell || '').padStart(w[i + 1])).join('');
+    // tier square on the RIGHT of each value; cells run together (square separates), narrow
+    const cells = row.slice(1).map((cell, i) => (cell || '').padStart(w[i + 1]) + (tiers ? (SQ[tiers[i]] || '⬜') : '⬜')).join('');
     return `${label} ${cells}`;
   };
   // Split label: its own centered row above the data, ALL CAPS, underlined via
@@ -110,7 +110,7 @@ const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
     return { a, h, ar: A.rank, hr: H.rank, gap: Math.abs(A.rank - H.rank), time: (schedMap[g.value] || {}).time || '' };
   }).filter(Boolean).sort((x, y) => y.gap - x.gap);
   if (digestRows.length) {
-    const lines = digestRows.map((r, i) => `${i + 1}. ${dsq(r.ar)}${r.a} #${r.ar}  ⚔️  ${dsq(r.hr)}${r.h} #${r.hr}  ·  Δ${r.gap}${r.time ? `  ·  ${r.time} ET` : ''}`);
+    const lines = digestRows.map((r, i) => `${i + 1}. ${r.a} #${r.ar}${dsq(r.ar)}  ⚔️  ${r.h} #${r.hr}${dsq(r.hr)}  ·  Δ${r.gap}${r.time ? `  ·  ${r.time} ET` : ''}`);
     await tgMessage(`🌅 <b>Today's Offensive Mismatches</b> · ${dateStr}\n<i>Games ranked by gap in team wRC+ rank (bigger Δ = bigger edge)</i>\n\n${lines.join('\n')}`);
     if (!DRY_RUN) await sleep(1400);
     console.log(`  ✓ digest (${digestRows.length} games)`);
