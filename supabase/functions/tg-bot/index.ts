@@ -101,8 +101,9 @@ function buildCard(rows: any[], tm: string): string | null {
   const w = [0, 0, 0, 0, 0].map((_, c) => Math.max(...allRows.map(r => (r[c] || '').length)));
   const line = (row: string[], tiers: (string | null)[] | null) => {
     const label = (row[0] || '').padEnd(w[0]);
-    const cells = row.slice(1).map((cell, i) => (tiers ? (SQ[tiers[i] as string] || '⬜') : '⬜') + (cell || '').padStart(w[i + 1])).join('');
-    return `${label} ${cells}`;
+    // value first, tier square on the RIGHT; date-range columns divided by │
+    const cells = row.slice(1).map((cell, i) => (cell || '').padStart(w[i + 1]) + (tiers ? (SQ[tiers[i] as string] || '⬜') : '⬜')).join('│');
+    return `${label}│${cells}`;
   };
   const WIDTH = line(['', ...RANGES.map(r => r[1])], null).length;
   const underline = (s: string) => [...s].map(c => c + '̲').join('');
