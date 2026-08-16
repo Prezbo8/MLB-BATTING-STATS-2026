@@ -1,0 +1,42 @@
+name: Historical Monthly Splits Dump
+
+# Manual-only backfill. Captures team + player batting stats one calendar month
+# at a time (March→October) into the SEPARATE *_history Supabase tables.
+# Re-run any time: months that have started are (re)written, future months skipped,
+# the current partial month is refreshed. Live daily tables are never touched.
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # ~60 API calls/script at 3s spacing + 45-min retry budget headroom
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Team splits history dump
+        env:
+          SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/scrape_team_splits_history.py
+
+      - name: Player splits history dump
+        env:
+          SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/scrape_player_splits_history.py
