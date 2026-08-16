@@ -491,6 +491,8 @@
         .lt-stat-row { margin-bottom: 1.25rem; }
         .lt-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .lt-chart-team { text-align: center; font-family: var(--display); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+        .lt-tip { position: fixed; z-index: 200; pointer-events: none; display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; font-family: var(--mono); font-size: 0.76rem; color: var(--text); white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,0.55); }
+        .lt-tip b { color: #fff; }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -1268,6 +1270,7 @@
         <div id="lineup-trends-container">
             <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup trends…</div></div>
         </div>
+        <div id="lt-tip" class="lt-tip"></div>
     </div>
 
     <!-- PANEL 5: HOT/COLD TEAMS -->
@@ -2600,13 +2603,38 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
         // shows the batter's name (SVG <title> native tooltip).
         const dots = se.vals.map((v, i) => (v != null && !isNaN(v))
             ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.2"/>` +
-              `<circle fill="transparent" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer"><title>${esc(se.name)} · ${monthLabel(months[i])}: ${s.fmt(v)}</title></circle>`
+              `<circle fill="transparent" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(se.name)}" data-meta="${monthLabel(months[i])}: ${s.fmt(v)}"/>`
             : '').join('');
         return line + dots;
     }).join('');
     const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`).join('');
     const yAxis = miniYAxis(s, mn, mx, yOf, pl, ptop, plotH);
     return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label} by month">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
+}
+
+// Interactive dot tooltip (hover + click/tap) showing the batter's name.
+let ltTipWired = false;
+function wireLineupTips() {
+    if (ltTipWired) return;
+    const cont = document.getElementById('lineup-trends-container');
+    const tip = document.getElementById('lt-tip');
+    if (!cont || !tip) return;
+    ltTipWired = true;
+    const hit = e => (e.target && e.target.closest) ? e.target.closest('circle[data-name]') : null;
+    const show = (e, el) => {
+        tip.innerHTML = `<b>${el.getAttribute('data-name')}</b> · ${el.getAttribute('data-meta')}`;
+        tip.style.display = 'block';
+        const r = tip.getBoundingClientRect(), pad = 14;
+        let x = e.clientX + pad, y = e.clientY + pad;
+        if (x + r.width > window.innerWidth) x = e.clientX - r.width - pad;
+        if (y + r.height > window.innerHeight) y = e.clientY - r.height - pad;
+        tip.style.left = Math.max(4, x) + 'px';
+        tip.style.top = Math.max(4, y) + 'px';
+    };
+    const hide = () => { tip.style.display = 'none'; };
+    cont.addEventListener('pointermove', e => { const el = hit(e); el ? show(e, el) : hide(); });
+    cont.addEventListener('pointerdown', e => { const el = hit(e); if (el) { show(e, el); } });
+    cont.addEventListener('pointerleave', hide);
 }
 
 function renderLineupTrends() {
@@ -2638,6 +2666,7 @@ function renderLineupTrends() {
         html += `<div class="lt-stat-row"><div class="sbar-title">${s.label}</div><div class="lt-two">${a}${h}</div></div>`;
     });
     c.innerHTML = html;
+    wireLineupTips();
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
