@@ -224,11 +224,15 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-sbar-head { text-align: center; font-family: var(--display); font-size: 0.55rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 12px 0 8px; }
 .m-sbar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .m-sbar-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 7px 5px 3px; }
-.m-sbar-title { text-align: center; font-family: var(--display); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin-bottom: 2px; }
+.m-sbar-title { text-align: center; font-family: var(--display); font-size: 0.92rem; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; text-decoration: underline; text-underline-offset: 3px; margin-bottom: 4px; }
 .m-sbar-svg { display: block; width: 100%; height: auto; }
 .m-sbar-x { fill: var(--muted); font-family: var(--display); font-size: 9px; font-weight: 700; }
+.m-sbar-y { fill: var(--muted); font-family: var(--mono); font-size: 7px; }
+.m-sbar-yaxis { stroke: var(--border); stroke-width: 0.75; opacity: 0.85; }
 .m-sbar-lg { stroke: var(--text2); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.75; }
 .m-sbar-lglabel { fill: var(--muted); font-family: var(--mono); font-size: 8px; }
+.m-mtrend-head { text-align: center; font-family: var(--display); font-size: 0.85rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 18px 0 4px; }
+.m-mtrend-split { text-align: center; font-family: var(--display); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 12px 0 6px; }
 .m-radar-legend { display: flex; justify-content: center; gap: 1.4rem; margin-top: 8px; }
 .m-radar-leg { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 0.85rem; font-weight: 900; }
 .m-radar-leg img { width: 20px; height: 20px; object-fit: contain; }
@@ -838,17 +842,17 @@ const teamLogos = {
     "WAS":"https://www.mlbstatic.com/team-logos/120.svg",
 };
 const teamColorsPdf = {
-    "ARI":{"primary":"#A71930"},"ATH":{"primary":"#EFB21E"},"ATL":{"primary":"#CE1141"},
-    "BAL":{"primary":"#DF4601"},"BOS":{"primary":"#BD3039"},"CHC":{"primary":"#CC3433"},
-    "CHW":{"primary":"#C4CED4"},"CIN":{"primary":"#C6011F"},"CLE":{"primary":"#E50022"},
-    "COL":{"primary":"#C4CED4"},"DET":{"primary":"#FA4616"},"HOU":{"primary":"#EB6E1F"},
-    "KCR":{"primary":"#BD9B60"},"LAA":{"primary":"#BA0021"},"LAD":{"primary":"#005A9C"},
-    "MIA":{"primary":"#00A3E0"},"MIL":{"primary":"#FFC52F"},"MIN":{"primary":"#D31145"},
-    "NYM":{"primary":"#FF5910"},"NYY":{"primary":"#003087"},"PHI":{"primary":"#E81828"},
-    "PIT":{"primary":"#FDB827"},"SDP":{"primary":"#FFC425"},"SEA":{"primary":"#005C5C"},
-    "SFG":{"primary":"#FD5A1E"},"STL":{"primary":"#C41E3A"},"TBR":{"primary":"#8FBCE6"},
-    "TEX":{"primary":"#C0111F"},"TOR":{"primary":"#134A8E"},"WSN":{"primary":"#AB0003"},
-    "WAS":{"primary":"#AB0003"},
+    "ARI":{"primary":"#A71930","secondary":"#E3D4AD"},"ATH":{"primary":"#EFB21E","secondary":"#003831"},"ATL":{"primary":"#CE1141","secondary":"#13274F"},
+    "BAL":{"primary":"#DF4601","secondary":"#000000"},"BOS":{"primary":"#BD3039","secondary":"#0C2340"},"CHC":{"primary":"#CC3433","secondary":"#0E3386"},
+    "CHW":{"primary":"#C4CED4","secondary":"#27251F"},"CIN":{"primary":"#C6011F","secondary":"#000000"},"CLE":{"primary":"#E50022","secondary":"#00385D"},
+    "COL":{"primary":"#C4CED4","secondary":"#333366"},"DET":{"primary":"#FA4616","secondary":"#0C2340"},"HOU":{"primary":"#EB6E1F","secondary":"#002D62"},
+    "KCR":{"primary":"#BD9B60","secondary":"#004687"},"LAA":{"primary":"#BA0021","secondary":"#003263"},"LAD":{"primary":"#005A9C","secondary":"#EF3E42"},
+    "MIA":{"primary":"#00A3E0","secondary":"#EF3340"},"MIL":{"primary":"#FFC52F","secondary":"#12284B"},"MIN":{"primary":"#D31145","secondary":"#002B5C"},
+    "NYM":{"primary":"#FF5910","secondary":"#002D72"},"NYY":{"primary":"#003087","secondary":"#C4CED4"},"PHI":{"primary":"#E81828","secondary":"#002D72"},
+    "PIT":{"primary":"#FDB827","secondary":"#27251F"},"SDP":{"primary":"#FFC425","secondary":"#2F241D"},"SEA":{"primary":"#005C5C","secondary":"#0C2C56"},
+    "SFG":{"primary":"#FD5A1E","secondary":"#27251F"},"STL":{"primary":"#C41E3A","secondary":"#0C2340"},"TBR":{"primary":"#8FBCE6","secondary":"#092C5C"},
+    "TEX":{"primary":"#C0111F","secondary":"#003278"},"TOR":{"primary":"#134A8E","secondary":"#1D2D5C"},"WSN":{"primary":"#AB0003","secondary":"#14225A"},
+    "WAS":{"primary":"#AB0003","secondary":"#14225A"},
 };
 
 const statMeta = [
@@ -1322,67 +1326,57 @@ function renderMobileCompare() {
     if (al) al.src = teamLogo(away) || '';
     if (hl) hl.src = teamLogo(home) || '';
     let html = '';
-    if (cmpVsLg && away) html = buildMobileRadar(away, 'LG');
-    else if (away && home) html = buildMobileRadar(away, home);
+    if ((cmpVsLg && away && (allData['no_split-season']||[]).length) )
+        html = `<div class="m-radar-card">${buildMobileStatBars(away, 'LG')}${buildMobileMonthlyTrends(away, 'LG')}</div>`;
+    else if (away && home && (allData['no_split-season']||[]).length)
+        html = `<div class="m-radar-card">${buildMobileStatBars(away, home)}${buildMobileMonthlyTrends(away, home)}</div>`;
     container.innerHTML = html || `<div class="m-empty"><div class="m-empty-icon">⚔️</div><div class="m-empty-text">${(allData['no_split-season']||[]).length ? 'Pick two teams' : 'Loading data…'}</div></div>`;
 }
 
-function buildMobileRadar(awayTm, homeTm) {
-    const data = allData['no_split-season'] || [];
-    if (data.length < 10) return '';
-    const away = data.find(t => t.tm === awayTm);
-    const home = homeTm === 'LG' ? Object.assign({ tm: 'LG' }, mLgAvg(data)) : data.find(t => t.tm === homeTm);
-    if (!away || !home) return '';
-    const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
-    const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
-    const pctOf = (s, v) => {
-        const vals = data.map(t => t[s.key]).filter(x => x != null && !isNaN(x));
-        if (!vals.length || v == null || isNaN(v)) return 0;
-        let below = 0, eq = 0;
-        vals.forEach(x => { if (x < v) below++; else if (x === v) eq++; });
-        let p = (below + eq * 0.5) / vals.length;
-        return s.higherBetter ? p : 1 - p;
-    };
-    const cx = 200, cy = 175, maxR = 105, N = axes.length, RMIN = 0.10;
-    const ang = i => (-90 + i * 360 / N) * Math.PI / 180;
-    const pt = (i, r) => [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))];
-    let grid = '';
-    [0.25, 0.5, 0.75, 1].forEach(l => { grid += `<polygon class="m-radar-grid" points="${axes.map((_, i) => pt(i, l * maxR).map(n => n.toFixed(1)).join(',')).join(' ')}"/>`; });
-    let spokes = '', labels = '';
-    axes.forEach((s, i) => {
-        const [ex, ey] = pt(i, maxR);
-        spokes += `<line class="m-radar-spoke" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
-        const [lx, ly] = pt(i, maxR + 15);
-        const cos = Math.cos(ang(i)), sin = Math.sin(ang(i));
-        const anchor = cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle';
-        const dy = sin > 0.3 ? 4 : sin < -0.3 ? -9 : -3;
-        labels += `<text class="m-radar-axis" x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}">${s.label}</text>`;
-        labels += `<text class="m-radar-val" x="${lx.toFixed(1)}" y="${(ly + dy + 11).toFixed(1)}" text-anchor="${anchor}"><tspan fill="var(--blue)">${s.fmt(away[s.key])}</tspan><tspan fill="var(--muted)"> · </tspan><tspan fill="var(--orange)">${s.fmt(home[s.key])}</tspan></text>`;
-    });
-    const build = (team, cls) => {
-        const pts = axes.map((s, i) => pt(i, (RMIN + (1 - RMIN) * pctOf(s, team[s.key])) * maxR));
-        const poly = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-        const v = pts.map(([x, y]) => `<circle class="m-radar-vtx-${cls}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3"/>`).join('');
-        return `<polygon class="m-radar-poly m-radar-${cls}" points="${poly}"/>${v}`;
-    };
-    const logo = tm => teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.1'" alt="${tm}">` : '';
-    const tlogo = tm => teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.1'" alt="" style="height:1.3em;width:1.3em;object-fit:contain;vertical-align:-0.28em;">` : '';
-    return `<div class="m-radar-card">
-        <div class="m-radar-title">${tlogo(awayTm)} ${awayTm} <span style="color:var(--muted);font-weight:700;">vs</span> ${homeLabel} ${tlogo(homeTm)}</div>
-        <div class="m-radar-sub">Season · League Percentile</div>
-        <svg class="m-radar-svg" viewBox="0 0 400 410" role="img" aria-label="${awayTm} vs ${homeLabel} radar">
-            ${grid}${spokes}${labels}${build(away, 'away')}${build(home, 'home')}
-        </svg>
-        <div class="m-radar-legend">
-            <div class="m-radar-leg" style="color:var(--blue);">${logo(awayTm)}<span class="m-radar-sw" style="background:var(--blue);"></span>${awayTm}</div>
-            <div class="m-radar-leg" style="color:var(--orange);">${logo(homeTm)}<span class="m-radar-sw" style="background:var(--orange);"></span>${homeLabel}</div>
-        </div>
-        ${buildMobileStatBars(awayTm, homeTm)}
-    </div>`;
+// ── Team series colors (away primary; home primary, or secondary if same;
+// dark navies get a lightness floor so they read on the dark tile) ──────────
+function hexToHsl(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return null;
+    const n = parseInt(m[1], 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0, l = (mx + mn) / 2, s = 0;
+    if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+    return { h, s, l };
+}
+function readableColor(hex) {
+    const c = hexToHsl(hex); if (!c) return hex;
+    if (c.l >= 0.5) return hex;
+    return `hsl(${c.h.toFixed(0)},${Math.max(c.s * 100, 55).toFixed(0)}%,55%)`;
+}
+function teamPairColors(awayTm, homeTm) {
+    const a = teamColorsPdf[awayTm] || {}, h = teamColorsPdf[homeTm] || {};
+    const awayHex = a.primary;
+    let homeHex = homeTm === 'LG' ? null : h.primary;
+    if (homeHex && awayHex && homeHex.toLowerCase() === awayHex.toLowerCase()) homeHex = h.secondary || homeHex;
+    return { away: awayHex ? readableColor(awayHex) : 'var(--blue)', home: homeHex ? readableColor(homeHex) : 'var(--orange)' };
+}
+
+// Left y-axis: grade thresholds (tier-colored) + league avg (white), nudged
+// apart so the numbers never overlap.
+function mMiniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH) {
+    const axis = `<line x1="${pl}" y1="${ptop.toFixed(1)}" x2="${pl}" y2="${(ptop + plotH).toFixed(1)}" class="m-sbar-yaxis"/>`;
+    const inRange = v => v != null && !isNaN(v) && v >= dMin && v <= dMax;
+    const items = s.thresholds.filter(inRange).map(t => ({ v: t, y: yOf(t), fill: `var(--${getTier(s, t)})` }));
+    if (inRange(lg)) items.push({ v: lg, y: yOf(lg), fill: '#fff' });
+    items.sort((a, b) => a.y - b.y);
+    const GAP = 8; let prev = -Infinity;
+    items.forEach(it => { it.ly = Math.max(it.y, prev + GAP); prev = it.ly; });
+    const overflow = items.length ? items[items.length - 1].ly - (ptop + plotH - 1) : 0;
+    if (overflow > 0) items.forEach(it => { it.ly -= overflow; });
+    return axis + items.map(it =>
+        `<line x1="${(pl - 2.5).toFixed(1)}" y1="${it.y.toFixed(1)}" x2="${pl}" y2="${it.y.toFixed(1)}" class="m-sbar-yaxis"/>` +
+        `<text x="${(pl - 4).toFixed(1)}" y="${(it.ly + 2.4).toFixed(1)}" text-anchor="end" class="m-sbar-y" style="fill:${it.fill}">${s.fmt(it.v)}</text>`
+    ).join('');
 }
 
 // Per-stat bar charts under the mobile radar (x = date ranges, dotted = LG avg)
 function buildMobileStatBars(awayTm, homeTm) {
+    const { away: cAway, home: cHome } = teamPairColors(awayTm, homeTm);
     const ranges = [['season', 'SZN'], ['last_30', 'L30'], ['last_14', 'L14'], ['last_7', 'L7']];
     const axes = RADAR_KEYS.map(k => statMeta.find(s => s.key === k)).filter(Boolean);
     const lgSeason = mLgAvg(allData['no_split-season'] || []);
@@ -1397,27 +1391,120 @@ function buildMobileStatBars(awayTm, homeTm) {
         const aVals = ranges.map(([rv]) => valOf(awayTm, s.key, rv));
         const hVals = ranges.map(([rv]) => valOf(homeTm, s.key, rv));
         const lg = lgSeason[s.key];
-        const all = [...aVals, ...hVals, lg].filter(v => v != null && !isNaN(v));
+        const all = [...aVals, ...hVals, lg, ...s.thresholds].filter(v => v != null && !isNaN(v));
         if (!all.length) return '';
         let mn = Math.min(...all), mx = Math.max(...all);
         if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
         const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
-        const W = 200, H = 118, ptop = 8, pbot = 20, pl = 6, pr = 6;
+        const W = 200, H = 118, ptop = 8, pbot = 20, pl = 28, pr = 6;
         const plotH = H - ptop - pbot, plotW = W - pl - pr, gw = plotW / 4;
         const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
         let bars = '', xl = '';
         ranges.forEach(([rv, rl], gi) => {
             const gx = pl + gi * gw, bw = 12, gap = 3, x0 = gx + gw / 2 - bw - gap / 2;
             const av = aVals[gi], hv = hVals[gi];
-            if (av != null && !isNaN(av)) { const by = yOf(av); bars += `<rect x="${x0.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="var(--blue)"/>`; }
-            if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="var(--orange)"/>`; }
+            if (av != null && !isNaN(av)) { const by = yOf(av); bars += `<rect x="${x0.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="${cAway}"/>`; }
+            if (hv != null && !isNaN(hv)) { const by = yOf(hv); bars += `<rect x="${(x0 + bw + gap).toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${(ptop + plotH - by).toFixed(1)}" rx="1.5" fill="${cHome}"/>`; }
             xl += `<text x="${(gx + gw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="m-sbar-x">${rl}</text>`;
         });
         const ly = yOf(lg);
-        const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="m-sbar-lg"/><text x="${(W - pr).toFixed(1)}" y="${(ly - 3).toFixed(1)}" text-anchor="end" class="m-sbar-lglabel">LG ${s.fmt(lg)}</text>`;
-        return `<div class="m-sbar-cell"><div class="m-sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="m-sbar-svg">${lgLine}${bars}${xl}</svg></div>`;
+        const lgLine = `<line x1="${pl}" x2="${W - pr}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" class="m-sbar-lg"/>`;
+        const yAxis = mMiniYAxis(s, lg, dMin, dMax, yOf, pl, ptop, plotH);
+        return `<div class="m-sbar-cell"><div class="m-sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="m-sbar-svg">${yAxis}${lgLine}${bars}${xl}</svg></div>`;
     }).filter(Boolean).join('');
-    return `<div class="m-sbar-head">By date range · <span style="color:var(--blue)">${awayTm}</span> vs <span style="color:var(--orange)">${homeLabel}</span> · <span style="color:var(--text2)">╌ LG</span></div><div class="m-sbar-grid">${charts}</div>`;
+    return `<div class="m-sbar-head">By date range · <span style="color:${cAway}">${awayTm}</span> vs <span style="color:${cHome}">${homeLabel}</span> · <span style="color:var(--text2)">╌ LG</span></div><div class="m-sbar-grid">${charts}</div>`;
+}
+
+// ── MONTHLY TRENDS (line charts: x = months, y = stat) ────────────────────
+const SUPABASE_HISTORY_TABLE = 'fangraphs_splits_history';
+const MON_ABBR = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthLabel = m => MON_ABBR[parseInt(m.slice(5, 7), 10)] || m;
+const TREND_SPLITS = [['no_split','Overall'],['vs_lhp','vs LHP'],['vs_rhp','vs RHP'],['home','Home'],['away','Away']];
+let teamHistory = {}, historyMonths = [], historyLoaded = false, historyLoading = false;
+
+function loadHistoryRows(rows) {
+    teamHistory = {};
+    const monthSet = new Set();
+    const parsePct = v => parseFloat(String(v || '').replace('%', '')) || 0;
+    const parseNum = v => parseFloat(v) || 0;
+    for (const r of rows) {
+        const split = (r.split || '').trim(), month = (r.date_range || '').trim(), tm = (r.tm || '').trim();
+        if (!split || !month || !tm) continue;
+        monthSet.add(month);
+        (teamHistory[split] = teamHistory[split] || {});
+        (teamHistory[split][month] = teamHistory[split][month] || []).push({
+            tm, pa: parseNum(r.pa), bbPct: parsePct(r.bb_pct), kPct: parsePct(r.k_pct),
+            avg: parseNum(r.avg), obp: parseNum(r.obp), slg: parseNum(r.slg), ops: parseNum(r.ops),
+            iso: parseNum(r.iso), babip: parseNum(r.babip), woba: parseNum(r.woba), wrcPlus: parseNum(r.wrcplus),
+        });
+    }
+    historyMonths = [...monthSet].sort();
+}
+
+async function fetchTeamHistory() {
+    if (historyLoaded || historyLoading) return;
+    historyLoading = true;
+    try { loadHistoryRows(await sbFetch(SUPABASE_HISTORY_TABLE, '&order=tm.asc,split.asc,date_range.asc')); historyLoaded = true; }
+    catch (e) { console.error('history fetch', e); }
+    finally { historyLoading = false; }
+    if (historyLoaded && document.getElementById('mp-compare')?.classList.contains('active')) renderMobileCompare();
+}
+
+function buildMobileMonthLineTile(split, s, awayTm, homeTm, colors) {
+    const byMonth = teamHistory[split] || {}, months = historyMonths;
+    const valOf = (tm, m) => {
+        const rows = byMonth[m]; if (!rows || !rows.length) return null;
+        if (tm === 'LG') { const a = mLgAvg(rows); return a ? a[s.key] : null; }
+        const row = rows.find(t => t.tm === tm); return row ? row[s.key] : null;
+    };
+    const aVals = months.map(m => valOf(awayTm, m));
+    const hVals = homeTm === 'LG' ? months.map(() => null) : months.map(m => valOf(homeTm, m));
+    const lgVals = months.map(m => valOf('LG', m));
+    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
+    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    const all = [...aVals, ...hVals, ...lgVals, ...s.thresholds].filter(v => v != null && !isNaN(v));
+    if (all.length < 2) return '';
+    let mn = Math.min(...all), mx = Math.max(...all);
+    if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+    const pad = (mx - mn) * 0.18, dMin = mn - pad, dMax = mx + pad;
+    const W = 200, H = 118, ptop = 10, pbot = 20, pl = 28, pr = 8;
+    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
+    const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
+    const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+    const linePts = vals => vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
+    const lgPts = linePts(lgVals);
+    const lgLine = lgPts.length >= 2 ? `<polyline class="m-sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
+    const teamLayer = (vals, tm, color) => {
+        if (tm === 'LG') return '';
+        const pts = linePts(vals);
+        const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${color};stroke-width:2" points="${pts.join(' ')}"/>` : '';
+        const dots = vals.map((v, i) => (v != null && !isNaN(v)) ? `<circle style="fill:${color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6"/>` : '').join('');
+        return line + dots;
+    };
+    const homeLayer = teamLayer(hVals, homeTm, colors.home);
+    const awayLayer = teamLayer(aVals, awayTm, colors.away);
+    const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="m-sbar-x">${monthLabel(m)}</text>`).join('');
+    const yAxis = mMiniYAxis(s, lgAvg, dMin, dMax, yOf, pl, ptop, plotH);
+    return `<div class="m-sbar-cell"><div class="m-sbar-title">${s.label}</div><svg viewBox="0 0 ${W} ${H}" class="m-sbar-svg">${yAxis}${lgLine}${homeLayer}${awayLayer}${xl}</svg></div>`;
+}
+
+function buildMobileMonthlyTrends(awayTm, homeTm) {
+    if (!historyLoaded) {
+        fetchTeamHistory();
+        return `<div class="m-mtrend-head">📈 Monthly Trends</div><div class="m-empty" style="padding:18px;"><div class="m-empty-text">${historyLoading ? 'Loading history…' : 'History unavailable'}</div></div>`;
+    }
+    if (!historyMonths.length) return '';
+    const colors = teamPairColors(awayTm, homeTm);
+    const homeLabel = homeTm === 'LG' ? 'LG AVG' : homeTm;
+    let sections = '';
+    TREND_SPLITS.forEach(([sv, sl]) => {
+        const tiles = statMeta.map(s => buildMobileMonthLineTile(sv, s, awayTm, homeTm, colors)).filter(Boolean).join('');
+        if (!tiles) return;
+        sections += `<div class="m-mtrend-split">${sl}</div><div class="m-sbar-grid">${tiles}</div>`;
+    });
+    if (!sections) return '';
+    const legend = `<div class="m-sbar-head">Monthly · <span style="color:${colors.away}">${awayTm}</span>${homeTm === 'LG' ? '' : ` vs <span style="color:${colors.home}">${homeLabel}</span>`} · <span style="color:var(--text2)">╌ LG</span></div>`;
+    return `<div class="m-mtrend-head">📈 Monthly Trends</div>${legend}${sections}`;
 }
 
 // ── HOT / COLD ────────────────────────────────────────────────────────────────
