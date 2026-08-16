@@ -356,6 +356,8 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-tc-pos { font-family: var(--display); font-size: 0.56rem; font-weight: 700; color: var(--muted); flex-shrink: 0; }
 .m-tc-abbr { font-family: var(--display); font-size: 0.9rem; font-weight: 900; flex-shrink: 0; }
 .m-tc-teamrow { background: var(--surface3); }
+.m-tc-lwrow { background: rgba(96,165,250,0.06); }
+.m-tc-lwrow .m-tc-num-lbl { font-size: 0.46rem; }
 .m-tc-pitrow { background: rgba(230,57,70,0.05); }
 .m-tc-pitrow .m-tc-name { color: var(--text); }
 .m-pitcher-row { padding: 5px 10px; border-bottom: 1px solid var(--border); background: rgba(230,57,70,0.04); display: flex; align-items: center; gap: 5px; }
@@ -972,7 +974,7 @@ function switchPanel(id) {
     if (id === 'players' && !playerLoaded) ensurePlayers().then(() => loadPlayers());
     if (id === 'compare') { initComparePickers(); renderMobileCompare(); }
     if (id === 'hotcold') renderHCTeams();
-    if (id === 'lineups') ensureLineups().then(() => renderLineupsMobile());
+    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers()]).then(() => renderLineupsMobile());
     if (id === 'rpg') ensureRPG().then(() => renderRPG());
     if (id === 'report') initMobileReport();
 }
@@ -1651,6 +1653,32 @@ function pairLineupGames(rows) {
     });
 }
 
+// Match a lineup batter's name to a player-stats row (team + last name + first initial)
+function findPlayerStats(fullName, teamAbbr, splitKey) {
+    const data = playerData[splitKey] || [];
+    if (!data.length) return null;
+    const SUF = /^(jr\.?|sr\.?|ii|iii|iv)$/i;
+    const lastN = n => { const parts = (n || '').trim().split(/\s+/).filter(w => !SUF.test(w)); return normalizeName(parts[parts.length - 1] || ''); };
+    const firstI = n => ((n || '').trim().split(/\s+/)[0] || '')[0]?.toLowerCase() || '';
+    const ln = lastN(fullName), fi = firstI(fullName);
+    return data.find(p => lastN(p.name) === ln && firstI(p.name) === fi && p.tm === teamAbbr)
+        || data.find(p => lastN(p.name) === ln && firstI(p.name) === fi) || null;
+}
+// Lineup Stats #1 — PA-weighted lineup wRC+ (leadoff ~4.6 PA/g → ~3.8 for #9)
+const PA_BY_SLOT = [4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4.0, 3.9, 3.8];
+function mLineupWrc(rec, abbr) {
+    const bo = rec?.batting_order;
+    const batters = Array.isArray(bo) ? bo : (() => { try { return bo ? JSON.parse(bo) : []; } catch (e) { return []; } })();
+    if (!batters.length) return null;
+    let wsum = 0, acc = 0, matched = 0;
+    batters.forEach(p => {
+        const st = findPlayerStats(p.name, abbr, 'no_split-season');
+        const w = PA_BY_SLOT[(p.order || 0) - 1] ?? 4.2;
+        if (st && st.wrcPlus != null && !isNaN(st.wrcPlus)) { wsum += w; acc += w * st.wrcPlus; matched++; }
+    });
+    return matched ? { wrc: Math.round(acc / wsum), matched, total: batters.length } : null;
+}
+
 function renderLineupsMobile() {
     lineupLoaded = true;
     const container = document.getElementById('m-lineup-container');
@@ -1658,7 +1686,7 @@ function renderLineupsMobile() {
         container.innerHTML = `<div class="m-empty"><div class="m-empty-icon">📭</div><div class="m-empty-text">No lineups for today</div></div>`;
         return;
     }
-    const parseOrder = rec => { try { return rec?.batting_order ? JSON.parse(rec.batting_order) : []; } catch(e) { return []; } };
+    const parseOrder = rec => { const bo = rec?.batting_order; return Array.isArray(bo) ? bo : (() => { try { return bo ? JSON.parse(bo) : []; } catch(e) { return []; } })(); };
     const statusBadge = s => s === 'Confirmed'
         ? `<span class="m-status-confirmed">✓</span>`
         : `<span class="m-status-projected">~</span>`;
@@ -1674,6 +1702,16 @@ function renderLineupsMobile() {
         const awayBat = parseOrder(away), homeBat = parseOrder(home);
         const n = Math.max(awayBat.length, homeBat.length);
 
+        // Lineup Stats #1 — PA-weighted lineup wRC+ vs each team's season baseline
+        const teamWrc = tm => { const r = (allData['no_split-season'] || []).find(t => t.tm === tm); return r && r.wrcPlus != null ? Math.round(r.wrcPlus) : null; };
+        const lwCell = (lw, tw) => {
+            if (!lw) return '<span class="m-tc-pos">—</span>';
+            const d = tw != null ? lw.wrc - tw : null;
+            const dh = d != null ? `<span style="color:${d > 0 ? 'var(--elite)' : d < 0 ? 'var(--ass)' : 'var(--muted)'};font-size:0.62rem;">${d > 0 ? '▲' : d < 0 ? '▼' : '●'}${Math.abs(d)}</span>` : '';
+            return `<b class="${tc('wrcPlus', lw.wrc)}" style="font-family:var(--mono);font-size:0.95rem;">${lw.wrc}</b> ${dh}`;
+        };
+        const awayLW = mLineupWrc(away, awayAbbr), homeLW = mLineupWrc(home, homeAbbr);
+
         // Top of the T: team row + pitcher matchup; stem = the center order column
         let rows = `
             <div class="m-tc-row m-tc-teamrow">
@@ -1685,6 +1723,11 @@ function renderLineupsMobile() {
                 <div class="m-tc-away"><span class="m-tc-name">${away?.pitcher_name||'TBD'}</span>${pitHand(away?.pitcher_hand)}</div>
                 <div class="m-tc-num"><span class="m-tc-num-lbl">SP</span></div>
                 <div class="m-tc-home">${pitHand(home?.pitcher_hand)}<span class="m-tc-name">${home?.pitcher_name||'TBD'}</span></div>
+            </div>
+            <div class="m-tc-row m-tc-lwrow">
+                <div class="m-tc-away">${lwCell(awayLW, teamWrc(awayAbbr))}</div>
+                <div class="m-tc-num"><span class="m-tc-num-lbl">wRC+</span></div>
+                <div class="m-tc-home">${lwCell(homeLW, teamWrc(homeAbbr))}</div>
             </div>`;
         for (let i = 0; i < n; i++) {
             rows += `<div class="m-tc-row">

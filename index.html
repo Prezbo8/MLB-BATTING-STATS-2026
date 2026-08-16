@@ -769,6 +769,12 @@
         .lstats-name-cell { display:flex; align-items:center; gap:6px; padding:6px 0; overflow:hidden; }
         .lstats-num  { font-family:var(--mono); font-size:0.62rem; color:var(--muted); width:16px; text-align:right; flex-shrink:0; }
         .lstats-name { font-family:var(--body); font-size:0.84rem; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .lstats-summary { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:8px 16px; background:var(--surface3); border-bottom:1px solid var(--border); }
+        .lstats-sum-lbl { font-family:var(--display); font-size:0.6rem; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); }
+        .lstats-sum-val { font-family:var(--mono); font-size:1.15rem; font-weight:600; }
+        .lstats-sum-vs { font-family:var(--mono); font-size:0.78rem; color:var(--text2); }
+        .lstats-delta { font-family:var(--mono); font-size:0.78rem; font-weight:600; }
+        .lstats-sum-note { font-family:var(--display); font-size:0.56rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-left:auto; }
         .lstats-pos  { font-family:var(--display); font-size:0.6rem; font-weight:700; color:var(--muted); flex-shrink:0; }
         .lstats-stat-cell { padding:4px 6px; border-left:1px solid rgba(30,35,51,0.4); }
         .lstats-vals { display:grid; grid-template-columns:repeat(6,1fr); gap:2px; }
@@ -2675,6 +2681,22 @@ function renderLineupStats() {
     container.innerHTML = html || `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No data available</div></div>`;
 }
 
+// Lineup Stats #1 — PA-weighted lineup wRC+. Leadoff ~4.6 PA/g down to ~3.8
+// for the 9-hole (relative weights are all that matter for a weighted mean).
+const PA_BY_SLOT = [4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4.0, 3.9, 3.8];
+function lineupWrc(rec, abbr, split) {
+    let batters = [];
+    if (rec?.batting_order) batters = Array.isArray(rec.batting_order) ? rec.batting_order : (() => { try { return JSON.parse(rec.batting_order); } catch (e) { return []; } })();
+    if (!batters.length) return null;
+    let wsum = 0, acc = 0, matched = 0;
+    batters.forEach(p => {
+        const stats = findPlayerStats(correctPlayerName(p.name), abbr, `${split}-season`);
+        const w = PA_BY_SLOT[(p.order || 0) - 1] ?? 4.2;
+        if (stats && stats.wrcPlus != null && !isNaN(stats.wrcPlus)) { wsum += w; acc += w * stats.wrcPlus; matched++; }
+    });
+    return matched ? { wrc: Math.round(acc / wsum), matched, total: batters.length } : null;
+}
+
 function buildStatsTeamBlock(rec, abbr, label, split) {
     const logo = `<img src="${teamLogos[abbr]||''}" onerror="this.style.opacity='.15'" alt="${abbr}" style="width:36px;height:36px;object-fit:contain;">`;
     const statusBadge = rec?.lineup_status === 'Confirmed'
@@ -2689,6 +2711,17 @@ function buildStatsTeamBlock(rec, abbr, label, split) {
             </div>
         </div>`).join('');
 
+    const lw = lineupWrc(rec, abbr, split);
+    const teamRow = (getFilteredData('no_split', 'season') || []).find(t => t.tm === abbr);
+    const teamWrc = teamRow && teamRow.wrcPlus != null ? Math.round(teamRow.wrcPlus) : null;
+    const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP', home: 'Home', away: 'Away' }[split] || split;
+    let summaryHtml = '';
+    if (lw) {
+        const d = teamWrc != null ? lw.wrc - teamWrc : null;
+        const dHtml = d != null ? `<span class="lstats-delta" style="color:${d > 0 ? 'var(--elite)' : d < 0 ? 'var(--ass)' : 'var(--muted)'};">${d > 0 ? '▲' : d < 0 ? '▼' : '●'} ${Math.abs(d)}</span>` : '';
+        summaryHtml = `<div class="lstats-summary"><span class="lstats-sum-lbl">Lineup wRC+</span><span class="lstats-sum-val ${lsTier('wrcPlus', lw.wrc)}">${lw.wrc}</span>${teamWrc != null ? `<span class="lstats-sum-vs">vs team ${teamWrc} ${dHtml}</span>` : ''}<span class="lstats-sum-note">${lw.matched}/${lw.total} matched · PA-weighted · ${splitLbl}</span></div>`;
+    }
+
     let html = `<div class="lstats-team-block">
         <div class="lstats-team-header">
             <div class="lstats-team-ident">${logo}<span class="lstats-team-abbr">${teamAbbrHtml(abbr,'md')}</span></div>
@@ -2701,6 +2734,7 @@ function buildStatsTeamBlock(rec, abbr, label, split) {
             <span class="lineup-pitcher-name">${rec?.pitcher_name||'TBD'}</span>
             ${rec?.pitcher_hand?`<span class="lineup-pitcher-hand">(${rec.pitcher_hand})</span>`:''}
         </div>
+        ${summaryHtml}
         <div class="lstats-col-hdr">
             <div class="lstats-hdr-name">Hitter</div>
             ${hdrCols}
