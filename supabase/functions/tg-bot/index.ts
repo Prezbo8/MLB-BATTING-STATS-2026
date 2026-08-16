@@ -101,8 +101,8 @@ function buildCard(rows: any[], tm: string): string | null {
   const w = [0, 0, 0, 0, 0].map((_, c) => Math.max(...allRows.map(r => (r[c] || '').length)));
   const line = (row: string[], tiers: (string | null)[] | null) => {
     const label = (row[0] || '').padEnd(w[0]);
-    // value first, tier square on the RIGHT; cells run together (square separates) to stay narrow
-    const cells = row.slice(1).map((cell, i) => (cell || '').padStart(w[i + 1]) + (tiers ? (SQ[tiers[i] as string] || '⬜') : '⬜')).join('');
+    // tier square on the LEFT of each value; cells run together (square separates), narrow
+    const cells = row.slice(1).map((cell, i) => (tiers ? (SQ[tiers[i] as string] || '⬜') : '⬜') + (cell || '').padStart(w[i + 1])).join('');
     return `${label} ${cells}`;
   };
   const WIDTH = line(['', ...RANGES.map(r => r[1])], null).length;
