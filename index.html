@@ -6,12 +6,9 @@
     <script>
         (function() {
             var ua = navigator.userAgent;
-            var isIPad = /iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             var isIPhone = /iPhone|iPod/i.test(ua);
             var isAndroid = /Android/i.test(ua);
-            if (isIPad) {
-                window.location.replace('/MLB-BATTING-STATS-2026/ipad.html');
-            } else if (isIPhone || isAndroid) {
+            if (isIPhone || isAndroid) {
                 window.location.replace('/MLB-BATTING-STATS-2026/mobile.html');
             }
         })();

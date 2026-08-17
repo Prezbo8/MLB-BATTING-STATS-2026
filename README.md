@@ -6,7 +6,7 @@ The site reads from Supabase; the CSVs in `data/` are the pipeline's archived ou
 ## Layout
 
 ```
-index.html, mobile.html, ipad.html   the dashboard (GitHub Pages serves from root)
+index.html, mobile.html              the dashboard (GitHub Pages serves from root)
 assets/                              favicons and app icons
 manifest.json, site.webmanifest      PWA manifests
 scripts/                             all scrapers, mergers, scorers (run by Actions)
