@@ -96,7 +96,7 @@ const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
   } catch (e) { console.error('schedule fetch failed:', e.message); }
   console.log(`Found ${games.length} game(s) for ${dateStr}`);
 
-  if (!games.length) { await tgMessage(`📭 No MLB games scheduled for ${dateStr}.`); await browser.close(); return; }
+  if (!games.length) { await tgMessage(`No MLB games scheduled for ${dateStr}. 📭`); await browser.close(); return; }
 
   // ── #43 Morning digest: one message ranking today's games by offensive mismatch ──
   const wrcRank = await page.evaluate(() => {
@@ -111,7 +111,7 @@ const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
   }).filter(Boolean).sort((x, y) => y.gap - x.gap);
   if (digestRows.length) {
     const lines = digestRows.map((r, i) => `${i + 1}. ${r.a} #${r.ar}${dsq(r.ar)}  ⚔️  ${r.h} #${r.hr}${dsq(r.hr)}  ·  Δ${r.gap}${r.time ? `  ·  ${r.time} ET` : ''}`);
-    await tgMessage(`🌅 <b>Today's Offensive Mismatches</b> · ${dateStr}\n<i>Games ranked by gap in team wRC+ rank (bigger Δ = bigger edge)</i>\n\n${lines.join('\n')}`);
+    await tgMessage(`<b>Today's Offensive Mismatches</b> · ${dateStr} 🌅\n<i>Games ranked by gap in team wRC+ rank (bigger Δ = bigger edge)</i>\n\n${lines.join('\n')}`);
     if (!DRY_RUN) await sleep(1400);
     console.log(`  ✓ digest (${digestRows.length} games)`);
   }
@@ -160,7 +160,7 @@ const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
 
       const sm = schedMap[g.value] || {};
       const aSP = sm.awayProbable || 'TBD', hSP = sm.homeProbable || 'TBD';
-      const header = `⚾ <b>${d.away.abbr} @ ${d.home.abbr}</b>${sm.time ? ` · ${sm.time} ET` : ''}\n🎯 <b>SP:</b> ${aSP} vs ${hSP}`;
+      const header = `<b>${d.away.abbr} @ ${d.home.abbr}</b>${sm.time ? ` · ${sm.time} ET` : ''} ⚾\n<b>SP:</b> ${aSP} vs ${hSP} 🎯`;
       const combined = `${header}\n${teamPre(d.away)}\n${teamPre(d.home)}`;
       // Telegram caps at 4096 chars; with all 5 splits, split into two (per team) if needed.
       if (combined.length <= 3900) {

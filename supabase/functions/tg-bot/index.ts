@@ -115,7 +115,7 @@ function buildCard(rows: any[], tm: string): string | null {
     out.push(line(['', ...RANGES.map(r => r[1])], null));
     sp.rows.forEach((r: any) => out.push(line([r.label, ...r.cells.map((c: any) => c.text)], r.cells.map((c: any) => c.tier))));
   });
-  return `<b>${tm}</b>\n<i>🟩 great · 🟨 avg · 🟧 below · 🟥 poor · ▲▼ vs season</i>\n<pre>${out.join('\n')}</pre>`;
+  return `<b>${tm}</b>\n<i>great 🟩 · avg 🟨 · below 🟧 · poor 🟥 · vs season ▲▼</i>\n<pre>${out.join('\n')}</pre>`;
 }
 
 Deno.serve(async (req) => {
@@ -134,13 +134,13 @@ Deno.serve(async (req) => {
     const abbr = text.toUpperCase().split(/\s+/)[0].replace(/[^A-Z]/g, '');
 
     if (!abbr || abbr === 'START' || abbr === 'HELP') {
-      await send(chatId, `⚾ Send a team abbreviation to get its offensive card.\n\nTeams: ${teams.join(', ')}`);
+      await send(chatId, `Send a team abbreviation to get its offensive card. ⚾\n\nTeams: ${teams.join(', ')}`);
       return new Response('ok');
     }
     const card = teams.includes(abbr) ? buildCard(rows, abbr) : null;
-    await send(chatId, card || `❓ Unknown team "<b>${abbr}</b>". Try one of: ${teams.join(', ')}`);
+    await send(chatId, card || `Unknown team "<b>${abbr}</b>". Try one of: ${teams.join(', ')} ❓`);
   } catch (e) {
-    await send(chatId, `⚠️ Error: ${(e as Error).message}`);
+    await send(chatId, `Error: ${(e as Error).message} ⚠️`);
   }
   return new Response('ok');
 });
