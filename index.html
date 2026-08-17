@@ -499,26 +499,9 @@
         .stat-val-away.loser, .stat-val-home.loser   { color: var(--muted); }
         .stat-val-away.winner, .stat-val-home.winner { color: var(--text); }
 
-        /* ── COMPARE RADAR (season profile, league percentile) ──────────── */
+        /* Wrapper for the Compare tab's charts. Named for the radar it used to
+           hold; the radar's own styles went with it. */
         .compare-radar-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1rem 1rem; margin-bottom: 1.5rem; }
-        .compare-radar-title { text-align: center; font-family: var(--display); font-size: 1.05rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); line-height: 1; }
-        .compare-radar-sub { text-align: center; font-family: var(--display); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
-        .compare-radar-svg { display: block; width: 100%; max-width: 460px; height: auto; margin: 0.5rem auto 0; }
-        .radar-grid { fill: none; stroke: var(--border2); stroke-width: 1; opacity: 0.6; }
-        .radar-spoke { stroke: var(--border2); stroke-width: 1; opacity: 0.45; }
-        .radar-axis-label { fill: var(--text2); font-family: var(--display); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-        .radar-axis-value { font-family: var(--mono); font-size: 9px; font-weight: 500; }
-        .radar-poly { stroke-width: 2; stroke-linejoin: round; }
-        .radar-poly-away { fill: var(--blue);   fill-opacity: 0.16; stroke: var(--blue);   }
-        .radar-poly-home { fill: var(--orange); fill-opacity: 0.16; stroke: var(--orange); }
-        .radar-vertex { stroke: var(--surface); stroke-width: 1.5; transition: r 0.12s; }
-        .radar-vertex-away { fill: var(--blue);   }
-        .radar-vertex-home { fill: var(--orange); }
-        .radar-vertex:hover { r: 6; }
-        .radar-legend { display: flex; justify-content: center; gap: 1.75rem; margin-top: 0.5rem; flex-wrap: wrap; }
-        .radar-legend-item { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.04em; }
-        .radar-legend-logo { width: 22px; height: 22px; object-fit: contain; }
-        .radar-legend-swatch { width: 20px; height: 4px; border-radius: 2px; }
         /* ── vs LG AVG toggle ─────────────────────────────────────────────── */
         .cmp-mode-row { display: flex; justify-content: center; margin: -0.25rem 0 1.25rem; }
         .cmp-mode-btn { font-family: var(--display); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 15px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.15s; }
@@ -2042,12 +2025,6 @@ function updateSummaryBar(activeTab) {
     });
 }
 
-// Keep nav stubs so no reference errors if called elsewhere
-let _tickerPages = [], _tickerPage = 0;
-function tickerRenderPage(idx) { }
-function tickerNav(dir) {}
-function tickerGoTo(idx) {}
-
 // ── SINGLE SOURCE OF TRUTH FOR GRADING ───────────────────────────────────
 // Every threshold table on the page derives from this one: statMeta (rankings,
 // ticker, compare charts), lsStatMeta (lineup stats + history charts),
@@ -3109,7 +3086,6 @@ function batSideBadge(side) {
 
 // ── LINEUP DATA ───────────────────────────────────────────────────────────────
 const SUPABASE_LINEUP_TABLE  = 'projected_lineups';
-const SUPABASE_PLAYER_TABLE2 = 'fangraphs_player_splits';
 let lineupGames    = [];   // raw records from projected_lineups
 
 // ── FETCH LINEUPS FROM SUPABASE ───────────────────────────────────────────────
@@ -3733,12 +3709,7 @@ function switchTab(n) {
         document.getElementById('lineup-stats-container').innerHTML =
             `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
         lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData()])
-            .then(() => {
-                console.log('[LineupStats] lineupGames:', lineupGames.length, 'rows');
-                console.log('[LineupStats] playerData keys:', Object.keys(playerData));
-                if (lineupGames.length > 0) console.log('[LineupStats] sample lineup row:', JSON.stringify(lineupGames[0]).substring(0,200));
-                renderLineupStats();
-            })
+            .then(() => renderLineupStats())
             .catch(err => {
                 console.error('[LineupStats] fetch error:', err);
                 document.getElementById('lineup-stats-container').innerHTML =
@@ -4695,7 +4666,7 @@ function reportExportPDF(btn) {
 
     var clone = report.cloneNode(true);
     clone.querySelectorAll('.export-png-btn').forEach(function(b) { b.remove(); });
-    // Respect the game filter — drop cards hidden by filterReportToGame()
+    // Defensive: never print a card that is currently hidden
     clone.querySelectorAll('[style*="display: none"], [style*="display:none"]').forEach(function(el) { el.remove(); });
     root.appendChild(clone);
 
@@ -4791,24 +4762,6 @@ function handleGameSelect(gameValue) {
     loadDailyReport();   // reload for the picked game, or all games when cleared
 }
 
-function filterReportToGame() {
-    if (!selectedGameTeams || selectedGameTeams.length !== 2) return;
-    const [awayTeam, homeTeam] = selectedGameTeams;
-    console.log('Filtering report to:', awayTeam, '@', homeTeam);
-
-    // Hide all game cards except the selected matchup
-    const gameCards = document.querySelectorAll('.lstats-game-card, .report-game-card, .game-card, [class*="matchup"], [class*="game-card"]');
-    gameCards.forEach(card => {
-        const cardText = card.textContent.toUpperCase();
-        if (cardText.includes(awayTeam) && cardText.includes(homeTeam)) {
-            card.style.display = 'block';
-            console.log('Showing:', cardText.substring(0,50));
-        } else {
-            card.style.display = 'none';
-        }
-    });
-}
-
 // Load schedule on page load
 loadMlbSchedule();
 </script>
@@ -4873,15 +4826,6 @@ function ptEnsure() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
-function ptFmt(v, t) {
-    if (v == null || v === '' || isNaN(+v)) return '—';
-    const n = +v;
-    if (t === 'pct')  return (n > 1 ? n : n * 100).toFixed(1) + '%';
-    if (t === 'dec2') return n.toFixed(2);
-    if (t === 'dec1') return n.toFixed(1);
-    if (t === 'int')  return Math.round(n).toString();
-    return n.toFixed(2);
-}
 
 // Format by column for pitcher_scores (pct stats stored as 0-1)
 function ptFmtCol(v, col) {
@@ -5163,16 +5107,6 @@ function psEnsure() {
 }
 
 // ── Shared helpers ──────────────────────────────────────────────
-function psFmt(v, t) {
-    if (v == null || v === '' || isNaN(+v)) return '—';
-    const n = +v;
-    if (t === 'pct')  return n.toFixed(1) + '%';
-    if (t === 'dec3') return n.toFixed(3).replace(/^(-?)0\./,'$1.');
-    if (t === 'dec2') return n.toFixed(2);
-    if (t === 'dec1') return n.toFixed(1);
-    if (t === 'int')  return Math.round(n).toString();
-    return n.toFixed(2);
-}
 
 // Format by column name using exact spec from pitcher_split_scores schema
 function psFmtCol(v, col) {
@@ -5269,21 +5203,6 @@ function psStatColor(v, col) {
     return '';
 }
 
-// Grade cell: score + bar + tier pill
-function psGrade(score, tierOverride) {
-    if (score == null || isNaN(+score)) return '<span style="color:var(--muted);">—</span>';
-    const s    = +score;
-    const tier = tierOverride || psTierFromScore(s);
-    if (!tier) return '<span style="color:var(--muted);">—</span>';
-    const tc   = psTierCls(tier);
-    const bc   = psBarColor(tier);
-    const bw   = Math.min(100, Math.round(s));
-    return '<div class="ps-bar-wrap">' +
-        '<span class="p-stat ' + psScoreCls(s) + '" style="font-weight:700;min-width:30px;">' + s.toFixed(1) + '</span>' +
-        '<div class="ps-bar-outer"><div class="ps-bar-inner" style="width:' + bw + '%;background:' + bc + ';"></div></div>' +
-        '<span class="tier-pill ' + tc + '" style="font-size:0.5rem;padding:1px 4px;flex-shrink:0;">' + tier + '</span>' +
-        '</div>';
-}
 
 // ════════════════════════════════════════════════════════════════
 //  PITCHER SPLITS TAB (panel 12)
@@ -5332,8 +5251,6 @@ function psFilter() {
         const bv = b[sc] != null ? +b[sc] : (sd===-1?-1e9:1e9);
         return (bv - av) * sd * -1;
     });
-    console.log('[psFilter] period=' + period + ' split=' + split + ' rows=' + rows.length + 
-        (rows.length > 0 ? ' sample era=' + rows[0].era + ' k_pct=' + rows[0].k_pct : ''));
     renderPsTable(rows);
 }
 
@@ -5366,8 +5283,6 @@ function psGradeCell(score) {
 }
 
 function renderPsTable(rows) {
-    console.log('[renderPsTable] rows=' + rows.length + (rows.length > 0 ? 
-        ' first row keys=' + Object.keys(rows[0]).join(',') : ''));
     var body = document.getElementById('ps-body');
     if (!rows.length) {
         body.innerHTML = '<tr><td colspan="38"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">No pitchers match filters</div></div></td></tr>';
@@ -5741,9 +5656,6 @@ function ptsToggle(view) {
     }
 }
 
-// pcRender alias for any legacy calls
-function pcRender() { pcRenderCompare(); }
-function pcPick(side, name) { pcSelect(side, name); }
 // ── Option 7: Export compare as PNG ──────────────────────────────────────
 // html2canvas is ~200KB and only this one button needs it, so it's fetched on
 // first use instead of blocking every page load.
