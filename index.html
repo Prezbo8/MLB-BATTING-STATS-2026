@@ -493,6 +493,18 @@
         .lt-chart-team { text-align: center; font-family: var(--display); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
         .lt-tip { position: fixed; z-index: 200; pointer-events: none; display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; font-family: var(--mono); font-size: 0.76rem; color: var(--text); white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,0.55); }
         .lt-tip b { color: #fff; }
+        /* ── LINEUP HISTORY (9 batters × 6 stat line charts) ──────────────── */
+        .lh-team-head { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 1.05rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin: 1.5rem 0 0.6rem; }
+        .lh-team-head img { width: 30px; height: 30px; object-fit: contain; }
+        .lh-team-head .lh-side { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.14em; }
+        .lh-grid { display: grid; grid-template-columns: 116px repeat(6, minmax(0, 1fr)); gap: 5px; }
+        .lh-colhead { align-self: end; text-align: center; font-family: var(--display); font-size: 0.9rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-decoration: underline; text-underline-offset: 3px; padding-bottom: 3px; }
+        .lh-name { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 0.74rem; color: var(--text2); padding: 0 6px; border-right: 1px solid var(--border); overflow: hidden; }
+        .lh-name .lh-ord { color: var(--muted); font-weight: 700; flex: none; }
+        .lh-name span.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lh-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 2px 1px; }
+        .lh-cell.empty { display: flex; align-items: center; justify-content: center; color: var(--muted); font-family: var(--display); font-size: 0.6rem; min-height: 70px; }
+        .lh-cell svg { display: block; width: 100%; height: auto; }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -1007,6 +1019,7 @@
                         <button class="tab-btn" id="tab-3" onclick="switchTab(3)" role="tab" aria-selected="false" aria-controls="panel-3" aria-label="Lineup preview" tabindex="-1">Preview</button>
                         <button class="tab-btn" id="tab-4" onclick="switchTab(4)" role="tab" aria-selected="false" aria-controls="panel-4" aria-label="Lineup stats" tabindex="-1">Stats</button>
                         <button class="tab-btn" id="tab-9" onclick="switchTab(9)" role="tab" aria-selected="false" aria-controls="panel-9" aria-label="Lineup trends" tabindex="-1">📈 Trends</button>
+                        <button class="tab-btn" id="tab-12" onclick="switchTab(12)" role="tab" aria-selected="false" aria-controls="panel-12" aria-label="Lineup history" tabindex="-1">📅 History</button>
                     </div>
                 </div>
                 <div class="nav-sep" aria-hidden="true"></div>
@@ -1275,6 +1288,49 @@
             <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup trends…</div></div>
         </div>
         <div id="lt-tip" class="lt-tip"></div>
+    </div>
+
+    <!-- PANEL 12: LINEUP HISTORY -->
+    <div id="panel-12" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-12">
+        <div class="section-header">
+            <div class="section-title">📅 Lineup History <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0;text-transform:none;">2021–2026</span></div>
+            <div class="lineup-controls">
+                <div class="filter-group">
+                    <div class="filter-label">Game</div>
+                    <select id="lh-game" onchange="renderLineupHistory()"></select>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-label">Split</div>
+                    <select id="lh-hand" onchange="renderLineupHistory()">
+                        <option value="no_split">Overall</option>
+                        <option value="vs_lhp">vs LHP</option>
+                        <option value="vs_rhp">vs RHP</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-label">Range</div>
+                    <select id="lh-mode" onchange="onLhModeChange()">
+                        <option value="season">Yearly (full season)</option>
+                        <option value="month">By month</option>
+                    </select>
+                </div>
+                <div class="filter-group" id="lh-month-group" style="display:none;">
+                    <div class="filter-label">Month</div>
+                    <select id="lh-month" onchange="renderLineupHistory()">
+                        <option value="mar_apr">Mar/Apr</option>
+                        <option value="may">May</option>
+                        <option value="jun">June</option>
+                        <option value="jul">July</option>
+                        <option value="aug">Aug</option>
+                        <option value="sep_oct">Sep/Oct</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="lineup-history-container">
+            <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup history…</div></div>
+        </div>
+        <div id="lh-tip" class="lt-tip"></div>
     </div>
 
     <!-- PANEL 5: HOT/COLD TEAMS -->
@@ -2706,6 +2762,162 @@ function renderLineupTrends() {
     wireLineupTips();
 }
 
+// ── LINEUP HISTORY (2021–2026 per-player season/month line charts) ────────────
+// For a game's two lineups, a 9 batters × 6 stat grid (AVG/K%/ISO/BABIP/wOBA/
+// wRC+), each cell a line chart across the years. Reads fangraphs_player_history
+// (keyed by playerid), resolving each batter → playerid via the live player data.
+const SUPABASE_PLAYER_HIST_TABLE = 'fangraphs_player_history';
+const LH_YEARS   = [2021, 2022, 2023, 2024, 2025, 2026];
+const LH_MIN_PA  = 10;                       // skip low-sample points (noisy rate stats)
+const LH_DBCOL   = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus' };
+const _pn = v => parseFloat(v) || 0;
+const _pp = v => parseFloat(String(v || '').replace('%', '')) || 0;
+let playerHist = {};                          // playerHist[id]['split-period-year'] = row
+let lhLoadedIds = new Set();
+
+function lhMonthLabel(p) {
+    return { mar_apr:'Mar/Apr', may:'May', jun:'June', jul:'July', aug:'Aug', sep_oct:'Sep/Oct' }[p] || p;
+}
+function lhVal(row, sk) {
+    if (!row) return null;
+    const c = LH_DBCOL[sk];
+    return sk === 'kPct' ? _pp(row[c]) : _pn(row[c]);
+}
+function lhResolveId(name, tm) {
+    const row = findPlayerStats(correctPlayerName(name), tm, 'no_split-season');
+    return row && row.playerid ? String(row.playerid) : null;
+}
+
+async function fetchPlayerHist(ids) {
+    const need = [...new Set(ids)].filter(id => id && !lhLoadedIds.has(id));
+    if (!need.length) return;
+    for (let i = 0; i < need.length; i += 40) {
+        const chunk = need.slice(i, i + 40);
+        try {
+            const rows = await sbFetchAll(SUPABASE_PLAYER_HIST_TABLE,
+                `select=*&playerid=in.(${chunk.join(',')})&order=season`);
+            for (const r of rows) {
+                const id = String(r.playerid);
+                (playerHist[id] = playerHist[id] || {})[`${(r.split||'').trim()}-${(r.period||'').trim()}-${r.season}`] = r;
+            }
+        } catch (e) { console.error('player history fetch', e); }
+        chunk.forEach(id => lhLoadedIds.add(id));
+    }
+}
+
+// One player's line chart for one stat over LH_YEARS (grade-colored y-axis).
+function buildLhChart(id, sk, split, period, color, name) {
+    if (!id) return `<div class="lh-cell empty">—</div>`;
+    const meta = lsStatMeta[sk];
+    const store = playerHist[id] || {};
+    const vals = LH_YEARS.map(yr => {
+        const r = store[`${split}-${period}-${yr}`];
+        if (!r || _pn(r.pa) < LH_MIN_PA) return null;
+        return lhVal(r, sk);
+    });
+    const dvals = vals.filter(v => v != null && !isNaN(v));
+    if (!dvals.length) return `<div class="lh-cell empty">no data</div>`;
+    let mn = Math.min(...dvals), mx = Math.max(...dvals);
+    if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+    const pad = (mx - mn) * 0.10, dMin = mn - pad, dMax = mx + pad;
+    const W = 182, H = 94, ptop = 8, pbot = 16, pl = 30, pr = 6;
+    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = LH_YEARS.length;
+    const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
+    const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+    const pts = vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
+    const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${color};stroke-width:1.75" points="${pts.join(' ')}"/>` : '';
+    const plbl = period === 'season' ? '' : lhMonthLabel(period) + ' ';
+    const dots = vals.map((v, i) => (v != null && !isNaN(v))
+        ? `<circle style="fill:${color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.4"/>` +
+          `<circle fill="transparent" pointer-events="all" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(name)}" data-meta="${plbl}${LH_YEARS[i]}: ${meta.fmt(v)}"/>`
+        : '').join('');
+    const xl = LH_YEARS.map((yr, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="sbar-x" style="font-size:8px">'${String(yr).slice(2)}</text>`).join('');
+    const yAxis = miniYAxis(meta, null, mn, mx, yOf, pl, ptop, plotH, 4);
+    return `<div class="lh-cell"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} ${sk} by year">${yAxis}${line}${dots}${xl}</svg></div>`;
+}
+
+function lhSection(batters, tm, side, color, split, period) {
+    const heads = LS_STAT_LABELS.map(l => `<div class="lh-colhead">${l}</div>`).join('');
+    const rows = batters.map((p, i) => {
+        const cells = LS_STATS.map(sk => buildLhChart(p.id, sk, split, period, color, p.name)).join('');
+        return `<div class="lh-name"><span class="lh-ord">${p.order || i + 1}</span><span class="nm">${esc(p.name)}</span></div>${cells}`;
+    }).join('');
+    return `<div class="lh-team-head">${teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : ''}<span style="color:${color}">${tm}</span><span class="lh-side">${side}</span></div>` +
+        `<div class="lh-grid"><div></div>${heads}${rows}</div>`;
+}
+
+let lhTipWired = false;
+function wireLhTips() {
+    if (lhTipWired) return;
+    const cont = document.getElementById('lineup-history-container');
+    const tip = document.getElementById('lh-tip');
+    if (!cont || !tip) return;
+    lhTipWired = true;
+    const hit = e => (e.target && e.target.closest) ? e.target.closest('circle[data-name]') : null;
+    const show = (e, el) => {
+        tip.innerHTML = `<b>${el.getAttribute('data-name')}</b> · ${el.getAttribute('data-meta')}`;
+        tip.style.display = 'block';
+        const r = tip.getBoundingClientRect(), pad = 14;
+        let x = e.clientX + pad, y = e.clientY + pad;
+        if (x + r.width > window.innerWidth) x = e.clientX - r.width - pad;
+        if (y + r.height > window.innerHeight) y = e.clientY - r.height - pad;
+        tip.style.left = Math.max(4, x) + 'px'; tip.style.top = Math.max(4, y) + 'px';
+    };
+    const hide = () => { tip.style.display = 'none'; };
+    const move = e => { const el = hit(e); el ? show(e, el) : hide(); };
+    const tap  = e => { const el = hit(e); if (el) show(e, el); };
+    cont.addEventListener('pointermove', move); cont.addEventListener('mousemove', move);
+    cont.addEventListener('pointerdown', tap); cont.addEventListener('click', tap);
+    cont.addEventListener('pointerleave', hide); cont.addEventListener('mouseleave', hide);
+}
+
+function initLineupHistory() {
+    const sel = document.getElementById('lh-game');
+    if (!sel) return;
+    const pairs = pairLineupGames(lineupGames || []);
+    const prev = sel.value;
+    sel.innerHTML = pairs.map((p, i) => {
+        const a = p.away?.team || '???', h = p.home?.team || '???', t = p.away?.game_time || p.home?.game_time || '';
+        return `<option value="${i}">${a} @ ${h}${t ? ' · ' + t : ''}</option>`;
+    }).join('');
+    if (prev && sel.querySelector(`option[value="${prev}"]`)) sel.value = prev;
+}
+function onLhModeChange() {
+    const byMonth = document.getElementById('lh-mode').value === 'month';
+    document.getElementById('lh-month-group').style.display = byMonth ? '' : 'none';
+    renderLineupHistory();
+}
+
+function renderLineupHistory() {
+    const c = document.getElementById('lineup-history-container');
+    if (!c) return;
+    const empty = msg => `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">${msg}</div></div>`;
+    if (!lineupGames.length) { c.innerHTML = empty('No lineups found for today'); return; }
+    const split = document.getElementById('lh-hand').value;
+    const period = document.getElementById('lh-mode').value === 'season' ? 'season' : document.getElementById('lh-month').value;
+    const pairs = pairLineupGames(lineupGames);
+    const gi = parseInt(document.getElementById('lh-game').value, 10) || 0;
+    const pair = pairs[gi];
+    if (!pair) { c.innerHTML = empty('Pick a game'); return; }
+    const awayTm = pair.away?.team || '???', homeTm = pair.home?.team || '???';
+    const awayR = ltBatters(pair.away).map(p => ({ name: p.name, order: p.order, id: lhResolveId(p.name, awayTm) }));
+    const homeR = ltBatters(pair.home).map(p => ({ name: p.name, order: p.order, id: lhResolveId(p.name, homeTm) }));
+    const allIds = [...awayR, ...homeR].map(p => p.id).filter(Boolean);
+    if (allIds.some(id => !lhLoadedIds.has(id))) {
+        c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading player history…</div></div>`;
+        fetchPlayerHist(allIds).then(() => { if (!document.getElementById('panel-12').classList.contains('hidden')) renderLineupHistory(); });
+        return;
+    }
+    const colors = teamPairColors(awayTm, homeTm);
+    const modeLbl = period === 'season' ? 'Yearly (full season)' : `${lhMonthLabel(period)} by year`;
+    const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP' }[split] || split;
+    let html = `<div class="sbar-head" style="margin-top:0;">${awayTm} @ ${homeTm} · ${splitLbl} · ${modeLbl} · '21→'26</div>`;
+    html += lhSection(awayR, awayTm, 'Away', colors.away, split, period);
+    html += lhSection(homeR, homeTm, 'Home', colors.home, split, period);
+    c.innerHTML = html;
+    wireLhTips();
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function batSideBadge(side) {
     if (!side) return '';
@@ -3177,6 +3389,7 @@ function loadPlayerRows(rows) {
         if (!playerData[key]) playerData[key] = [];
         playerData[key].push({
             name,
+            playerid: r.playerid != null ? String(r.playerid) : null,
             tm:      (r.tm    || '').trim(),
             split, dateRange,
             startDate: (r.start_date || '').trim(),
@@ -3363,6 +3576,16 @@ function switchTab(n) {
             .then(() => { initLineupTrends(); renderLineupTrends(); })
             .catch(err => {
                 document.getElementById('lineup-trends-container').innerHTML =
+                    `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Error: ${esc(err.message)}</div></div>`;
+            });
+    }
+    if (n===12) {
+        document.getElementById('lineup-history-container').innerHTML =
+            `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
+        lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData()])
+            .then(() => { initLineupHistory(); renderLineupHistory(); })
+            .catch(err => {
+                document.getElementById('lineup-history-container').innerHTML =
                     `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Error: ${esc(err.message)}</div></div>`;
             });
     }
