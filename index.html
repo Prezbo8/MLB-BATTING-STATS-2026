@@ -1301,6 +1301,13 @@
                         <option value="away">Away</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <div class="filter-label">Range</div>
+                    <select id="lt-range" onchange="renderLineupTrends()">
+                        <option value="monthly">Monthly (2026)</option>
+                        <option value="yearly">Yearly (2021–26)</option>
+                    </select>
+                </div>
             </div>
         </div>
         <div id="lineup-trends-container">
@@ -2681,26 +2688,44 @@ function initLineupTrends() {
 }
 
 // One team's per-stat line chart: a colored line per batter over the months.
-function buildLineupTrendChart(batters, tm, split, s, teamColor) {
-    const store = playerHistory[split];
-    const months = store.months, byMonth = store.byMonth;
-    const series = batters.map((p, i) => ({
-        name: p.name, color: LINEUP_PALETTE[i % LINEUP_PALETTE.length],
-        vals: months.map(m => { const row = ltMatchRow(byMonth[m] || [], correctPlayerName(p.name), tm); return row ? row[s.key] : null; }),
-    }));
-    const lgVals = months.map(m => { const a = paWeightedAvg(byMonth[m] || []); return a ? a[s.key] : null; });
-    // Actual league average = PA-weighted over every batter across all months.
-    const lgAvg = (paWeightedAvg(months.flatMap(m => byMonth[m] || [])) || {})[s.key];
+function buildLineupTrendChart(batters, tm, split, s, teamColor, mode) {
+    let series, lgVals, lgAvg, xLabels, tipOf, noData;
+    if (mode === 'yearly') {
+        const yrs = LH_YEARS;
+        series = batters.map((p, i) => ({
+            name: p.name, color: LINEUP_PALETTE[i % LINEUP_PALETTE.length],
+            vals: yrs.map(yr => { const r = (playerHist[p.id] || {})[`${split}-season-${yr}`]; return (r && _pn(r.pa) >= LH_MIN_PA) ? lhVal(r, s.key) : null; }),
+        }));
+        const lgStore = playerHist['0'] || {};
+        lgVals = yrs.map(yr => { const r = lgStore[`${split}-season-${yr}`]; return r ? lhVal(r, s.key) : null; });
+        const lc = lgVals.filter(v => v != null && !isNaN(v));
+        lgAvg = lc.length ? lc.reduce((a, b) => a + b, 0) / lc.length : null;
+        xLabels = yrs.map(y => `'${String(y).slice(2)}`);
+        tipOf = i => yrs[i];
+        noData = split === 'home' || split === 'away' ? 'No yearly home/away data' : 'No data';
+    } else {
+        const store = playerHistory[split];
+        const months = store.months, byMonth = store.byMonth;
+        series = batters.map((p, i) => ({
+            name: p.name, color: LINEUP_PALETTE[i % LINEUP_PALETTE.length],
+            vals: months.map(m => { const row = ltMatchRow(byMonth[m] || [], correctPlayerName(p.name), tm); return row ? row[s.key] : null; }),
+        }));
+        lgVals = months.map(m => { const a = paWeightedAvg(byMonth[m] || []); return a ? a[s.key] : null; });
+        lgAvg = (paWeightedAvg(months.flatMap(m => byMonth[m] || [])) || {})[s.key];
+        xLabels = months.map(monthLabel);
+        tipOf = i => monthLabel(months[i]);
+        noData = 'No monthly data';
+    }
     // Axis spans the data min→max (all batters); widened to include the league avg.
     const dvals = series.flatMap(se => se.vals).filter(v => v != null && !isNaN(v));
-    if (dvals.length < 2) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">No monthly data</div></div>`;
+    if (!dvals.length) return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><div style="padding:24px 8px;text-align:center;color:var(--muted);font-family:var(--display);font-size:0.7rem;">${noData}</div></div>`;
     let mn = Math.min(...dvals), mx = Math.max(...dvals);
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
     const sLo = (lgAvg != null && !isNaN(lgAvg)) ? Math.min(mn, lgAvg) : mn;
     const sHi = (lgAvg != null && !isNaN(lgAvg)) ? Math.max(mx, lgAvg) : mx;
     const pad = (sHi - sLo) * 0.08, dMin = sLo - pad, dMax = sHi + pad;
     const W = 210, H = 128, ptop = 10, pbot = 20, pl = 30, pr = 8;
-    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = months.length;
+    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = xLabels.length;
     const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
     const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
     const linePts = vals => vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
@@ -2709,17 +2734,15 @@ function buildLineupTrendChart(batters, tm, split, s, teamColor) {
     const layers = series.map(se => {
         const pts = linePts(se.vals);
         const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${se.color};stroke-width:1.75" points="${pts.join(' ')}"/>` : '';
-        // visible dot + a larger transparent hit circle so hover/click reliably
-        // shows the batter's name (SVG <title> native tooltip).
         const dots = se.vals.map((v, i) => (v != null && !isNaN(v))
             ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.2"/>` +
-              `<circle fill="transparent" pointer-events="all" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(se.name)}" data-meta="${monthLabel(months[i])}: ${s.fmt(v)}"/>`
+              `<circle fill="transparent" pointer-events="all" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(se.name)}" data-meta="${tipOf(i)}: ${s.fmt(v)}"/>`
             : '').join('');
         return line + dots;
     }).join('');
-    const xl = months.map((m, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${monthLabel(m)}</text>`).join('');
+    const xl = xLabels.map((lb, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="sbar-x">${lb}</text>`).join('');
     const yAxis = miniYAxis(s, lgAvg, mn, mx, yOf, pl, ptop, plotH);
-    return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label} by month">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
+    return `<div class="sbar-cell"><div class="lt-chart-team" style="color:${teamColor}">${tm}</div><svg viewBox="0 0 ${W} ${H}" class="sbar-svg" role="img" aria-label="${tm} ${s.label}">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
 }
 
 // Interactive dot tooltip (hover + click/tap) showing the batter's name.
@@ -2759,27 +2782,47 @@ function renderLineupTrends() {
     if (!c) return;
     if (!lineupGames.length) { c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No lineups found for today</div></div>`; return; }
     const split = document.getElementById('lt-split').value;
-    if (!playerHistory[split]) {
-        fetchPlayerHistory(split);
-        c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">${playerHistoryLoading[split] ? 'Loading player history…' : 'Loading…'}</div></div>`;
-        return;
-    }
+    const mode = (document.getElementById('lt-range') || {}).value || 'monthly';
     const pairs = pairLineupGames(lineupGames);
     const gi = parseInt(document.getElementById('lt-game').value, 10) || 0;
     const pair = pairs[gi];
     if (!pair) { c.innerHTML = `<div class="empty-state"><div class="empty-state-text">Pick a game</div></div>`; return; }
     const awayTm = pair.away?.team || '???', homeTm = pair.home?.team || '???';
-    const awayB = ltBatters(pair.away), homeB = ltBatters(pair.home);
+    let awayB = ltBatters(pair.away), homeB = ltBatters(pair.home);
+
+    if (mode === 'yearly') {
+        if (!playerData || !Object.keys(playerData).length) {
+            c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading player data…</div></div>`;
+            ensurePlayerData().then(() => { if (!document.getElementById('panel-9').classList.contains('hidden')) renderLineupTrends(); });
+            return;
+        }
+        awayB = awayB.map(p => ({ name: p.name, order: p.order, id: lhResolveId(p.name, awayTm) }));
+        homeB = homeB.map(p => ({ name: p.name, order: p.order, id: lhResolveId(p.name, homeTm) }));
+        const ids = ['0', ...awayB, ...homeB].map(p => (typeof p === 'string' ? p : p.id)).filter(Boolean);
+        if (ids.some(id => !lhLoadedIds.has(id))) {
+            c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading player history…</div></div>`;
+            fetchPlayerHist(ids).then(() => { if (!document.getElementById('panel-9').classList.contains('hidden')) renderLineupTrends(); });
+            return;
+        }
+    } else {
+        if (!playerHistory[split]) {
+            fetchPlayerHistory(split);
+            c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">${playerHistoryLoading[split] ? 'Loading player history…' : 'Loading…'}</div></div>`;
+            return;
+        }
+    }
+
     const colors = teamPairColors(awayTm, homeTm);
     const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP', home: 'Home', away: 'Away' }[split] || split;
+    const rangeLbl = mode === 'yearly' ? 'Season 2021–26' : 'Monthly 2026';
     const legend = (bs, tm, tc) => `<div class="lt-legend"><div class="lt-legend-team" style="color:${tc}">${tm}</div><div class="lt-legend-items">${bs.length ? bs.map((p, i) => `<div class="lt-leg"><span class="lt-leg-sw" style="background:${LINEUP_PALETTE[i % LINEUP_PALETTE.length]}"></span>${p.order ? p.order + '. ' : ''}${esc(p.name)}</div>`).join('') : '<span style="color:var(--muted)">No lineup posted</span>'}</div></div>`;
 
     let html = `<div class="lt-game-head"><img src="${teamLogos[awayTm] || ''}" onerror="this.style.opacity='.15'" alt=""> ${awayTm} <span style="color:var(--muted)">@</span> ${homeTm} <img src="${teamLogos[homeTm] || ''}" onerror="this.style.opacity='.15'" alt=""></div>`;
-    html += `<div class="sbar-head" style="margin-top:0;">Monthly player trends · ${splitLbl} · <span style="color:var(--text2)">╌ league avg</span></div>`;
+    html += `<div class="sbar-head" style="margin-top:0;">${rangeLbl} player trends · ${splitLbl} · <span style="color:var(--text2)">╌ league avg</span></div>`;
     html += `<div class="lt-legends">${legend(awayB, awayTm, colors.away)}${legend(homeB, homeTm, colors.home)}</div>`;
     statMeta.forEach(s => {
-        const a = buildLineupTrendChart(awayB, awayTm, split, s, colors.away);
-        const h = buildLineupTrendChart(homeB, homeTm, split, s, colors.home);
+        const a = buildLineupTrendChart(awayB, awayTm, split, s, colors.away, mode);
+        const h = buildLineupTrendChart(homeB, homeTm, split, s, colors.home, mode);
         html += `<div class="lt-stat-row"><div class="sbar-title">${s.label}</div><div class="lt-two">${a}${h}</div></div>`;
     });
     c.innerHTML = html;
@@ -2793,7 +2836,7 @@ function renderLineupTrends() {
 const SUPABASE_PLAYER_HIST_TABLE = 'fangraphs_player_history';
 const LH_YEARS   = [2021, 2022, 2023, 2024, 2025, 2026];
 const LH_MIN_PA  = 10;                       // skip low-sample points (noisy rate stats)
-const LH_DBCOL   = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus' };
+const LH_DBCOL   = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus', ops:'ops', obp:'obp', slg:'slg', bbPct:'bb_pct' };
 const _pn = v => parseFloat(v) || 0;
 const _pp = v => parseFloat(String(v || '').replace('%', '')) || 0;
 let playerHist = {};                          // playerHist[id]['split-period-year'] = row
@@ -2805,7 +2848,7 @@ function lhMonthLabel(p) {
 function lhVal(row, sk) {
     if (!row) return null;
     const c = LH_DBCOL[sk];
-    return sk === 'kPct' ? _pp(row[c]) : _pn(row[c]);
+    return (sk === 'kPct' || sk === 'bbPct') ? _pp(row[c]) : _pn(row[c]);
 }
 function lhResolveId(name, tm) {
     const row = findPlayerStats(correctPlayerName(name), tm, 'no_split-season');
