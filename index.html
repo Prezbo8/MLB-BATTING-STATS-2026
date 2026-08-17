@@ -1834,9 +1834,14 @@ function loadFromRows(rows) {
         });
     }
     loadRankings();
-    // Deep links can land on the Compare tab before data arrives — re-render
-    // it now that allData is populated
-    if (!document.getElementById('panel-1').classList.contains('hidden')) renderAllSplits();
+    // A deep link (#tab=…) switches tabs before this fetch resolves, so any
+    // panel that reads allData rendered against an empty object and is showing
+    // an empty state. Re-render whichever one is on screen now that it's filled.
+    // Only panels driven by allData belong here — the rest await their own data.
+    const visible = id => !document.getElementById(id).classList.contains('hidden');
+    if (visible('panel-1')) renderAllSplits();
+    if (visible('panel-5')) renderHotColdTeams();
+    if (visible('panel-8')) initDailyReport();
     updateSummaryBar();
 }
 
