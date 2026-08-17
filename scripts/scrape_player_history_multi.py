@@ -149,6 +149,35 @@ def send_telegram(message):
     except Exception as e:
         print(f"   ⚠️  Telegram failed: {e}")
 
+# ── League-average rows (playerid=0) so the site's LG line survives re-runs ────
+def league_avg_rows(df):
+    """PA-weighted league average per (split, period, season), as playerid=0 rows.
+    Regenerated on every run so a delete-all backfill never drops the LG line."""
+    def wavg(g, col):
+        v = pd.to_numeric(g[col], errors="coerce")
+        w = pd.to_numeric(g["pa"], errors="coerce")
+        m = v.notna() & w.notna()
+        return (v[m] * w[m]).sum() / w[m].sum() if w[m].sum() > 0 else None
+    def wpct(g, col):
+        v = pd.to_numeric(g[col].astype(str).str.replace("%", "", regex=False), errors="coerce")
+        w = pd.to_numeric(g["pa"], errors="coerce")
+        m = v.notna() & w.notna()
+        return f"{(v[m] * w[m]).sum() / w[m].sum():.1f}%" if w[m].sum() > 0 else None
+    rows = []
+    for (sp, pe, se), g in df.groupby(["split", "period", "season"]):
+        wrc = wavg(g, "wrcplus")
+        rows.append({
+            "playerid": 0, "split": sp, "period": pe, "season": se,
+            "name": "LG AVG", "tm": "LG",
+            "pa": pd.to_numeric(g["pa"], errors="coerce").sum(),
+            "bb_pct": wpct(g, "bb_pct"), "k_pct": wpct(g, "k_pct"),
+            "avg": wavg(g, "avg"), "obp": wavg(g, "obp"), "slg": wavg(g, "slg"),
+            "ops": wavg(g, "ops"), "iso": wavg(g, "iso"), "babip": wavg(g, "babip"),
+            "woba": wavg(g, "woba"), "wrcplus": round(wrc) if wrc is not None else None,
+            "updated_at": g["updated_at"].iloc[0] if "updated_at" in g else None,
+        })
+    return pd.DataFrame(rows)
+
 # ── Supabase: delete-all then insert ──────────────────────────────────────────
 def push_to_supabase(csv_path):
     print("\n📤 Pushing player history to Supabase (delete all → insert)...")
@@ -172,6 +201,7 @@ def push_to_supabase(csv_path):
         "updated_at",
     ]
     df = df[[c for c in valid_cols if c in df.columns]]
+    df = pd.concat([df, league_avg_rows(df)], ignore_index=True)   # append playerid=0 LG rows
     df = df.where(pd.notnull(df), other=None)
     records = df.to_dict(orient="records")
     records = [
