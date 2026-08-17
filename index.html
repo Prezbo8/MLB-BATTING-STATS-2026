@@ -516,9 +516,10 @@
         .lh-card-title { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 1.35rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text2); }
         .lh-card-title img { width: 30px; height: 30px; object-fit: contain; }
         .lh-card-sub { font-family: var(--display); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 4px 0 10px; }
-        .lh-card-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
-        .lh-card-tab { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); font-family: var(--display); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 7px; padding: 5px 12px; cursor: pointer; }
-        .lh-card-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+        .lh-card-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 12px; }
+        .lh-card-leg { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
+        .lh-card-sw { width: 16px; height: 3px; border-radius: 2px; flex: none; }
+        .lh-card-sw.dashed { background: none !important; border-top: 2px dashed var(--text2); height: 0; }
         .lh-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         @media (max-width: 640px) { .lh-card-grid { grid-template-columns: repeat(2, 1fr); } }
         .lh-card-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 5px 3px; }
@@ -2955,18 +2956,57 @@ function wireLhTips() {
 
 // ── PLAYER DETAIL CARD ────────────────────────────────────────────────────────
 let lhCardId = null, lhCardName = '';
+// Player card: one chart per stat with three handedness lines + the LG line.
+const CARD_SPLITS = [['no_split', 'Overall', '#e8eaf0'], ['vs_lhp', 'vs LHP', '#fbbf24'], ['vs_rhp', 'vs RHP', '#60a5fa']];
+
+function buildPlayerCardChart(id, sk) {
+    const meta = lsStatMeta[sk];
+    const store = playerHist[id] || {};
+    const series = CARD_SPLITS.map(([sp, lbl, color]) => ({
+        color,
+        vals: LH_YEARS.map(yr => { const r = store[`${sp}-season-${yr}`]; return (r && _pn(r.pa) >= LH_MIN_PA) ? lhVal(r, sk) : null; }),
+    }));
+    const lgStore = playerHist['0'] || {};
+    const lgVals = LH_YEARS.map(yr => { const r = lgStore[`no_split-season-${yr}`]; return r ? lhVal(r, sk) : null; });
+    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
+    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    const svals = series.flatMap(se => se.vals).filter(v => v != null && !isNaN(v));
+    if (!svals.length) return `<div class="lh-cell empty">no data</div>`;
+    let mn = Math.min(...svals), mx = Math.max(...svals);
+    if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+    const sLo = (lgAvg != null && !isNaN(lgAvg)) ? Math.min(mn, lgAvg) : mn;
+    const sHi = (lgAvg != null && !isNaN(lgAvg)) ? Math.max(mx, lgAvg) : mx;
+    const pad = (sHi - sLo) * 0.10, dMin = sLo - pad, dMax = sHi + pad;
+    const W = 182, H = 94, ptop = 8, pbot = 16, pl = 30, pr = 6;
+    const plotH = H - ptop - pbot, plotW = W - pl - pr, n = LH_YEARS.length;
+    const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
+    const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+    const linePts = vals => vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
+    const lgPts = linePts(lgVals);
+    const lgLine = lgPts.length >= 2 ? `<polyline class="sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
+    const layers = series.map(se => {
+        const pts = linePts(se.vals);
+        const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${se.color};stroke-width:1.6" points="${pts.join(' ')}"/>` : '';
+        const dots = se.vals.map((v, i) => (v != null && !isNaN(v)) ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2"/>` : '').join('');
+        return line + dots;
+    }).join('');
+    const xl = LH_YEARS.map((yr, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="sbar-x" style="font-size:8px">'${String(yr).slice(2)}</text>`).join('');
+    const yAxis = miniYAxis(meta, lgAvg, mn, mx, yOf, pl, ptop, plotH, 4);
+    return `<div class="lh-cell"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${sk} by year">${yAxis}${lgLine}${layers}${xl}</svg></div>`;
+}
+
 function openPlayerCard(id, name) {
     if (!id) return;
     lhCardId = id; lhCardName = name;
     document.getElementById('lh-card-overlay').classList.add('open');
     if (!lhLoadedIds.has(id)) {
         document.getElementById('lh-card-body').innerHTML = `<div class="empty-state" style="padding:2rem;"><div class="empty-state-text">Loading…</div></div>`;
-        fetchPlayerHist([id, '0']).then(() => { if (lhCardId === id) renderPlayerCard('no_split'); });
+        fetchPlayerHist([id, '0']).then(() => { if (lhCardId === id) renderPlayerCard(); });
         return;
     }
-    renderPlayerCard('no_split');
+    renderPlayerCard();
 }
-function renderPlayerCard(split) {
+function renderPlayerCard() {
     const id = lhCardId, name = lhCardName;
     const body = document.getElementById('lh-card-body');
     if (!body || !id) return;
@@ -2974,14 +3014,13 @@ function renderPlayerCard(split) {
     let tm = '';
     for (let y = 2026; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
     const logo = teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : '';
-    const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP' }[split] || split;
-    const tabs = [['no_split', 'Overall'], ['vs_lhp', 'vs LHP'], ['vs_rhp', 'vs RHP']]
-        .map(([v, l]) => `<button class="lh-card-tab${v === split ? ' active' : ''}" onclick="renderPlayerCard('${v}')">${l}</button>`).join('');
+    const legend = CARD_SPLITS.map(([sp, lbl, col]) => `<div class="lh-card-leg"><span class="lh-card-sw" style="background:${col}"></span>${lbl}</div>`).join('') +
+        `<div class="lh-card-leg"><span class="lh-card-sw dashed"></span>LG avg</div>`;
     const charts = LS_STATS.map((sk, i) =>
-        `<div class="lh-card-stat"><div class="lh-card-statlbl">${LS_STAT_LABELS[i]}</div>${buildLhChart(id, sk, split, 'season', 'var(--blue)', name)}</div>`).join('');
+        `<div class="lh-card-stat"><div class="lh-card-statlbl">${LS_STAT_LABELS[i]}</div>${buildPlayerCardChart(id, sk)}</div>`).join('');
     body.innerHTML = `<div class="lh-card-title">${logo}${esc(name)}${tm ? ` <span style="color:var(--muted);font-size:0.8rem;font-weight:700;">${tm}</span>` : ''}</div>` +
-        `<div class="lh-card-sub">Season 2021–2026 · ${splitLbl} · ╌ league avg</div>` +
-        `<div class="lh-card-tabs">${tabs}</div><div class="lh-card-grid">${charts}</div>`;
+        `<div class="lh-card-sub">Season 2021–2026 · handedness splits</div>` +
+        `<div class="lh-card-legend">${legend}</div><div class="lh-card-grid">${charts}</div>`;
 }
 function closePlayerCard() { document.getElementById('lh-card-overlay').classList.remove('open'); lhCardId = null; }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayerCard(); });
