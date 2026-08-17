@@ -505,6 +505,25 @@
         .lh-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 2px 1px; }
         .lh-cell.empty { display: flex; align-items: center; justify-content: center; color: var(--muted); font-family: var(--display); font-size: 0.6rem; min-height: 70px; }
         .lh-cell svg { display: block; width: 100%; height: auto; }
+        .lh-name.clickable { cursor: pointer; }
+        .lh-name.clickable:hover { color: #fff; }
+        /* Player detail card (modal) */
+        .lh-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.62); display: none; align-items: center; justify-content: center; padding: 20px; }
+        .lh-overlay.open { display: flex; }
+        .lh-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px 22px; max-width: 860px; width: 100%; max-height: 88vh; overflow: auto; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+        .lh-card-x { position: absolute; top: 8px; right: 12px; background: none; border: none; color: var(--muted); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+        .lh-card-x:hover { color: #fff; }
+        .lh-card-title { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 1.35rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text2); }
+        .lh-card-title img { width: 30px; height: 30px; object-fit: contain; }
+        .lh-card-sub { font-family: var(--display); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 4px 0 10px; }
+        .lh-card-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+        .lh-card-tab { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); font-family: var(--display); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 7px; padding: 5px 12px; cursor: pointer; }
+        .lh-card-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+        .lh-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        @media (max-width: 640px) { .lh-card-grid { grid-template-columns: repeat(2, 1fr); } }
+        .lh-card-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 5px 3px; }
+        .lh-card-statlbl { text-align: center; font-family: var(--display); font-size: 0.82rem; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; text-decoration: underline; text-underline-offset: 3px; margin-bottom: 2px; }
+        .lh-card-stat .lh-cell { background: none; border: none; padding: 0; }
         .cmp-content { position: relative; z-index: 1; display: flex; align-items: center; }
         .stat-val-away .cmp-content { justify-content: flex-end; gap: 8px; }
         .stat-val-home .cmp-content { justify-content: flex-start; gap: 8px; }
@@ -1331,6 +1350,11 @@
             <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup history…</div></div>
         </div>
         <div id="lh-tip" class="lt-tip"></div>
+    </div>
+
+    <!-- PLAYER DETAIL CARD (modal) -->
+    <div id="lh-card-overlay" class="lh-overlay" onclick="if(event.target===this)closePlayerCard()">
+        <div class="lh-card"><button class="lh-card-x" onclick="closePlayerCard()" aria-label="Close">×</button><div id="lh-card-body"></div></div>
     </div>
 
     <!-- PANEL 5: HOT/COLD TEAMS -->
@@ -2817,13 +2841,22 @@ function buildLhChart(id, sk, split, period, color, name) {
     });
     const dvals = vals.filter(v => v != null && !isNaN(v));
     if (!dvals.length) return `<div class="lh-cell empty">no data</div>`;
+    // League average per year (playerid 0) — dashed line + white y-axis tick.
+    const lgStore = playerHist['0'] || {};
+    const lgVals = LH_YEARS.map(yr => { const r = lgStore[`${split}-${period}-${yr}`]; return r ? lhVal(r, sk) : null; });
+    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
+    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
     let mn = Math.min(...dvals), mx = Math.max(...dvals);
     if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
-    const pad = (mx - mn) * 0.10, dMin = mn - pad, dMax = mx + pad;
+    const sLo = (lgAvg != null && !isNaN(lgAvg)) ? Math.min(mn, lgAvg) : mn;
+    const sHi = (lgAvg != null && !isNaN(lgAvg)) ? Math.max(mx, lgAvg) : mx;
+    const pad = (sHi - sLo) * 0.10, dMin = sLo - pad, dMax = sHi + pad;
     const W = 182, H = 94, ptop = 8, pbot = 16, pl = 30, pr = 6;
     const plotH = H - ptop - pbot, plotW = W - pl - pr, n = LH_YEARS.length;
     const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
     const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+    const lgPts = lgVals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
+    const lgLine = lgPts.length >= 2 ? `<polyline class="sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
     const pts = vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
     const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${color};stroke-width:1.75" points="${pts.join(' ')}"/>` : '';
     const plbl = period === 'season' ? '' : lhMonthLabel(period) + ' ';
@@ -2832,15 +2865,16 @@ function buildLhChart(id, sk, split, period, color, name) {
           `<circle fill="transparent" pointer-events="all" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="7" style="cursor:pointer" data-name="${esc(name)}" data-meta="${plbl}${LH_YEARS[i]}: ${meta.fmt(v)}"/>`
         : '').join('');
     const xl = LH_YEARS.map((yr, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="sbar-x" style="font-size:8px">'${String(yr).slice(2)}</text>`).join('');
-    const yAxis = miniYAxis(meta, null, mn, mx, yOf, pl, ptop, plotH, 4);
-    return `<div class="lh-cell"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} ${sk} by year">${yAxis}${line}${dots}${xl}</svg></div>`;
+    const yAxis = miniYAxis(meta, lgAvg, mn, mx, yOf, pl, ptop, plotH, 4);
+    return `<div class="lh-cell"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name)} ${sk} by year">${yAxis}${lgLine}${line}${dots}${xl}</svg></div>`;
 }
 
 function lhSection(batters, tm, side, color, split, period) {
     const heads = LS_STAT_LABELS.map(l => `<div class="lh-colhead">${l}</div>`).join('');
     const rows = batters.map((p, i) => {
         const cells = LS_STATS.map(sk => buildLhChart(p.id, sk, split, period, color, p.name)).join('');
-        return `<div class="lh-name"><span class="lh-ord">${p.order || i + 1}</span><span class="nm">${esc(p.name)}</span></div>${cells}`;
+        const nameAttrs = p.id ? ` clickable" data-pid="${p.id}" data-pname="${esc(p.name)}` : '';
+        return `<div class="lh-name${nameAttrs}"><span class="lh-ord">${p.order || i + 1}</span><span class="nm">${esc(p.name)}</span></div>${cells}`;
     }).join('');
     return `<div class="lh-team-head">${teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : ''}<span style="color:${color}">${tm}</span><span class="lh-side">${side}</span></div>` +
         `<div class="lh-grid"><div></div>${heads}${rows}</div>`;
@@ -2869,7 +2903,45 @@ function wireLhTips() {
     cont.addEventListener('pointermove', move); cont.addEventListener('mousemove', move);
     cont.addEventListener('pointerdown', tap); cont.addEventListener('click', tap);
     cont.addEventListener('pointerleave', hide); cont.addEventListener('mouseleave', hide);
+    // Click a batter name → open their detail card.
+    cont.addEventListener('click', e => {
+        const nm = e.target.closest && e.target.closest('.lh-name[data-pid]');
+        if (nm) openPlayerCard(nm.getAttribute('data-pid'), nm.getAttribute('data-pname'));
+    });
 }
+
+// ── PLAYER DETAIL CARD ────────────────────────────────────────────────────────
+let lhCardId = null, lhCardName = '';
+function openPlayerCard(id, name) {
+    if (!id) return;
+    lhCardId = id; lhCardName = name;
+    document.getElementById('lh-card-overlay').classList.add('open');
+    if (!lhLoadedIds.has(id)) {
+        document.getElementById('lh-card-body').innerHTML = `<div class="empty-state" style="padding:2rem;"><div class="empty-state-text">Loading…</div></div>`;
+        fetchPlayerHist([id, '0']).then(() => { if (lhCardId === id) renderPlayerCard('no_split'); });
+        return;
+    }
+    renderPlayerCard('no_split');
+}
+function renderPlayerCard(split) {
+    const id = lhCardId, name = lhCardName;
+    const body = document.getElementById('lh-card-body');
+    if (!body || !id) return;
+    const store = playerHist[id] || {};
+    let tm = '';
+    for (let y = 2026; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
+    const logo = teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : '';
+    const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP' }[split] || split;
+    const tabs = [['no_split', 'Overall'], ['vs_lhp', 'vs LHP'], ['vs_rhp', 'vs RHP']]
+        .map(([v, l]) => `<button class="lh-card-tab${v === split ? ' active' : ''}" onclick="renderPlayerCard('${v}')">${l}</button>`).join('');
+    const charts = LS_STATS.map((sk, i) =>
+        `<div class="lh-card-stat"><div class="lh-card-statlbl">${LS_STAT_LABELS[i]}</div>${buildLhChart(id, sk, split, 'season', 'var(--blue)', name)}</div>`).join('');
+    body.innerHTML = `<div class="lh-card-title">${logo}${esc(name)}${tm ? ` <span style="color:var(--muted);font-size:0.8rem;font-weight:700;">${tm}</span>` : ''}</div>` +
+        `<div class="lh-card-sub">Season 2021–2026 · ${splitLbl} · ╌ league avg</div>` +
+        `<div class="lh-card-tabs">${tabs}</div><div class="lh-card-grid">${charts}</div>`;
+}
+function closePlayerCard() { document.getElementById('lh-card-overlay').classList.remove('open'); lhCardId = null; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayerCard(); });
 
 function initLineupHistory() {
     const sel = document.getElementById('lh-game');
@@ -2902,7 +2974,7 @@ function renderLineupHistory() {
     const awayTm = pair.away?.team || '???', homeTm = pair.home?.team || '???';
     const awayR = ltBatters(pair.away).map(p => ({ name: p.name, order: p.order, id: lhResolveId(p.name, awayTm) }));
     const homeR = ltBatters(pair.home).map(p => ({ name: p.name, order: p.order, id: lhResolveId(p.name, homeTm) }));
-    const allIds = [...awayR, ...homeR].map(p => p.id).filter(Boolean);
+    const allIds = ['0', ...awayR, ...homeR].map(p => (typeof p === 'string' ? p : p.id)).filter(Boolean);  // '0' = league avg rows
     if (allIds.some(id => !lhLoadedIds.has(id))) {
         c.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading player history…</div></div>`;
         fetchPlayerHist(allIds).then(() => { if (!document.getElementById('panel-12').classList.contains('hidden')) renderLineupHistory(); });
