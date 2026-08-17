@@ -233,6 +233,33 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .m-sbar-lglabel { fill: var(--muted); font-family: var(--mono); font-size: 8px; }
 .m-mtrend-head { text-align: center; font-family: var(--display); font-size: 0.85rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 18px 0 4px; }
 .m-mtrend-split { text-align: center; font-family: var(--display); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); margin: 12px 0 6px; }
+/* Lineup sub-tabs */
+.m-lsubtabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.m-lsubtab { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); font-family: var(--display); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 8px; padding: 7px 4px; cursor: pointer; }
+.m-lsubtab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+/* Lineup History (mobile) — one stat, both lineups, per-batter line */
+.m-lh-teamhead { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 0.9rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin: 12px 0 6px; }
+.m-lh-teamhead img { width: 24px; height: 24px; object-fit: contain; }
+.m-lh-row { display: grid; grid-template-columns: 92px 1fr; gap: 6px; align-items: center; margin-bottom: 5px; }
+.m-lh-name { font-family: var(--mono); font-size: 0.72rem; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.m-lh-name .ord { color: var(--muted); font-weight: 700; }
+.m-lh-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 3px 1px; }
+.m-lh-cell.empty { display: flex; align-items: center; justify-content: center; min-height: 54px; color: var(--muted); font-size: 0.6rem; }
+/* Player card (mobile) */
+.m-card-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.66); display: none; align-items: flex-start; justify-content: center; padding: 14px; overflow: auto; }
+.m-card-overlay.open { display: flex; }
+.m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; width: 100%; max-width: 560px; position: relative; }
+.m-card-x { position: absolute; top: 6px; right: 10px; background: none; border: none; color: var(--muted); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.m-card-title { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 1.15rem; font-weight: 900; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text2); }
+.m-card-title img { width: 26px; height: 26px; object-fit: contain; }
+.m-card-sub { font-family: var(--display); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
+.m-card-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-bottom: 10px; }
+.m-card-leg { display: flex; align-items: center; gap: 5px; font-family: var(--display); font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); }
+.m-card-sw { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.m-card-sw.dashed { background: none !important; border-top: 2px dashed var(--text2); height: 0; }
+.m-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.m-card-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 5px 4px 2px; }
+.m-card-statlbl { text-align: center; font-family: var(--display); font-size: 0.76rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-decoration: underline; text-underline-offset: 3px; margin-bottom: 2px; }
 .m-radar-legend { display: flex; justify-content: center; gap: 1.4rem; margin-top: 8px; }
 .m-radar-leg { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 0.85rem; font-weight: 900; }
 .m-radar-leg img { width: 20px; height: 20px; object-fit: contain; }
@@ -725,14 +752,47 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
     <!-- PANEL: LINEUPS -->
     <div id="mp-lineups" class="m-panel">
         <div class="m-section-title">Lineups</div>
-        <div class="m-filters" style="margin-bottom:10px;">
-            <div id="lu-date-badge" class="m-data-badge">Today's Games</div>
-            <span id="lu-status" style="font-family:var(--mono);font-size:0.6rem;color:var(--text2);align-self:center;">⟳ —</span>
-            <button onclick="refreshLineupsMobile()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:0.62rem;border-radius:6px;padding:4px 9px;cursor:pointer;">Refresh</button>
+        <div class="m-lsubtabs">
+            <button id="lsub-preview" class="m-lsubtab active" onclick="mLineupTab('preview')">Preview</button>
+            <button id="lsub-trends" class="m-lsubtab" onclick="mLineupTab('trends')">📈 Trends</button>
+            <button id="lsub-history" class="m-lsubtab" onclick="mLineupTab('history')">📅 History</button>
         </div>
-        <div id="m-lineup-container">
-            <div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading lineups…</div></div>
+        <!-- PREVIEW -->
+        <div id="lsub-preview-panel">
+            <div class="m-filters" style="margin-bottom:10px;">
+                <div id="lu-date-badge" class="m-data-badge">Today's Games</div>
+                <span id="lu-status" style="font-family:var(--mono);font-size:0.6rem;color:var(--text2);align-self:center;">⟳ —</span>
+                <button onclick="refreshLineupsMobile()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:0.62rem;border-radius:6px;padding:4px 9px;cursor:pointer;">Refresh</button>
+            </div>
+            <div id="m-lineup-container">
+                <div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading lineups…</div></div>
+            </div>
         </div>
+        <!-- TRENDS -->
+        <div id="lsub-trends-panel" style="display:none;">
+            <div class="m-filters">
+                <div class="m-filter-group"><div class="m-filter-label">Game</div><select id="mlt-game" onchange="renderMLTrends()"></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Split</div><select id="mlt-split" onchange="renderMLTrends()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Range</div><select id="mlt-range" onchange="renderMLTrends()"><option value="yearly">Yearly (21–26)</option><option value="monthly">Monthly (26)</option></select></div>
+            </div>
+            <div id="m-ltrends-container"></div>
+        </div>
+        <!-- HISTORY -->
+        <div id="lsub-history-panel" style="display:none;">
+            <div class="m-filters">
+                <div class="m-filter-group"><div class="m-filter-label">Game</div><select id="mlh-game" onchange="renderMLHistory()"></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Stat</div><select id="mlh-stat" onchange="renderMLHistory()"><option value="wrcPlus">wRC+</option><option value="woba">wOBA</option><option value="ops">OPS</option><option value="avg">AVG</option><option value="iso">ISO</option><option value="babip">BABIP</option><option value="kPct">K%</option><option value="bbPct">BB%</option></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Split</div><select id="mlh-hand" onchange="renderMLHistory()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Range</div><select id="mlh-mode" onchange="onMlhModeChange()"><option value="season">Yearly</option><option value="month">By month</option></select></div>
+                <div class="m-filter-group" id="mlh-month-group" style="display:none;"><div class="m-filter-label">Month</div><select id="mlh-month" onchange="renderMLHistory()"><option value="mar_apr">Mar/Apr</option><option value="may">May</option><option value="jun">June</option><option value="jul">July</option><option value="aug">Aug</option><option value="sep_oct">Sep/Oct</option></select></div>
+            </div>
+            <div id="m-lhist-container"></div>
+        </div>
+    </div>
+
+    <!-- MOBILE PLAYER CARD -->
+    <div id="m-card-overlay" class="m-card-overlay" onclick="if(event.target===this)closeMobileCard()">
+        <div class="m-card"><button class="m-card-x" onclick="closeMobileCard()" aria-label="Close">×</button><div id="m-card-body"></div></div>
     </div>
 
     <!-- PANEL: R/G -->
@@ -1079,7 +1139,7 @@ function ensurePlayers() {
                 const key = `${split}-${dr}`;
                 if (!playerData[key]) playerData[key] = [];
                 playerData[key].push({
-                    name, tm: (r.tm||'').trim(), split, dateRange: dr,
+                    name, playerid: r.playerid != null ? String(r.playerid) : null, tm: (r.tm||'').trim(), split, dateRange: dr,
                     startDate: (r.start_date||'').trim(), endDate: (r.end_date||'').trim(),
                     pa: parseNum(r.pa), bbPct: parsePct(r.bb_pct), kPct: parsePct(r.k_pct),
                     avg: parseNum(r.avg), obp: parseNum(r.obp), slg: parseNum(r.slg),
@@ -1775,6 +1835,203 @@ function findPlayerStats(fullName, teamAbbr, splitKey) {
     return data.find(p => lastN(p.name) === ln && firstI(p.name) === fi && p.tm === teamAbbr)
         || data.find(p => lastN(p.name) === ln && firstI(p.name) === fi) || null;
 }
+// ══ MOBILE LINEUP TRENDS / HISTORY / PLAYER CARD ══════════════════════════════
+const M_PHIST_TABLE = 'fangraphs_player_history';
+const M_YEARS = [2021, 2022, 2023, 2024, 2025, 2026];
+const M_MIN_PA = 10;
+const M_DBCOL = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus', ops:'ops', obp:'obp', slg:'slg', bbPct:'bb_pct' };
+const M_LH_STATS = ['avg','kPct','iso','babip','woba','wrcPlus'];
+const M_STATLBL = { avg:'AVG', kPct:'K%', iso:'ISO', babip:'BABIP', woba:'wOBA', wrcPlus:'wRC+', ops:'OPS', obp:'OBP', slg:'SLG', bbPct:'BB%' };
+const M_CARD_SPLITS = [['no_split','Overall','#e8eaf0'], ['vs_lhp','vs LHP','#fbbf24'], ['vs_rhp','vs RHP','#60a5fa']];
+const M_PALETTE = ['#60a5fa','#fb923c','#34d399','#f472b6','#a78bfa','#fbbf24','#22d3ee','#f87171','#a3e635'];
+const _pnm = v => parseFloat(v) || 0;
+const _ppm = v => parseFloat(String(v || '').replace('%', '')) || 0;
+let mPlayerHist = {}, mPhistLoaded = new Set();
+const mSplitLbl = s => ({ no_split:'Overall', vs_lhp:'vs LHP', vs_rhp:'vs RHP' }[s] || s);
+const mMonLbl = p => ({ mar_apr:'Mar/Apr', may:'May', jun:'June', jul:'July', aug:'Aug', sep_oct:'Sep/Oct' }[p] || p);
+const mMeta = sk => statMeta.find(s => s.key === sk);
+const mHistVal = (row, sk) => { if (!row) return null; const c = M_DBCOL[sk]; return (sk === 'kPct' || sk === 'bbPct') ? _ppm(row[c]) : _pnm(row[c]); };
+const mLtBatters = rec => { const bo = rec?.batting_order; if (!bo) return []; return Array.isArray(bo) ? bo : (() => { try { return JSON.parse(bo); } catch (e) { return []; } })(); };
+const mResolveId = (name, tm) => { const r = findPlayerStats(correctPlayerName(name), tm, 'no_split-season'); return r && r.playerid ? String(r.playerid) : null; };
+const mEmpty = msg => `<div class="m-empty"><div class="m-empty-icon">📭</div><div class="m-empty-text">${msg}</div></div>`;
+
+async function fetchMPlayerHist(ids) {
+    const need = [...new Set(ids)].filter(id => id && !mPhistLoaded.has(id));
+    if (!need.length) return;
+    for (let i = 0; i < need.length; i += 40) {
+        const chunk = need.slice(i, i + 40);
+        try {
+            const rows = await sbFetch(M_PHIST_TABLE, `&playerid=in.(${chunk.join(',')})&order=season`);
+            for (const r of rows) { const id = String(r.playerid); (mPlayerHist[id] = mPlayerHist[id] || {})[`${(r.split||'').trim()}-${(r.period||'').trim()}-${r.season}`] = r; }
+        } catch (e) { console.error('m player history', e); }
+        chunk.forEach(id => mPhistLoaded.add(id));
+    }
+}
+
+// Generic mobile line chart: multiple series over xkeys, grade y-axis + LG line.
+function mLineChart(series, lgVals, meta, xkeys, W, H) {
+    const svals = series.flatMap(se => se.vals).filter(v => v != null && !isNaN(v));
+    if (!svals.length) return null;
+    const lgClean = lgVals.filter(v => v != null && !isNaN(v));
+    const lgAvg = lgClean.length ? lgClean.reduce((a, b) => a + b, 0) / lgClean.length : null;
+    let mn = Math.min(...svals), mx = Math.max(...svals);
+    if (mn === mx) { const d = Math.abs(mn) * 0.1 || 1; mn -= d; mx += d; }
+    const sLo = lgAvg != null ? Math.min(mn, lgAvg) : mn, sHi = lgAvg != null ? Math.max(mx, lgAvg) : mx;
+    const pad = (sHi - sLo) * 0.1, dMin = sLo - pad, dMax = sHi + pad;
+    const ptop = 6, pbot = 14, pl = 30, pr = 6, plotH = H - ptop - pbot, plotW = W - pl - pr, n = xkeys.length;
+    const xOf = i => n <= 1 ? pl + plotW / 2 : pl + plotW * i / (n - 1);
+    const yOf = v => ptop + plotH * (1 - (v - dMin) / (dMax - dMin));
+    const lp = vals => vals.map((v, i) => (v != null && !isNaN(v)) ? `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : null).filter(Boolean);
+    const lgPts = lp(lgVals);
+    const lgLine = lgPts.length >= 2 ? `<polyline class="m-sbar-lg" fill="none" points="${lgPts.join(' ')}"/>` : '';
+    const layers = series.map(se => {
+        const pts = lp(se.vals);
+        const line = pts.length >= 2 ? `<polyline fill="none" style="stroke:${se.color};stroke-width:1.6" points="${pts.join(' ')}"/>` : '';
+        const dots = se.vals.map((v, i) => (v != null && !isNaN(v)) ? `<circle style="fill:${se.color}" cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2"/>` : '').join('');
+        return line + dots;
+    }).join('');
+    const xl = xkeys.map((x, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" class="m-sbar-x" style="font-size:7.5px">${x.label}</text>`).join('');
+    const yAxis = mMiniYAxis(meta, lgAvg, mn, mx, yOf, pl, ptop, plotH, 4);
+    return `<svg viewBox="0 0 ${W} ${H}" class="m-sbar-svg">${yAxis}${lgLine}${layers}${xl}</svg>`;
+}
+
+// ── Player card ───────────────────────────────────────────────────────────────
+let mCardId = null, mCardName = '';
+function openMobileCard(id, name) {
+    if (!id) return;
+    mCardId = id; mCardName = name;
+    document.getElementById('m-card-overlay').classList.add('open');
+    if (!mPhistLoaded.has(id)) {
+        document.getElementById('m-card-body').innerHTML = `<div class="m-empty"><div class="m-empty-text">Loading…</div></div>`;
+        fetchMPlayerHist([id, '0']).then(() => { if (mCardId === id) renderMobileCard(); });
+        return;
+    }
+    renderMobileCard();
+}
+function renderMobileCard() {
+    const id = mCardId, name = mCardName, body = document.getElementById('m-card-body');
+    if (!body || !id) return;
+    const store = mPlayerHist[id] || {};
+    let tm = '';
+    for (let y = 2026; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
+    const logo = teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'" alt="">` : '';
+    const legend = M_CARD_SPLITS.map(([sp, lbl, col]) => `<div class="m-card-leg"><span class="m-card-sw" style="background:${col}"></span>${lbl}</div>`).join('') + `<div class="m-card-leg"><span class="m-card-sw dashed"></span>LG</div>`;
+    const xkeys = M_YEARS.map(y => ({ label: `'${String(y).slice(2)}` }));
+    const lgStore = mPlayerHist['0'] || {};
+    const charts = M_LH_STATS.map(sk => {
+        const series = M_CARD_SPLITS.map(([sp, lbl, color]) => ({ color, vals: M_YEARS.map(yr => { const r = store[`${sp}-season-${yr}`]; return (r && _pnm(r.pa) >= M_MIN_PA) ? mHistVal(r, sk) : null; }) }));
+        const lgVals = M_YEARS.map(yr => { const r = lgStore[`no_split-season-${yr}`]; return r ? mHistVal(r, sk) : null; });
+        const svg = mLineChart(series, lgVals, mMeta(sk), xkeys, 180, 96);
+        return `<div class="m-card-stat"><div class="m-card-statlbl">${M_STATLBL[sk]}</div>${svg ? `<div class="m-lh-cell" style="border:none;background:none;padding:0">${svg}</div>` : '<div class="m-lh-cell empty">no data</div>'}</div>`;
+    }).join('');
+    body.innerHTML = `<div class="m-card-title">${logo}${name}${tm ? ` <span style="color:var(--muted);font-size:0.7rem;">${tm}</span>` : ''}</div>` +
+        `<div class="m-card-sub">Season 2021–2026 · handedness</div><div class="m-card-legend">${legend}</div><div class="m-card-grid">${charts}</div>`;
+}
+function closeMobileCard() { document.getElementById('m-card-overlay').classList.remove('open'); mCardId = null; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMobileCard(); });
+
+// Delegated: tap a batter name (with data-pid) anywhere in the lineups panel → card.
+let mCardTapsWired = false;
+function wireMCardTaps() {
+    if (mCardTapsWired) return; mCardTapsWired = true;
+    document.getElementById('mp-lineups').addEventListener('click', e => {
+        const nm = e.target.closest && e.target.closest('[data-pid]');
+        if (nm && nm.getAttribute('data-pid')) openMobileCard(nm.getAttribute('data-pid'), nm.getAttribute('data-pname'));
+    });
+}
+
+// ── Sub-tabs ──────────────────────────────────────────────────────────────────
+function mLineupTab(which) {
+    ['preview', 'trends', 'history'].forEach(t => {
+        document.getElementById('lsub-' + t + '-panel').style.display = t === which ? '' : 'none';
+        document.getElementById('lsub-' + t).classList.toggle('active', t === which);
+    });
+    if (which === 'trends') { initMLGame('mlt-game'); renderMLTrends(); }
+    if (which === 'history') { initMLGame('mlh-game'); renderMLHistory(); }
+    wireMCardTaps();
+}
+function initMLGame(selId) {
+    const sel = document.getElementById(selId); if (!sel) return;
+    const pairs = pairLineupGames(lineupGames || []); const prev = sel.value;
+    sel.innerHTML = pairs.map((p, i) => { const a = p.away?.team || '???', h = p.home?.team || '???', t = p.away?.game_time || p.home?.game_time || ''; return `<option value="${i}">${a} @ ${h}${t ? ' · ' + t : ''}</option>`; }).join('');
+    if (prev && sel.querySelector(`option[value="${prev}"]`)) sel.value = prev;
+}
+
+// ── Lineup Trends (mobile): per stat, both teams stacked, all players' lines ────
+function renderMLTrends() {
+    const c = document.getElementById('m-ltrends-container'); if (!c) return;
+    if (!lineupGames.length) { c.innerHTML = mEmpty('No lineups today'); return; }
+    const split = document.getElementById('mlt-split').value;
+    const mode = document.getElementById('mlt-range').value;
+    const xkeys = mode === 'yearly'
+        ? M_YEARS.map(y => ({ label: `'${String(y).slice(2)}`, key: sp => `${sp}-season-${y}` }))
+        : [['mar_apr','M/A'],['may','May'],['jun','Jun'],['jul','Jul'],['aug','Aug'],['sep_oct','S/O']].map(([b, l]) => ({ label: l, key: sp => `${sp}-${b}-2026` }));
+    const pairs = pairLineupGames(lineupGames);
+    const pair = pairs[parseInt(document.getElementById('mlt-game').value, 10) || 0];
+    if (!pair) { c.innerHTML = mEmpty('Pick a game'); return; }
+    const awayTm = pair.away?.team || '???', homeTm = pair.home?.team || '???';
+    const awayR = mLtBatters(pair.away).map((p, i) => ({ name: p.name, order: p.order, id: mResolveId(p.name, awayTm), color: M_PALETTE[i % 9] }));
+    const homeR = mLtBatters(pair.home).map((p, i) => ({ name: p.name, order: p.order, id: mResolveId(p.name, homeTm), color: M_PALETTE[i % 9] }));
+    const ids = ['0', ...awayR, ...homeR].map(p => typeof p === 'string' ? p : p.id).filter(Boolean);
+    if (ids.some(id => !mPhistLoaded.has(id))) { c.innerHTML = `<div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading history…</div></div>`; fetchMPlayerHist(ids).then(() => { if (document.getElementById('mp-lineups').classList.contains('active')) renderMLTrends(); }); return; }
+    const colors = teamPairColors(awayTm, homeTm);
+    const lgStore = mPlayerHist['0'] || {};
+    const teamChart = (bs, sk) => {
+        const series = bs.map(p => ({ color: p.color, vals: xkeys.map(x => { const r = (mPlayerHist[p.id] || {})[x.key(split)]; return (r && _pnm(r.pa) >= M_MIN_PA) ? mHistVal(r, sk) : null; }) }));
+        const lgVals = xkeys.map(x => { const r = lgStore[x.key(split)]; return r ? mHistVal(r, sk) : null; });
+        const svg = mLineChart(series, lgVals, mMeta(sk), xkeys, 250, 96);
+        return `<div class="m-lh-cell">${svg || '<div style="min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.6rem">no data</div>'}</div>`;
+    };
+    const legend = (bs, tm, col) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'">` : ''}<span style="color:${col}">${tm}</span></div><div style="display:flex;flex-wrap:wrap;gap:3px 10px;margin-bottom:6px;font-family:var(--mono);font-size:0.62rem;">${bs.map(p => `<span data-pid="${p.id || ''}" data-pname="${(p.name || '').replace(/"/g, '')}" style="color:var(--text2);cursor:pointer"><span style="display:inline-block;width:9px;height:3px;border-radius:2px;background:${p.color};vertical-align:middle"></span> ${p.name}</span>`).join('')}</div>`;
+    let html = `<div class="m-sbar-head">${awayTm} @ ${homeTm} · ${mSplitLbl(split)} · ${mode === 'yearly' ? '2021–26' : '2026 months'} · ╌ LG</div>`;
+    html += legend(awayR, awayTm, colors.away) + legend(homeR, homeTm, colors.home);
+    M_LH_STATS.map(sk => statMeta.find(s => s.key === sk)).forEach(s => {
+        html += `<div class="m-mtrend-split">${s.label}</div><div style="display:grid;grid-template-columns:1fr;gap:6px;">${teamChart(awayR, s.key)}${teamChart(homeR, s.key)}</div>`;
+    });
+    c.innerHTML = html;
+    wireMCardTaps();
+}
+
+// ── Lineup History (mobile): one stat, both lineups, per-batter line ────────────
+function onMlhModeChange() {
+    document.getElementById('mlh-month-group').style.display = document.getElementById('mlh-mode').value === 'month' ? '' : 'none';
+    renderMLHistory();
+}
+function renderMLHistory() {
+    const c = document.getElementById('m-lhist-container'); if (!c) return;
+    if (!lineupGames.length) { c.innerHTML = mEmpty('No lineups today'); return; }
+    const stat = document.getElementById('mlh-stat').value;
+    const split = document.getElementById('mlh-hand').value;
+    const mode = document.getElementById('mlh-mode').value;
+    const period = mode === 'season' ? 'season' : document.getElementById('mlh-month').value;
+    const xkeys = M_YEARS.map(y => ({ label: `'${String(y).slice(2)}`, key: sp => `${sp}-${period}-${y}` }));
+    const pairs = pairLineupGames(lineupGames);
+    const pair = pairs[parseInt(document.getElementById('mlh-game').value, 10) || 0];
+    if (!pair) { c.innerHTML = mEmpty('Pick a game'); return; }
+    const awayTm = pair.away?.team || '???', homeTm = pair.home?.team || '???';
+    const awayR = mLtBatters(pair.away).map(p => ({ name: p.name, order: p.order, id: mResolveId(p.name, awayTm) }));
+    const homeR = mLtBatters(pair.home).map(p => ({ name: p.name, order: p.order, id: mResolveId(p.name, homeTm) }));
+    const ids = ['0', ...awayR, ...homeR].map(p => typeof p === 'string' ? p : p.id).filter(Boolean);
+    if (ids.some(id => !mPhistLoaded.has(id))) { c.innerHTML = `<div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading history…</div></div>`; fetchMPlayerHist(ids).then(() => { if (document.getElementById('mp-lineups').classList.contains('active')) renderMLHistory(); }); return; }
+    const colors = teamPairColors(awayTm, homeTm);
+    const lgStore = mPlayerHist['0'] || {};
+    const row = (p, i, color) => {
+        let cell = '<div class="m-lh-cell empty">—</div>';
+        if (p.id) {
+            const series = [{ color, vals: xkeys.map(x => { const r = (mPlayerHist[p.id] || {})[x.key(split)]; return (r && _pnm(r.pa) >= M_MIN_PA) ? mHistVal(r, stat) : null; }) }];
+            const lgVals = xkeys.map(x => { const r = lgStore[x.key(split)]; return r ? mHistVal(r, stat) : null; });
+            const svg = mLineChart(series, lgVals, mMeta(stat), xkeys, 250, 66);
+            cell = `<div class="m-lh-cell">${svg || '<div class="m-lh-cell empty">no data</div>'}</div>`;
+        }
+        return `<div class="m-lh-row"><div class="m-lh-name" ${p.id ? `data-pid="${p.id}" data-pname="${(p.name || '').replace(/"/g, '')}"` : ''}><span class="ord">${p.order || i + 1}.</span> ${p.name}</div>${cell}</div>`;
+    };
+    const section = (bs, tm, side, color) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'">` : ''}<span style="color:${color}">${tm}</span> <span style="font-size:0.58rem;color:var(--muted)">${side}</span></div>` + bs.map((p, i) => row(p, i, color)).join('');
+    const rangeLbl = mode === 'season' ? 'Yearly' : mMonLbl(period) + ' by yr';
+    c.innerHTML = `<div class="m-sbar-head">${M_STATLBL[stat]} · ${awayTm} @ ${homeTm} · ${mSplitLbl(split)} · ${rangeLbl} · ╌ LG</div>` +
+        section(awayR, awayTm, 'Away', colors.away) + section(homeR, homeTm, 'Home', colors.home);
+    wireMCardTaps();
+}
+
 // Lineup Stats #1 — PA-weighted lineup wRC+ (leadoff ~4.6 PA/g → ~3.8 for #9)
 const PA_BY_SLOT = [4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4.0, 3.9, 3.8];
 function mLineupWrc(rec, abbr) {
