@@ -985,39 +985,6 @@
         }
         .pts-pill-icon { font-size: 0.85rem; line-height: 1; }
 
-        /* ── LINEUP STATS GAME PICKER ───────────────────────────── */
-        .lstats-gamesel { position:relative; }
-        .lstats-gamesel-btn {
-            font-family:var(--body); font-size:0.82rem; background:var(--surface);
-            border:1px solid var(--border); border-radius:8px; color:var(--text);
-            padding:7px 30px 7px 12px; cursor:pointer; transition:border-color 0.15s;
-            text-align:left; white-space:nowrap; min-width:140px;
-            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236b7280' d='M5 7L1 2h8z'/%3E%3C/svg%3E");
-            background-repeat:no-repeat; background-position:right 10px center;
-        }
-        .lstats-gamesel-btn:hover, .lstats-gamesel-btn:focus { outline:none; border-color:var(--accent); }
-        .lstats-gamesel-menu {
-            position:absolute; top:calc(100% + 4px); left:0; z-index:60;
-            width:190px; max-height:260px; overflow-y:auto;
-            background:var(--surface); border:1px solid var(--border2);
-            border-radius:8px; box-shadow:0 8px 26px rgba(0,0,0,0.5); padding:4px;
-        }
-        .lstats-gamesel-menu.hidden { display:none; }
-        .lstats-gamesel-actions { display:flex; gap:4px; padding:2px 2px 5px; border-bottom:1px solid var(--border); margin-bottom:4px; }
-        .lstats-gamesel-actions button {
-            flex:1; font-family:var(--mono); font-size:0.62rem; padding:4px 0;
-            border:1px solid var(--border); border-radius:5px; background:transparent;
-            color:var(--text2); cursor:pointer;
-        }
-        .lstats-gamesel-actions button:hover { border-color:var(--accent); color:var(--text); }
-        .lstats-gamesel-opt {
-            display:flex; align-items:center; gap:7px; padding:5px 7px; border-radius:5px;
-            font-family:var(--display); font-size:0.68rem; font-weight:700; letter-spacing:0.04em;
-            color:var(--text2); cursor:pointer; white-space:nowrap;
-        }
-        .lstats-gamesel-opt:hover { background:var(--surface2); color:var(--text); }
-        .lstats-gamesel-opt input { accent-color:var(--accent); cursor:pointer; margin:0; }
-        .lstats-gamesel-opt.on { color:var(--text); }
     </style>
 </head>
 <body>
@@ -1302,11 +1269,7 @@
                 </div>
                 <div class="filter-group">
                     <div class="filter-label">Games</div>
-                    <div class="lstats-gamesel">
-                        <button id="lstats-gamesel-btn" class="lstats-gamesel-btn" onclick="lstatsToggleMenu(event)"
-                                aria-haspopup="true" aria-expanded="false">All games</button>
-                        <div id="lstats-gamesel-menu" class="lstats-gamesel-menu hidden" role="group" aria-label="Games to show"></div>
-                    </div>
+                    <select id="lstats-game" onchange="renderLineupStats()"></select>
                 </div>
                 <span class="lineup-live-badge" style="font-family:var(--mono);font-size:0.68rem;color:var(--text2);cursor:pointer;" onclick="refreshLineups()" title="Click to refresh now">⟳ —</span>
                 <button onclick="refreshLineups()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:0.68rem;border-radius:6px;padding:4px 10px;cursor:pointer;" title="Refresh lineups from Supabase">Refresh</button>
@@ -3497,74 +3460,30 @@ function lsTier(key, val) {
 }
 
 // ── LINEUP STATS GAME PICKER ──────────────────────────────────────────────────
-// null = show every game, which is the state the tab always opens in. Once the
-// user picks, it becomes a Set of "AWAY@HOME" keys — keyed by teams rather than
-// index so a refresh that reorders or adds games keeps the selection intact.
-let lstatsGamePick = null;
+// '' = every game, which is the state the tab always opens in. Otherwise one
+// "AWAY@HOME" key — keyed by teams rather than index so the auto-refresh can
+// reorder or add games without moving the selection onto a different one.
+let lstatsGamePick = '';
 
 function lstatsGameKey(p) { return `${p.away?.team || '???'}@${p.home?.team || '???'}`; }
 
-function lstatsToggleGame(key) {
-    const keys = pairLineupGames(lineupGames).map(lstatsGameKey);
-    if (!lstatsGamePick) lstatsGamePick = new Set(keys);   // first click: start from all
-    if (lstatsGamePick.has(key)) lstatsGamePick.delete(key); else lstatsGamePick.add(key);
-    if (lstatsGamePick.size === keys.length) lstatsGamePick = null;   // back to all
-    const wasOpen = !document.getElementById('lstats-gamesel-menu')?.classList.contains('hidden');
-    renderLineupStats();
-    if (wasOpen) document.getElementById('lstats-gamesel-menu')?.classList.remove('hidden');
-}
-
-function lstatsPickAll(on) {
-    lstatsGamePick = on ? null : new Set();
-    const wasOpen = !document.getElementById('lstats-gamesel-menu')?.classList.contains('hidden');
-    renderLineupStats();
-    if (wasOpen) document.getElementById('lstats-gamesel-menu')?.classList.remove('hidden');
-}
-
-function lstatsToggleMenu(e) {
-    if (e) e.stopPropagation();
-    const menu = document.getElementById('lstats-gamesel-menu');
-    const btn  = document.getElementById('lstats-gamesel-btn');
-    if (!menu) return;
-    const open = menu.classList.toggle('hidden') === false;
-    if (btn) btn.setAttribute('aria-expanded', open);
-}
-
-function lstatsCloseMenu() {
-    const menu = document.getElementById('lstats-gamesel-menu');
-    const btn  = document.getElementById('lstats-gamesel-btn');
-    if (menu) menu.classList.add('hidden');
-    if (btn) btn.setAttribute('aria-expanded', 'false');
-}
-
-// Close on an outside click or Escape, the way the native Split dropdown behaves.
-document.addEventListener('click', e => {
-    if (!e.target.closest('.lstats-gamesel')) lstatsCloseMenu();
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') lstatsCloseMenu(); });
-
 function buildLstatsPicker(pairs) {
-    const menu = document.getElementById('lstats-gamesel-menu');
-    const btn  = document.getElementById('lstats-gamesel-btn');
-    const grp  = btn && btn.closest('.filter-group');
-    if (!menu || !btn) return;
+    const sel = document.getElementById('lstats-game');
+    const grp = sel && sel.closest('.filter-group');
+    if (!sel) return;
     // Nothing to choose between on a one-game slate — hide the whole control.
     if (grp) grp.style.display = pairs.length < 2 ? 'none' : '';
-    if (pairs.length < 2) { menu.innerHTML = ''; lstatsCloseMenu(); return; }
+    if (pairs.length < 2) { sel.innerHTML = ''; lstatsGamePick = ''; return; }
 
-    const shown = p => !lstatsGamePick || lstatsGamePick.has(lstatsGameKey(p));
-    const n = pairs.filter(shown).length;
-    btn.textContent = n === pairs.length ? `All games (${n})` : `${n} of ${pairs.length} games`;
+    // If the picked game dropped off the slate, fall back to showing them all.
+    const keys = pairs.map(lstatsGameKey);
+    if (lstatsGamePick && !keys.includes(lstatsGamePick)) lstatsGamePick = '';
 
-    menu.innerHTML = `<div class="lstats-gamesel-actions">
-            <button type="button" onclick="lstatsPickAll(true)">All</button>
-            <button type="button" onclick="lstatsPickAll(false)">None</button>
-        </div>` + pairs.map(p => {
-        const k = lstatsGameKey(p), on = shown(p);
-        return `<label class="lstats-gamesel-opt${on ? ' on' : ''}">
-            <input type="checkbox" ${on ? 'checked' : ''} onchange="lstatsToggleGame('${k}')">
-            ${k.replace('@', ' @ ')}</label>`;
+    sel.innerHTML = `<option value="">All Games (${pairs.length})</option>` + pairs.map(p => {
+        const k = lstatsGameKey(p), t = p.away?.game_time || p.home?.game_time || '';
+        return `<option value="${k}">${k.replace('@', ' @ ')}${t ? ' · ' + t : ''}</option>`;
     }).join('');
+    sel.value = lstatsGamePick;
 }
 
 function renderLineupStats() {
@@ -3581,12 +3500,9 @@ function renderLineupStats() {
     }
     const split = document.getElementById('lstats-split').value;
     const allPairs = pairLineupGames(lineupGames);
+    lstatsGamePick = document.getElementById('lstats-game')?.value ?? lstatsGamePick;
     buildLstatsPicker(allPairs);
-    const pairs = allPairs.filter(p => !lstatsGamePick || lstatsGamePick.has(lstatsGameKey(p)));
-    if (!pairs.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">No games selected — pick some from the Games menu</div></div>`;
-        return;
-    }
+    const pairs = lstatsGamePick ? allPairs.filter(p => lstatsGameKey(p) === lstatsGamePick) : allPairs;
     let html = '';
 
     pairs.forEach(({ away, home }) => {
@@ -3892,7 +3808,8 @@ function switchTab(n) {
     if (n===4) {
         document.getElementById('lineup-stats-container').innerHTML =
             `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
-        lstatsGamePick = null;   // the tab always opens showing every game
+        lstatsGamePick = '';   // the tab always opens showing every game
+        const lgSel = document.getElementById('lstats-game'); if (lgSel) lgSel.value = '';
         lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData()])
             .then(() => renderLineupStats())
             .catch(err => {
