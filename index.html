@@ -986,23 +986,38 @@
         .pts-pill-icon { font-size: 0.85rem; line-height: 1; }
 
         /* ── LINEUP STATS GAME PICKER ───────────────────────────── */
-        .lstats-picker { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:-0.5rem 0 1.25rem; }
-        .lstats-picker-label { font-family:var(--display); font-size:0.6rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-right:2px; }
-        .lstats-game-chip {
-            font-family:var(--display); font-size:0.66rem; font-weight:800; letter-spacing:0.06em;
-            padding:5px 10px; border-radius:7px; border:1px solid var(--border);
-            background:var(--surface2); color:var(--muted); cursor:pointer;
-            transition:border-color 0.15s, color 0.15s, background 0.15s; white-space:nowrap;
+        .lstats-gamesel { position:relative; }
+        .lstats-gamesel-btn {
+            font-family:var(--body); font-size:0.82rem; background:var(--surface);
+            border:1px solid var(--border); border-radius:8px; color:var(--text);
+            padding:7px 30px 7px 12px; cursor:pointer; transition:border-color 0.15s;
+            text-align:left; white-space:nowrap; min-width:140px;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236b7280' d='M5 7L1 2h8z'/%3E%3C/svg%3E");
+            background-repeat:no-repeat; background-position:right 10px center;
         }
-        .lstats-game-chip:hover { border-color:var(--border2); color:var(--text2); }
-        .lstats-game-chip.active { background:var(--surface3); border-color:var(--border2); color:var(--text); }
-        .lstats-game-chip.active:hover { border-color:var(--accent); }
-        .lstats-picker-action {
-            font-family:var(--mono); font-size:0.64rem; padding:5px 9px; border-radius:6px;
-            border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer;
+        .lstats-gamesel-btn:hover, .lstats-gamesel-btn:focus { outline:none; border-color:var(--accent); }
+        .lstats-gamesel-menu {
+            position:absolute; top:calc(100% + 4px); left:0; z-index:60;
+            width:190px; max-height:260px; overflow-y:auto;
+            background:var(--surface); border:1px solid var(--border2);
+            border-radius:8px; box-shadow:0 8px 26px rgba(0,0,0,0.5); padding:4px;
         }
-        .lstats-picker-action:hover { border-color:var(--accent); color:var(--text); }
-        .lstats-picker-count { font-family:var(--mono); font-size:0.64rem; color:var(--muted); margin-left:2px; }
+        .lstats-gamesel-menu.hidden { display:none; }
+        .lstats-gamesel-actions { display:flex; gap:4px; padding:2px 2px 5px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+        .lstats-gamesel-actions button {
+            flex:1; font-family:var(--mono); font-size:0.62rem; padding:4px 0;
+            border:1px solid var(--border); border-radius:5px; background:transparent;
+            color:var(--text2); cursor:pointer;
+        }
+        .lstats-gamesel-actions button:hover { border-color:var(--accent); color:var(--text); }
+        .lstats-gamesel-opt {
+            display:flex; align-items:center; gap:7px; padding:5px 7px; border-radius:5px;
+            font-family:var(--display); font-size:0.68rem; font-weight:700; letter-spacing:0.04em;
+            color:var(--text2); cursor:pointer; white-space:nowrap;
+        }
+        .lstats-gamesel-opt:hover { background:var(--surface2); color:var(--text); }
+        .lstats-gamesel-opt input { accent-color:var(--accent); cursor:pointer; margin:0; }
+        .lstats-gamesel-opt.on { color:var(--text); }
     </style>
 </head>
 <body>
@@ -1285,11 +1300,18 @@
                         <option value="away">Away</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <div class="filter-label">Games</div>
+                    <div class="lstats-gamesel">
+                        <button id="lstats-gamesel-btn" class="lstats-gamesel-btn" onclick="lstatsToggleMenu(event)"
+                                aria-haspopup="true" aria-expanded="false">All games</button>
+                        <div id="lstats-gamesel-menu" class="lstats-gamesel-menu hidden" role="group" aria-label="Games to show"></div>
+                    </div>
+                </div>
                 <span class="lineup-live-badge" style="font-family:var(--mono);font-size:0.68rem;color:var(--text2);cursor:pointer;" onclick="refreshLineups()" title="Click to refresh now">⟳ —</span>
                 <button onclick="refreshLineups()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:0.68rem;border-radius:6px;padding:4px 10px;cursor:pointer;" title="Refresh lineups from Supabase">Refresh</button>
             </div>
         </div>
-        <div id="lstats-picker" class="lstats-picker"></div>
         <div id="lineup-stats-container">
             <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading lineup stats…</div></div>
         </div>
@@ -3487,31 +3509,62 @@ function lstatsToggleGame(key) {
     if (!lstatsGamePick) lstatsGamePick = new Set(keys);   // first click: start from all
     if (lstatsGamePick.has(key)) lstatsGamePick.delete(key); else lstatsGamePick.add(key);
     if (lstatsGamePick.size === keys.length) lstatsGamePick = null;   // back to all
+    const wasOpen = !document.getElementById('lstats-gamesel-menu')?.classList.contains('hidden');
     renderLineupStats();
+    if (wasOpen) document.getElementById('lstats-gamesel-menu')?.classList.remove('hidden');
 }
 
 function lstatsPickAll(on) {
     lstatsGamePick = on ? null : new Set();
+    const wasOpen = !document.getElementById('lstats-gamesel-menu')?.classList.contains('hidden');
     renderLineupStats();
+    if (wasOpen) document.getElementById('lstats-gamesel-menu')?.classList.remove('hidden');
 }
 
+function lstatsToggleMenu(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('lstats-gamesel-menu');
+    const btn  = document.getElementById('lstats-gamesel-btn');
+    if (!menu) return;
+    const open = menu.classList.toggle('hidden') === false;
+    if (btn) btn.setAttribute('aria-expanded', open);
+}
+
+function lstatsCloseMenu() {
+    const menu = document.getElementById('lstats-gamesel-menu');
+    const btn  = document.getElementById('lstats-gamesel-btn');
+    if (menu) menu.classList.add('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+// Close on an outside click or Escape, the way the native Split dropdown behaves.
+document.addEventListener('click', e => {
+    if (!e.target.closest('.lstats-gamesel')) lstatsCloseMenu();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') lstatsCloseMenu(); });
+
 function buildLstatsPicker(pairs) {
-    const el = document.getElementById('lstats-picker');
-    if (!el) return;
-    if (pairs.length < 2) { el.innerHTML = ''; return; }   // nothing to choose between
+    const menu = document.getElementById('lstats-gamesel-menu');
+    const btn  = document.getElementById('lstats-gamesel-btn');
+    const grp  = btn && btn.closest('.filter-group');
+    if (!menu || !btn) return;
+    // Nothing to choose between on a one-game slate — hide the whole control.
+    if (grp) grp.style.display = pairs.length < 2 ? 'none' : '';
+    if (pairs.length < 2) { menu.innerHTML = ''; lstatsCloseMenu(); return; }
+
     const shown = p => !lstatsGamePick || lstatsGamePick.has(lstatsGameKey(p));
-    const chips = pairs.map(p => {
-        const k = lstatsGameKey(p);
-        return `<button class="lstats-game-chip${shown(p) ? ' active' : ''}"
-            onclick="lstatsToggleGame('${k}')"
-            aria-pressed="${shown(p)}"
-            title="${shown(p) ? 'Hide' : 'Show'} ${k.replace('@', ' @ ')}">${k.replace('@', ' @ ')}</button>`;
-    }).join('');
     const n = pairs.filter(shown).length;
-    el.innerHTML = `<span class="lstats-picker-label">Games</span>${chips}
-        <button class="lstats-picker-action" onclick="lstatsPickAll(true)">All</button>
-        <button class="lstats-picker-action" onclick="lstatsPickAll(false)">None</button>
-        <span class="lstats-picker-count">${n} of ${pairs.length}</span>`;
+    btn.textContent = n === pairs.length ? `All games (${n})` : `${n} of ${pairs.length} games`;
+
+    menu.innerHTML = `<div class="lstats-gamesel-actions">
+            <button type="button" onclick="lstatsPickAll(true)">All</button>
+            <button type="button" onclick="lstatsPickAll(false)">None</button>
+        </div>` + pairs.map(p => {
+        const k = lstatsGameKey(p), on = shown(p);
+        return `<label class="lstats-gamesel-opt${on ? ' on' : ''}">
+            <input type="checkbox" ${on ? 'checked' : ''} onchange="lstatsToggleGame('${k}')">
+            ${k.replace('@', ' @ ')}</label>`;
+    }).join('');
 }
 
 function renderLineupStats() {
@@ -3531,7 +3584,7 @@ function renderLineupStats() {
     buildLstatsPicker(allPairs);
     const pairs = allPairs.filter(p => !lstatsGamePick || lstatsGamePick.has(lstatsGameKey(p)));
     if (!pairs.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">No games selected — pick one above, or click All</div></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">No games selected — pick some from the Games menu</div></div>`;
         return;
     }
     let html = '';
