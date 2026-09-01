@@ -351,6 +351,7 @@ def parse_lineup_card(card):
         {
             "team":          away_abbr,
             "side":          "Away",
+            "opponent":      home_abbr,
             "game_date":     today,
             "game_time":     game_time,
             "lineup_status": away_data["lineup_status"],
@@ -362,6 +363,7 @@ def parse_lineup_card(card):
         {
             "team":          home_abbr,
             "side":          "Home",
+            "opponent":      away_abbr,
             "game_date":     today,
             "game_time":     game_time,
             "lineup_status": home_data["lineup_status"],
@@ -374,6 +376,28 @@ def parse_lineup_card(card):
 
 
 # ── SUPABASE ──────────────────────────────────────────────────────────────
+def upsert_records(rows):
+    """Upsert lineup rows, tolerating a projected_lineups table that predates
+    the `opponent` column (see sql/add_lineup_opponent.sql). Without opponent
+    the site has to guess which teams face each other, so log loudly."""
+    try:
+        supabase.table("projected_lineups") \
+            .upsert(rows, on_conflict="team,game_date") \
+            .execute()
+    except Exception as e:
+        if "opponent" not in str(e):
+            raise
+        logging.error(
+            "projected_lineups has no `opponent` column — writing without it. "
+            "Run sql/add_lineup_opponent.sql; until then the site must infer "
+            "matchups from the MLB schedule."
+        )
+        supabase.table("projected_lineups") \
+            .upsert([{k: v for k, v in r.items() if k != "opponent"} for r in rows],
+                    on_conflict="team,game_date") \
+            .execute()
+
+
 def get_already_confirmed(today):
     try:
         res = supabase.table("projected_lineups") \
@@ -406,9 +430,7 @@ def write_to_supabase(records, today):
         seen        = {(r["team"], r["game_date"]): r for r in confirmed_records}
         conf_deduped = list(seen.values())
 
-        supabase.table("projected_lineups") \
-            .upsert(conf_deduped, on_conflict="team,game_date") \
-            .execute()
+        upsert_records(conf_deduped)
         logging.info(f"Upserted {len(conf_deduped)} confirmed records")
 
         for r in conf_deduped:
@@ -434,9 +456,7 @@ def write_to_supabase(records, today):
         seen         = {(r["team"], r["game_date"]): r for r in proj_to_insert}
         proj_deduped = list(seen.values())
 
-        supabase.table("projected_lineups") \
-            .upsert(proj_deduped, on_conflict="team,game_date") \
-            .execute()
+        upsert_records(proj_deduped)
         logging.info(f"Upserted {len(proj_deduped)} projected records")
 
     # ── Telegram notifications for newly confirmed lineups ─────────────────

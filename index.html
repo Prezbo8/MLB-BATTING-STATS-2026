@@ -3091,10 +3091,39 @@ let lineupGames    = [];   // raw records from projected_lineups
 // ── FETCH LINEUPS FROM SUPABASE ───────────────────────────────────────────────
 let lineupLastFetched = null;   // Date of last successful fetch
 
+// ── GAME SCHEDULE (authoritative matchups) ────────────────────────────────────
+// projected_lineups holds one row per team with no opponent column, so the true
+// away/home pairing has to come from the MLB schedule. Without it, teams that
+// share a start time get zipped together in team-abbr order, which puts the
+// wrong two teams in the same matchup on any slate with simultaneous games.
+const scheduleByDate = {};   // 'YYYY-MM-DD' -> [{ away, home }]
+
+async function fetchScheduleForDates(dates) {
+    await Promise.all(dates.map(async d => {
+        if (!d || scheduleByDate[d]) return;
+        try {
+            const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${d}&hydrate=team`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            scheduleByDate[d] = (json.dates || [])
+                .flatMap(x => x.games || [])
+                .map(g => ({
+                    away: MLB_NAME_TO_ABBR[g.teams?.away?.team?.name] || '',
+                    home: MLB_NAME_TO_ABBR[g.teams?.home?.team?.name] || ''
+                }))
+                .filter(m => m.away && m.home);
+        } catch (err) {
+            // Leave the date unset so pairing falls back and a refresh retries.
+            console.warn('[schedule fetch]', d, err);
+        }
+    }));
+}
+
 async function fetchLineups() {
     const all = await sbFetchAll(SUPABASE_LINEUP_TABLE,
         'select=*&order=game_date.desc,game_time.asc,team.asc');
     lineupGames = all;
+    await fetchScheduleForDates([...new Set(all.map(r => r.game_date))]);
     lineupLastFetched = new Date();
     updateLineupStatusBadge();
 }
@@ -3176,34 +3205,68 @@ function parseGameTime(t) {
 }
 
 function pairLineupGames(rows) {
-    // Step 1: separate away and home rows by date+time
-    const awayBySlot = {}; // date|time -> list of away rows
-    const homeBySlot = {}; // date|time -> list of home rows
-    rows.forEach(r => {
-        const slot = (r.game_date || '') + '|' + (r.game_time || 'TBD');
-        if (r.side === 'Away') {
-            if (!awayBySlot[slot]) awayBySlot[slot] = [];
-            awayBySlot[slot].push(r);
-        } else {
-            if (!homeBySlot[slot]) homeBySlot[slot] = [];
-            homeBySlot[slot].push(r);
-        }
-    });
-
-    // Step 2: pair each away row with its corresponding home row (by index)
     const pairs = [];
-    const allSlots = new Set([...Object.keys(awayBySlot), ...Object.keys(homeBySlot)]);
-    allSlots.forEach(slot => {
-        const awayList = awayBySlot[slot] || [];
-        const homeList = homeBySlot[slot] || [];
-        const count = Math.max(awayList.length, homeList.length);
-        for (let i = 0; i < count; i++) {
-            const [date, time] = slot.split('|');
-            pairs.push({ away: awayList[i] || null, home: homeList[i] || null, date, time });
-        }
+    const byDate = {};
+    rows.forEach(r => {
+        const d = r.game_date || '';
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(r);
     });
 
-    // Step 3: sort by date desc then time asc
+    Object.keys(byDate).forEach(date => {
+        const dayRows = byDate[date];
+        const used    = new Set();
+
+        // Step 1: use the opponent stored at scrape time when it's there —
+        // it comes off the same card as the lineup, so it can't disagree.
+        dayRows.forEach(r => {
+            if (used.has(r) || !r.opponent) return;
+            const other = dayRows.find(o => o !== r && !used.has(o) && o.team === r.opponent);
+            const [a, h] = r.side === 'Home' ? [other, r] : [r, other];
+            used.add(r);
+            if (other) used.add(other);
+            pairs.push({ away: a || null, home: h || null, date,
+                         time: r.game_time || other?.game_time || 'TBD' });
+        });
+
+        // Step 2: for rows with no stored opponent, pair off the real schedule.
+        // A team plays at most one game per date in this table, so matching on
+        // abbr alone is unambiguous, and the schedule (not the scraped row)
+        // decides which side each team is on.
+        (scheduleByDate[date] || []).forEach(({ away, home }) => {
+            const a = dayRows.find(r => !used.has(r) && r.team === away);
+            const h = dayRows.find(r => !used.has(r) && r.team === home);
+            if (!a && !h) return;   // scheduled game with no lineups scraped yet
+            if (a) used.add(a);
+            if (h) used.add(h);
+            pairs.push({ away: a || null, home: h || null, date,
+                         time: a?.game_time || h?.game_time || 'TBD' });
+        });
+
+        // Step 3: last resort — the old date+time zip, for rows neither the
+        // stored opponent nor the schedule covered (fetch failed, unrecognized
+        // abbr, game not on the slate). This one can mispair, so make it loud.
+        const awayBySlot = {}, homeBySlot = {};
+        const leftover = dayRows.filter(r => !used.has(r));
+        if (leftover.length) console.warn('[lineups] guessing matchups for',
+            leftover.map(r => r.team).join(', '), '— no opponent column and not on the', date, 'schedule');
+        leftover.forEach(r => {
+            const slot = r.game_time || 'TBD';
+            const bucket = r.side === 'Away' ? awayBySlot : homeBySlot;
+            if (!bucket[slot]) bucket[slot] = [];
+            bucket[slot].push(r);
+        });
+        new Set([...Object.keys(awayBySlot), ...Object.keys(homeBySlot)]).forEach(time => {
+            const awayList = awayBySlot[time] || [];
+            const homeList = homeBySlot[time] || [];
+            const count = Math.max(awayList.length, homeList.length);
+            for (let i = 0; i < count; i++) {
+                pairs.push({ away: awayList[i] || null, home: homeList[i] || null, date, time });
+            }
+        });
+    });
+
+    // Sort by date desc then time asc
     return pairs.sort((a, b) => {
         if (a.date !== b.date) return b.date > a.date ? 1 : -1;
         return parseGameTime(a.time) - parseGameTime(b.time);
