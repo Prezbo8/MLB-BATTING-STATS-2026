@@ -378,7 +378,7 @@ async function handleMessage(chatId: number, text: string) {
   const raw = text.trim().replace(/^\//, '').split(/\s+/)[0].toUpperCase();
 
   if (!raw || raw === 'START' || raw === 'HELP') {
-    await send(chatId, HELP, { inline_keyboard: [...teamButtons(teams), [{ text: '📋 Lineups', callback_data: 'slate' }]] });
+    await send(chatId, HELP, { inline_keyboard: [...teamButtons(teams), [{ text: 'Lineups 📋', callback_data: 'slate' }]] });
     return;
   }
   if (raw === 'LINEUPS' || raw === 'LINEUP' || raw === 'SLATE') { await sendSlate(chatId); return; }
@@ -386,13 +386,13 @@ async function handleMessage(chatId: number, text: string) {
   const abbr = raw.replace(/[^A-Z0-9]/g, '');
   if (teams.includes(abbr)) {
     const card = buildCard(rows, abbr);
-    if (card) { await send(chatId, card, { inline_keyboard: [[{ text: '📋 Lineup stats', callback_data: `lt:${abbr}` }]] }); return; }
+    if (card) { await send(chatId, card, { inline_keyboard: [[{ text: 'Lineup stats 📋', callback_data: `lt:${abbr}` }]] }); return; }
   }
   // Not an exact team — offer whatever it does match instead of just erroring.
   const hits = matchTeams(text.trim(), teams).slice(0, 10);
   if (hits.length === 1) {
     const card = buildCard(rows, hits[0]);
-    if (card) { await send(chatId, card, { inline_keyboard: [[{ text: '📋 Lineup stats', callback_data: `lt:${hits[0]}` }]] }); return; }
+    if (card) { await send(chatId, card, { inline_keyboard: [[{ text: 'Lineup stats 📋', callback_data: `lt:${hits[0]}` }]] }); return; }
   }
   if (hits.length) {
     await send(chatId, `Did you mean… 🔎`, { inline_keyboard: teamButtons(hits, 3) });
@@ -413,7 +413,7 @@ async function handleCallback(cb: any) {
     const rows = await fetchAll();
     const card = buildCard(rows, tm);
     await send(chatId, card || `No data for ${esc(tm)} ❓`,
-      card ? { inline_keyboard: [[{ text: '📋 Lineup stats', callback_data: `lt:${tm}` }]] } : undefined);
+      card ? { inline_keyboard: [[{ text: 'Lineup stats 📋', callback_data: `lt:${tm}` }]] } : undefined);
     return;
   }
   if (data.startsWith('lt:')) {
