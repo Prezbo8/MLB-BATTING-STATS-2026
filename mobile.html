@@ -108,15 +108,17 @@ body::before {
     padding-bottom: var(--safe-bottom);
 }
 .m-nav-btn {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 3px; background: none; border: none; cursor: pointer;
-    color: var(--muted); transition: color 0.15s; padding: 6px 2px;
+    color: var(--muted); transition: color 0.15s; padding: 6px 1px;
     -webkit-tap-highlight-color: transparent;
 }
 .m-nav-btn.active { color: var(--accent); }
 .m-nav-btn.active .m-nav-icon { transform: scale(1.15); }
 .m-nav-icon { font-size: 1.25rem; line-height: 1; transition: transform 0.15s; }
-.m-nav-label { font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1; }
+/* 8 nav buttons: labels shrink so the longest ('Hot/Cold') still fits a 360px phone */
+.m-nav-label { font-family: var(--display); font-size: 0.46rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
+.m-nav-icon { font-size: 1.15rem; }
 
 /* ── SECTION HEADING ────────────────────────────────────────────────────── */
 .m-section-title {
@@ -285,6 +287,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 }
 .hc-m-tab.active-hot  { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: #ef4444; }
 .hc-m-tab.active-cold { background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.4); color: #60a5fa; }
+.hc-m-tab.active-acc  { background: rgba(230,57,70,0.15); border-color: rgba(230,57,70,0.45); color: var(--accent); }
 
 /* HC card list */
 .hc-m-panel { display: none; }
@@ -628,6 +631,118 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
         </div>
     </div>
 
+    <!-- PANEL: PITCHERS -->
+    <div id="mp-pitchers" class="m-panel">
+        <div class="m-section-title">Pitchers</div>
+        <div class="hc-m-tabs">
+            <button class="hc-m-tab active-acc" id="pit-tab-overall" onclick="pitSubTab('overall')">📊 Overall</button>
+            <button class="hc-m-tab" id="pit-tab-splits" onclick="pitSubTab('splits')">🔀 Splits</button>
+        </div>
+
+        <!-- OVERALL SUB-PANEL -->
+        <div id="pit-overall-panel">
+            <div class="m-filters">
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Season</div>
+                    <select id="pit-season" onchange="renderPitchers()">
+                        <option value="2026">2026</option><option value="2025">2025</option>
+                        <option value="2024">2024</option><option value="2023">2023</option>
+                        <option value="2022">2022</option><option value="2021">2021</option>
+                        <option value="career">Career</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Tier</div>
+                    <select id="pit-tier" onchange="renderPitchers()">
+                        <option value="">All</option><option value="Elite">Elite</option>
+                        <option value="Good">Good</option><option value="Mid">Mid</option>
+                        <option value="Bad">Bad</option><option value="Ass">Ass</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Min IP</div>
+                    <select id="pit-minip" onchange="renderPitchers()">
+                        <option value="0">All</option><option value="10" selected>10+</option>
+                        <option value="30">30+</option><option value="60">60+</option>
+                        <option value="100">100+</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Search</div>
+                    <input class="m-text-input" id="pit-search" type="text" placeholder="Skenes / NYY…" oninput="renderPitchers()" style="width:100px;">
+                </div>
+            </div>
+            <div class="m-stat-picker">
+                <div class="m-filter-group"><div class="m-filter-label">Col 1</div><select id="pit-stat0" onchange="setPitStat(0, this.value)"></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Col 2</div><select id="pit-stat1" onchange="setPitStat(1, this.value)"></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Col 3</div><select id="pit-stat2" onchange="setPitStat(2, this.value)"></select></div>
+            </div>
+            <div class="m-table-wrap m-table-fit">
+                <table class="m-table">
+                    <thead id="pit-head"></thead>
+                    <tbody id="pit-body">
+                        <tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SPLITS SUB-PANEL -->
+        <div id="pit-splits-panel" style="display:none;">
+            <div class="m-filters">
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Period</div>
+                    <select id="psp-period" onchange="renderPitcherSplits()">
+                        <option value="2026">2026</option><option value="2025">2025</option>
+                        <option value="career">Career</option><option value="2024">2024</option>
+                        <option value="2023">2023</option><option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Split</div>
+                    <select id="psp-split" onchange="renderPitcherSplits()">
+                        <option value="vsRHH">vs RHH</option><option value="vsLHH">vs LHH</option>
+                        <option value="Home">Home</option><option value="Away">Away</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Tier</div>
+                    <select id="psp-tier" onchange="renderPitcherSplits()">
+                        <option value="">All</option><option value="Elite">Elite</option>
+                        <option value="Good">Good</option><option value="Mid">Mid</option>
+                        <option value="Bad">Bad</option><option value="Ass">Ass</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Min IP</div>
+                    <select id="psp-minip" onchange="renderPitcherSplits()">
+                        <option value="0">All</option><option value="10" selected>10+</option>
+                        <option value="20">20+</option><option value="30">30+</option>
+                        <option value="50">50+</option>
+                    </select>
+                </div>
+                <div class="m-filter-group">
+                    <div class="m-filter-label">Search</div>
+                    <input class="m-text-input" id="psp-search" type="text" placeholder="Skenes / NYY…" oninput="renderPitcherSplits()" style="width:100px;">
+                </div>
+            </div>
+            <div class="m-stat-picker">
+                <div class="m-filter-group"><div class="m-filter-label">Col 1</div><select id="psp-stat0" onchange="setPspStat(0, this.value)"></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Col 2</div><select id="psp-stat1" onchange="setPspStat(1, this.value)"></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Col 3</div><select id="psp-stat2" onchange="setPspStat(2, this.value)"></select></div>
+            </div>
+            <div class="m-table-wrap m-table-fit">
+                <table class="m-table">
+                    <thead id="psp-head"></thead>
+                    <tbody id="psp-body">
+                        <tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">⏳</div><div class="m-empty-text">Loading…</div></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- PANEL: COMPARE -->
     <div id="mp-compare" class="m-panel">
         <div class="m-section-title">Compare</div>
@@ -859,6 +974,10 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
         <span class="m-nav-icon">🧑</span>
         <span class="m-nav-label">Players</span>
     </button>
+    <button class="m-nav-btn" id="nav-pitchers" onclick="switchPanel('pitchers')">
+        <span class="m-nav-icon">⚾</span>
+        <span class="m-nav-label">Pitch</span>
+    </button>
     <button class="m-nav-btn" id="nav-compare" onclick="switchPanel('compare')">
         <span class="m-nav-icon">⚔️</span>
         <span class="m-nav-label">Compare</span>
@@ -1044,6 +1163,7 @@ function switchPanel(id) {
     document.getElementById('nav-' + id).classList.add('active');
 
     if (id === 'players' && !playerLoaded) ensurePlayers().then(() => loadPlayers());
+    if (id === 'pitchers') ensurePitchers();
     if (id === 'compare') { initComparePickers(); renderMobileCompare(); }
     if (id === 'hotcold') renderHCTeams();
     if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers()]).then(() => renderLineupsMobile());
@@ -2363,6 +2483,276 @@ async function loadMobileReport() {
         ${spRow}
         <div class="m-report-body">${statRows()}</div>
     </div>`;
+}
+
+// ── PITCHERS ─────────────────────────────────────────────────────────────────
+// Two views over the same tab: `pitcher_scores` (overall, pct stats stored 0-1)
+// and `pitcher_split_scores` (per-split, pct stats stored 0-100).
+const PIT_TABLE  = 'pitcher_scores';
+const PSPL_TABLE = 'pitcher_split_scores';
+const PIT_SELECT  = '&select=name,team,season,tier,season_score,composite_score,ip,era,fip,xfip,xera,siera,war,whip,'
+                  + 'k_pct,bb_pct,k_bb_pct,swstr_pct,csw_pct,gb_pct,hardhit_pct,barrel_pct,stuff_plus,pitching_plus'
+                  + '&order=name.asc,season.asc';
+const PSPL_SELECT = '&select=name,team,period,split,split_tier,season_score,ip,tbf,era,fip,xfip,whip,babip,lob_pct,'
+                  + 'k_pct,bb_pct,k_bb_pct,k_9,bb_9,hr_9,woba,avg,obp,slg,gb_pct,hard_pct,soft_pct'
+                  + '&order=name.asc,period.asc,split.asc';
+
+let pitData = [], pspData = [], pitLoaded = false, pitPromise = null;
+
+const PIT_STAT_OPTIONS = [
+    {key:'season_score',   label:'Score'}, {key:'composite_score',label:'Comp'},
+    {key:'era',   label:'ERA'},  {key:'fip',   label:'FIP'},   {key:'xfip',  label:'xFIP'},
+    {key:'siera', label:'SIERA'},{key:'xera',  label:'xERA'},  {key:'whip',  label:'WHIP'},
+    {key:'k_pct', label:'K%'},   {key:'bb_pct',label:'BB%'},   {key:'k_bb_pct',label:'K-BB%'},
+    {key:'swstr_pct',label:'SwStr'},{key:'csw_pct',label:'CSW%'},{key:'gb_pct',label:'GB%'},
+    {key:'hardhit_pct',label:'HH%'},{key:'barrel_pct',label:'Brl%'},
+    {key:'stuff_plus',label:'Stf+'},{key:'pitching_plus',label:'Ptch+'},
+    {key:'ip',    label:'IP'},   {key:'war',   label:'WAR'},
+];
+const PSPL_STAT_OPTIONS = [
+    {key:'season_score',label:'Score'},
+    {key:'era',   label:'ERA'},  {key:'fip',   label:'FIP'},   {key:'xfip',  label:'xFIP'},
+    {key:'whip',  label:'WHIP'}, {key:'k_pct', label:'K%'},    {key:'bb_pct',label:'BB%'},
+    {key:'k_bb_pct',label:'K-BB%'},{key:'k_9', label:'K/9'},   {key:'bb_9',  label:'BB/9'},
+    {key:'hr_9',  label:'HR/9'}, {key:'woba',  label:'wOBA'},  {key:'avg',   label:'AVG'},
+    {key:'obp',   label:'OBP'},  {key:'slg',   label:'SLG'},   {key:'babip', label:'BABIP'},
+    {key:'gb_pct',label:'GB%'},  {key:'hard_pct',label:'Hard%'},{key:'soft_pct',label:'Soft%'},
+    {key:'lob_pct',label:'LOB%'},{key:'ip',    label:'IP'},    {key:'tbf',   label:'TBF'},
+];
+// Columns where a smaller number is the better number — they sort ascending first.
+const PIT_LOWER_BETTER = ['era','fip','xfip','xera','siera','whip','bb_pct','bb_9','hr_9',
+                          'hardhit_pct','barrel_pct','hard_pct','woba','avg','obp','slg','babip'];
+
+let pitStats = ['season_score','era','k_pct'], pitSortKey = 'season_score', pitSortDir = 'desc';
+let pspStats = ['season_score','era','k_pct'], pspSortKey = 'season_score', pspSortDir = 'desc';
+
+function ensurePitchers() {
+    if (pitLoaded) { renderPitchers(); renderPitcherSplits(); return Promise.resolve(); }
+    if (pitPromise) return pitPromise;
+    pitPromise = Promise.all([
+        sbFetchSel(PIT_TABLE,  PIT_SELECT),
+        sbFetchSel(PSPL_TABLE, PSPL_SELECT),
+    ]).then(([a, b]) => {
+        pitData = a; pspData = b; pitLoaded = true;
+        initPitStatPickers();
+        renderPitchers(); renderPitcherSplits();
+    }).catch(err => {
+        pitPromise = null;   // let the next tab tap retry instead of caching the failure
+        document.getElementById('pit-body').innerHTML =
+            `<tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">⚠️</div><div class="m-empty-text">${err.message}</div></div></td></tr>`;
+    });
+    return pitPromise;
+}
+
+// sbFetch() hardcodes select=*; these two tables are wide enough to be worth projecting.
+async function sbFetchSel(table, params) {
+    let all = [], pg = 0, PAGE = 1000;
+    while (true) {
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/${table}?${params}&limit=${PAGE}&offset=${pg * PAGE}`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'count=none' } }
+        );
+        if (!res.ok) throw new Error(`${table} HTTP ${res.status}`);
+        const page = await res.json();
+        all = all.concat(page);
+        if (page.length < PAGE) break;
+        pg++;
+    }
+    return all;
+}
+
+function pitSubTab(which) {
+    const ov = which === 'overall';
+    document.getElementById('pit-overall-panel').style.display = ov ? '' : 'none';
+    document.getElementById('pit-splits-panel').style.display  = ov ? 'none' : '';
+    document.getElementById('pit-tab-overall').className = 'hc-m-tab' + (ov ? ' active-acc' : '');
+    document.getElementById('pit-tab-splits').className  = 'hc-m-tab' + (ov ? '' : ' active-acc');
+}
+
+// Score → tier color class (same 90/75/50/25 cuts as the desktop tab)
+function pitScoreCls(v) {
+    if (v == null || isNaN(+v)) return '';
+    const n = +v;
+    return n >= 90 ? 't-elite' : n >= 75 ? 't-good' : n >= 50 ? 't-mid' : n >= 25 ? 't-bad' : 't-ass';
+}
+
+// Overall-table formatting: pct stats are stored on the 0-1 scale here.
+function pitFmt(col, v) {
+    if (v == null || v === '' || isNaN(+v)) return '—';
+    const n = +v;
+    if (['k_pct','bb_pct','k_bb_pct','swstr_pct','csw_pct','gb_pct','hardhit_pct','barrel_pct'].includes(col))
+        return (n > 1 ? n : n * 100).toFixed(1) + '%';
+    if (['era','fip','xfip','xera','siera','whip'].includes(col)) return n.toFixed(2);
+    if (['ip','war','season_score','composite_score'].includes(col)) return n.toFixed(1);
+    if (['stuff_plus','pitching_plus'].includes(col)) return Math.round(n).toString();
+    return n.toFixed(2);
+}
+
+// Splits-table formatting: pct stats are stored on the 0-100 scale here.
+function pspFmt(col, v) {
+    if (v == null || v === '' || isNaN(+v)) return '—';
+    const n = +v;
+    if (['tbf'].includes(col)) return Math.round(n).toString();
+    if (['ip','k_9','bb_9','hr_9','season_score'].includes(col)) return n.toFixed(1);
+    if (['era','fip','xfip','whip'].includes(col)) return n.toFixed(2);
+    if (['avg','obp','slg','woba','babip'].includes(col)) return n.toFixed(3).replace(/^(-?)0\./,'$1.');
+    if (col.endsWith('_pct')) return n.toFixed(1) + '%';
+    return n.toFixed(2);
+}
+
+// Overall color grading — thresholds on the 0-1 pct scale, normalised per value.
+const PIT_RANGES = {
+    era:{hi:false,lo:6.0,hi_:1.5}, fip:{hi:false,lo:6.0,hi_:1.5}, xfip:{hi:false,lo:6.0,hi_:1.5},
+    xera:{hi:false,lo:6.0,hi_:1.5}, siera:{hi:false,lo:6.0,hi_:1.5}, whip:{hi:false,lo:1.60,hi_:0.80},
+    k_pct:{hi:true,lo:0.10,hi_:0.32}, bb_pct:{hi:false,lo:0.15,hi_:0.04}, k_bb_pct:{hi:true,lo:-0.05,hi_:0.26},
+    swstr_pct:{hi:true,lo:0.03,hi_:0.17}, csw_pct:{hi:true,lo:0.20,hi_:0.36}, gb_pct:{hi:true,lo:0.30,hi_:0.55},
+    hardhit_pct:{hi:false,lo:0.50,hi_:0.24}, barrel_pct:{hi:false,lo:0.15,hi_:0.02},
+    stuff_plus:{hi:true,lo:70,hi_:140}, pitching_plus:{hi:true,lo:70,hi_:140},
+    war:{hi:true,lo:-1,hi_:6}, ip:{hi:true,lo:0,hi_:220},
+};
+function pitStatCls(col, val) {
+    if (col === 'season_score' || col === 'composite_score') return pitScoreCls(val);
+    const m = PIT_RANGES[col];
+    if (!m || val == null || isNaN(+val)) return '';
+    const isPct = col.endsWith('_pct');
+    let v = +val;
+    if (isPct && v > 0 && v <= 1) v *= 100;
+    const lo  = isPct && Math.abs(m.lo)  <= 1 ? m.lo  * 100 : m.lo;
+    const hi_ = isPct && Math.abs(m.hi_) <= 1 ? m.hi_ * 100 : m.hi_;
+    const p = Math.max(0, Math.min(1, m.hi ? (v - lo) / (hi_ - lo) : (lo - v) / (lo - hi_)));
+    return p >= 0.80 ? 't-elite' : p >= 0.60 ? 't-good' : p >= 0.40 ? 't-mid' : p >= 0.20 ? 't-bad' : 't-ass';
+}
+
+// Splits color grading — fixed cut points on the stored (0-100 pct) scale.
+const PSPL_LO = {
+    era:[2.5,3.2,4.0,4.8], fip:[2.8,3.3,4.0,4.7], xfip:[2.8,3.3,4.0,4.7], whip:[0.90,1.10,1.30,1.60],
+    woba:[0.260,0.290,0.320,0.350], babip:[0.240,0.270,0.300,0.330], avg:[0.195,0.225,0.255,0.280],
+    obp:[0.265,0.295,0.325,0.355], slg:[0.310,0.360,0.410,0.460], bb_pct:[4,6,8,10],
+    hard_pct:[24,29,35,41], bb_9:[1.5,2.5,3.5,4.5], hr_9:[0.5,0.9,1.3,1.7],
+};
+const PSPL_HI = {
+    k_pct:[29,24,19,15], k_bb_pct:[22,17,12,7], gb_pct:[52,46,40,34], lob_pct:[80,75,70,65],
+    k_9:[11,9,7.5,6], soft_pct:[22,18,14,10],
+};
+function pspStatCls(col, val) {
+    if (col === 'season_score') return pitScoreCls(val);
+    if (val == null || isNaN(+val)) return '';
+    const n = +val;
+    const lo = PSPL_LO[col], hi = PSPL_HI[col];
+    if (lo) return n <= lo[0] ? 't-elite' : n <= lo[1] ? 't-good' : n <= lo[2] ? 't-mid' : n <= lo[3] ? 't-bad' : 't-ass';
+    if (hi) return n >= hi[0] ? 't-elite' : n >= hi[1] ? 't-good' : n >= hi[2] ? 't-mid' : n >= hi[3] ? 't-bad' : 't-ass';
+    return '';
+}
+
+// Shared table painter for both pitcher views.
+function pitPaint(cfg) {
+    const head = document.getElementById(cfg.headId), body = document.getElementById(cfg.bodyId);
+    if (!cfg.rows.length) {
+        body.innerHTML = `<tr><td colspan="5"><div class="m-empty"><div class="m-empty-icon">🔍</div><div class="m-empty-text">${pitLoaded?'No pitchers match':'Loading…'}</div></div></td></tr>`;
+        head.innerHTML = '';
+        return;
+    }
+    head.innerHTML = `<tr>
+        <th class="left-align" style="width:34px;">#</th>
+        <th class="left-align" style="width:40%;">Pitcher</th>
+        ${cfg.stats.map(k => {
+            const o = cfg.options.find(x => x.key === k) || { label: k };
+            const active = cfg.sortKey === k;
+            return `<th class="${active?'sort-active':''}" onclick="${cfg.sortFn}('${k}')">${o.label}${active ? (cfg.sortDir==='desc'?' ↓':' ↑') : ''}</th>`;
+        }).join('')}
+    </tr>`;
+    body.innerHTML = cfg.rows.map((row, i) => {
+        const rank = i + 1;
+        const rankHtml = rank <= 3
+            ? `<span class="rank-badge rank-${rank}">${rank}</span>`
+            : `<span style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);">${rank}</span>`;
+        const cells = cfg.stats.map(k =>
+            `<td class="num ${cfg.clsFn(k, row[k])}">${cfg.fmtFn(k, row[k])}</td>`).join('');
+        return `<tr class="anim" style="animation-delay:${Math.min(i*8,200)}ms">
+            <td class="rank-cell">${rankHtml}</td>
+            <td><div class="m-pl-cell">${logoImg(row.team,18)}<span class="m-pl-name">${row.name}</span></div></td>
+            ${cells}
+        </tr>`;
+    }).join('');
+}
+
+function pitSortRows(rows, key, dir) {
+    return [...rows].sort((a, b) => {
+        const av = a[key], bv = b[key];
+        const an = (av == null || isNaN(+av)) ? null : +av;
+        const bn = (bv == null || isNaN(+bv)) ? null : +bv;
+        if (an == null && bn == null) return 0;
+        if (an == null) return 1;            // nulls always sink
+        if (bn == null) return -1;
+        return dir === 'desc' ? bn - an : an - bn;
+    });
+}
+
+function renderPitchers() {
+    const season = document.getElementById('pit-season').value;
+    const tier   = document.getElementById('pit-tier').value;
+    const minIp  = parseFloat(document.getElementById('pit-minip').value) || 0;
+    const q      = (document.getElementById('pit-search').value || '').trim().toLowerCase();
+    const rows = pitData.filter(r =>
+        String(r.season) === season &&
+        (!tier || r.tier === tier) &&
+        (+r.ip || 0) >= minIp &&
+        (!q || (r.name||'').toLowerCase().includes(q) || (r.team||'').toLowerCase().includes(q))
+    );
+    pitPaint({
+        headId:'pit-head', bodyId:'pit-body', rows: pitSortRows(rows, pitSortKey, pitSortDir),
+        stats: pitStats, options: PIT_STAT_OPTIONS, sortKey: pitSortKey, sortDir: pitSortDir,
+        sortFn:'sortPitchers', fmtFn: pitFmt, clsFn: pitStatCls,
+    });
+}
+
+function renderPitcherSplits() {
+    const period = document.getElementById('psp-period').value;
+    const split  = document.getElementById('psp-split').value;
+    const tier   = document.getElementById('psp-tier').value;
+    const minIp  = parseFloat(document.getElementById('psp-minip').value) || 0;
+    const q      = (document.getElementById('psp-search').value || '').trim().toLowerCase();
+    const rows = pspData.filter(r =>
+        String(r.period) === period && r.split === split &&
+        (!tier || r.split_tier === tier) &&
+        (+r.ip || 0) >= minIp &&
+        (!q || (r.name||'').toLowerCase().includes(q) || (r.team||'').toLowerCase().includes(q))
+    );
+    pitPaint({
+        headId:'psp-head', bodyId:'psp-body', rows: pitSortRows(rows, pspSortKey, pspSortDir),
+        stats: pspStats, options: PSPL_STAT_OPTIONS, sortKey: pspSortKey, sortDir: pspSortDir,
+        sortFn:'sortPitcherSplits', fmtFn: pspFmt, clsFn: pspStatCls,
+    });
+}
+
+function sortPitchers(key) {
+    if (pitSortKey === key) pitSortDir = pitSortDir === 'desc' ? 'asc' : 'desc';
+    else { pitSortKey = key; pitSortDir = PIT_LOWER_BETTER.includes(key) ? 'asc' : 'desc'; }
+    renderPitchers();
+}
+function sortPitcherSplits(key) {
+    if (pspSortKey === key) pspSortDir = pspSortDir === 'desc' ? 'asc' : 'desc';
+    else { pspSortKey = key; pspSortDir = PIT_LOWER_BETTER.includes(key) ? 'asc' : 'desc'; }
+    renderPitcherSplits();
+}
+
+function initPitStatPickers() {
+    for (let i = 0; i < 3; i++) {
+        const a = document.getElementById('pit-stat' + i);
+        if (a) { a.innerHTML = PIT_STAT_OPTIONS.map(o => `<option value="${o.key}">${o.label}</option>`).join(''); a.value = pitStats[i]; }
+        const b = document.getElementById('psp-stat' + i);
+        if (b) { b.innerHTML = PSPL_STAT_OPTIONS.map(o => `<option value="${o.key}">${o.label}</option>`).join(''); b.value = pspStats[i]; }
+    }
+}
+function setPitStat(i, key) {
+    pitStats[i] = key;
+    if (!pitStats.includes(pitSortKey)) { pitSortKey = pitStats[0]; pitSortDir = PIT_LOWER_BETTER.includes(pitSortKey) ? 'asc' : 'desc'; }
+    renderPitchers();
+}
+function setPspStat(i, key) {
+    pspStats[i] = key;
+    if (!pspStats.includes(pspSortKey)) { pspSortKey = pspStats[0]; pspSortDir = PIT_LOWER_BETTER.includes(pspSortKey) ? 'asc' : 'desc'; }
+    renderPitcherSplits();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
