@@ -12,3 +12,6 @@ node_modules/
 report_pdfs/
 package.json
 package-lock.json
+
+# supabase CLI scratch
+supabase/.temp/
