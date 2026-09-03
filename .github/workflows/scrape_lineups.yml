@@ -2,9 +2,12 @@ name: Scrape Lineups (RotoWire)
 
 on:
   schedule:
-    # Every 30 min, 15:00–02:00 UTC (covers 11 AM–9 PM ET year-round)
-    - cron: '0,30 15-23 * * *'
-    - cron: '0,30 0,1 * * *'
+    # Hourly, 15:00–02:00 UTC (covers 11 AM–9 PM ET year-round).
+    # Was every 30 min (22/day) — GitHub throttles high-frequency schedules on
+    # shared runners and was only delivering 2-5 of them. Offset to :17 because
+    # the top of the hour is peak queue load and gets delayed the most.
+    - cron: '17 15-23 * * *'
+    - cron: '17 0,1 * * *'
   workflow_dispatch:
 
 jobs:
