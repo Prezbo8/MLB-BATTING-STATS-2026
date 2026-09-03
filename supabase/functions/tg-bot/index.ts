@@ -190,6 +190,140 @@ const teamButtons = (abbrs: string[], perRow = 5) => {
   return rows;
 };
 
+
+// ── Pitcher stats ───────────────────────────────────────────────────────────
+// pitcher_scores stores pct stats on the 0-1 scale, pitcher_split_scores on
+// 0-100. Thresholds below are all written on the DISPLAY scale (percent), and
+// pNum() normalises whichever scale a row arrived on.
+const P_OVERALL = [
+  ['Score',  'season_score',  true,  [90, 75, 50, 25],       1, ''],
+  ['ERA',    'era',           false, [2.75, 3.40, 4.10, 4.80], 2, ''],
+  ['FIP',    'fip',           false, [2.90, 3.40, 4.00, 4.60], 2, ''],
+  ['SIERA',  'siera',         false, [3.10, 3.60, 4.10, 4.60], 2, ''],
+  ['xERA',   'xera',          false, [3.00, 3.50, 4.10, 4.70], 2, ''],
+  ['WHIP',   'whip',          false, [1.00, 1.15, 1.30, 1.45], 2, ''],
+  ['K%',     'k_pct',         true,  [28, 24, 20, 17],        1, '%'],
+  ['BB%',    'bb_pct',        false, [5.5, 7.0, 8.5, 10.0],   1, '%'],
+  ['K-BB%',  'k_bb_pct',      true,  [21, 16, 12, 8],         1, '%'],
+  ['SwStr%', 'swstr_pct',     true,  [13, 11.5, 10, 8.5],     1, '%'],
+  ['CSW%',   'csw_pct',       true,  [31, 29, 27, 25],        1, '%'],
+  ['Stuff+', 'stuff_plus',    true,  [115, 105, 97, 90],      0, ''],
+  ['Ptch+',  'pitching_plus', true,  [105, 101, 98, 95],      0, ''],
+  ['IP',     'ip',            true,  [180, 140, 90, 40],      1, ''],
+  ['WAR',    'war',           true,  [4, 2.5, 1.2, 0.3],      1, ''],
+] as const;
+const P_SPLIT = [
+  ['Score', 'season_score', true,  [90, 75, 50, 25],            1, ''],
+  ['ERA',   'era',          false, [2.75, 3.40, 4.10, 4.80],    2, ''],
+  ['FIP',   'fip',          false, [2.90, 3.40, 4.00, 4.60],    2, ''],
+  ['WHIP',  'whip',         false, [1.00, 1.15, 1.30, 1.45],    2, ''],
+  ['K%',    'k_pct',        true,  [28, 24, 20, 17],            1, '%'],
+  ['BB%',   'bb_pct',       false, [5.5, 7.0, 8.5, 10.0],       1, '%'],
+  ['wOBA',  'woba',         false, [0.280, 0.300, 0.320, 0.345], 3, ''],
+  ['AVG',   'avg',          false, [0.215, 0.240, 0.260, 0.280], 3, ''],
+] as const;
+
+// Percent columns land as 0-1 in pitcher_scores and 0-100 in the splits table.
+const P_PCT = new Set(['k_pct', 'bb_pct', 'k_bb_pct', 'swstr_pct', 'csw_pct']);
+function pNum(col: string, v: unknown): number | null {
+  if (v == null || v === '' || isNaN(Number(v))) return null;
+  const n = Number(v);
+  return P_PCT.has(col) && Math.abs(n) <= 1 ? n * 100 : n;
+}
+const pFmt = (n: number, dp: number, suf: string) =>
+  (dp === 3 ? n.toFixed(3).replace(/^(-?)0\./, '$1.') : n.toFixed(dp)) + suf;
+
+// Render one labelled grid: rows are stats, columns are the given records.
+function pGrid(defs: readonly any[], cols: { label: string; row: any }[]): string[] {
+  const body = defs.map(([label, col, hb, thr, dp, suf]) => ({
+    label,
+    cells: cols.map(c => {
+      const v = pNum(col, c.row?.[col]);
+      return v == null ? { text: '—', tier: '' } : { text: pFmt(v, dp, suf), tier: tier(thr, hb, v) };
+    }),
+  }));
+  const lw = Math.max(...body.map(r => r.label.length));
+  const cw = cols.map((c, i) => Math.max(c.label.length, ...body.map(r => r.cells[i].text.length)));
+  const out = [' '.repeat(lw) + ' ' + cols.map((c, i) => c.label.padStart(cw[i]) + '⬜').join('')];
+  body.forEach(r => out.push(
+    r.label.padEnd(lw) + ' ' + r.cells.map((c, i) => c.text.padStart(cw[i]) + (SQ[c.tier] || '⬜')).join('')));
+  return out;
+}
+
+const fetchPitcherRows = (name: string) =>
+  sbGet(`pitcher_scores?select=*&name=eq.${encodeURIComponent(name)}`);
+const fetchPitcherSplits = (name: string) =>
+  sbGet(`pitcher_split_scores?select=*&name=eq.${encodeURIComponent(name)}&period=eq.2026`);
+// Every 2026 starter in one small request — used to match lineup SPs by name.
+const fetchPitchers2026 = () =>
+  sbGetAll('pitcher_scores', 'select=name,team,tier,season_score,era,fip,whip,k_pct,bb_pct,stuff_plus,ip&season=eq.2026&order=name.asc');
+
+// Name index for the "type a pitcher's name" lookup.
+async function pitcherIndex(): Promise<any[]> {
+  return await sbGet('pitcher_scores?select=name,team&season=eq.2026&order=name.asc');
+}
+// Ranked: exact full name, last-name prefix, then any substring. Short queries
+// are ignored so a 2-letter team-ish string never lands on a pitcher.
+function matchPitchers(q: string, idx: any[]): any[] {
+  const s = deacc(q.trim()).toLowerCase();
+  if (s.length < 3) return [];
+  const bare = s.replace(/[^a-z]/g, '');
+  const seen = new Set<string>(), out: any[] = [];
+  const take = (p: any) => { if (!seen.has(p.name)) { seen.add(p.name); out.push(p); } };
+  const nm = (p: any) => deacc(p.name).toLowerCase();
+  idx.forEach(p => { if (nm(p) === s) take(p); });
+  idx.forEach(p => { if (bare && normLast(p.name).startsWith(bare)) take(p); });
+  idx.forEach(p => { if (nm(p).includes(s)) take(p); });
+  return out;
+}
+
+async function buildPitcherCard(name: string): Promise<string | null> {
+  const [rows, splits] = await Promise.all([fetchPitcherRows(name), fetchPitcherSplits(name)]);
+  if (!rows.length) return null;
+  const byS: Record<string, any> = {};
+  for (const r of rows) byS[String(r.season)] = r;
+  const cur = byS['2026'] || rows[0];
+
+  const out = [`${name} · ${cur.team || '—'}`];
+  out.push(...pGrid(P_OVERALL, [
+    { label: '2026', row: byS['2026'] },
+    { label: '2025', row: byS['2025'] },
+    { label: 'CAR', row: byS['career'] },
+  ]));
+  const bySp: Record<string, any> = {};
+  for (const r of splits) bySp[r.split] = r;
+  if (Object.keys(bySp).length) {
+    const WIDTH = 26;
+    const underline = (t: string) => [...t].map(c => c + '̲').join('');
+    out.push(' '.repeat(Math.max(0, Math.floor((WIDTH - 11) / 2))) + underline('2026 SPLITS'));
+    out.push(...pGrid(P_SPLIT, [
+      { label: 'vRHH', row: bySp['vsRHH'] },
+      { label: 'vLHH', row: bySp['vsLHH'] },
+      { label: 'HOME', row: bySp['Home'] },
+      { label: 'AWAY', row: bySp['Away'] },
+    ]));
+  }
+  return `<b>${esc(name)}</b> · ${esc(cur.team || '')} · ${esc(cur.tier || '')}\n`
+    + `<i>great 🟩 · avg 🟨 · below 🟧 · poor 🟥</i>\n<pre>${esc(out.join('\n'))}</pre>`;
+}
+
+// Two compact lines of starter stats for the lineup card.
+function spStatLines(pitcherName: string, team: string, pitchers: any[]): string[] {
+  const clean = String(pitcherName || '').replace(/\s*\([LRS]\)\s*$/, '').trim();
+  if (!clean) return [];
+  const p = findPlayer(pitchers.map(x => ({ ...x, tm: x.team })), clean, team);
+  if (!p) return [];
+  const cell = (label: string, col: string, hb: boolean, thr: number[], dp: number, suf: string) => {
+    const v = pNum(col, p[col]);
+    return v == null ? '' : `${label} ${pFmt(v, dp, suf)}${SQ[tier(thr, hb, v)]}`;
+  };
+  const l1 = [cell('ERA', 'era', false, [2.75, 3.40, 4.10, 4.80], 2, ''),
+              cell('K%', 'k_pct', true, [28, 24, 20, 17], 1, '%')].filter(Boolean).join(' ');
+  const l2 = [cell('FIP', 'fip', false, [2.90, 3.40, 4.00, 4.60], 2, ''),
+              cell('Stf+', 'stuff_plus', true, [115, 105, 97, 90], 0, '')].filter(Boolean).join(' ');
+  return [l1, l2].filter(Boolean).map(t => '  ' + t);
+}
+
 // ── Lineup stats ────────────────────────────────────────────────────────────
 // Leadoff sees ~4.6 PA/g down to ~3.8 for the 9-hole; only the relative
 // weights matter for a weighted mean.
@@ -224,9 +358,10 @@ function initialsForLineup(names: string[]): string[] {
   return out;
 }
 
+const deacc = (s: string) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const normLast = (name: string) => {
   const p = words(name);
-  return (p[p.length - 1] || '').toLowerCase().replace(/[^a-z]/g, '');
+  return deacc(p[p.length - 1] || '').toLowerCase().replace(/[^a-z]/g, '');
 };
 const firstInit = (name: string) => (words(name)[0] || '')[0]?.toLowerCase() || '';
 
@@ -273,14 +408,14 @@ const gameKey = (p: { away: any; home: any }) => `${p.away?.team || '???'}@${p.h
 
 // One team's block: PA-weighted lineup line, then a row per hitter keyed by
 // initials, with the chosen stat across SZN/L30/L14/L7.
-function buildTeamLineup(rec: any, teamRows: any[], playerRows: Record<string, any[]>, statKey: string): string[] {
+function buildTeamLineup(rec: any, teamRows: any[], playerRows: Record<string, any[]>, statKey: string, pitchers: any[] = []): string[] {
   const abbr = rec?.team || '???';
   const meta = STATS.find(s => s[0] === statKey) || STATS[0];
   const [key, label, col, hb, thr] = meta;
   const batters = parseOrder(rec);
   const status = rec?.lineup_status === 'Confirmed' ? '✓' : '~';
   const sp = rec?.pitcher_name || 'TBD';
-  const head = [`${abbr} ${status}  SP ${sp}`];
+  const head = [`${abbr} ${status}  SP ${sp}`, ...spStatLines(sp, abbr, pitchers)];
   if (!batters.length) return [...head, '  lineup not posted yet'];
 
   const keys = initialsForLineup(batters.map((b: any) => b.name));
@@ -319,14 +454,14 @@ function buildTeamLineup(rec: any, teamRows: any[], playerRows: Record<string, a
   return out;
 }
 
-function buildLineupCard(pair: { away: any; home: any }, teamRows: any[], playerRows: Record<string, any[]>, statKey: string, splitLabel: string): string {
+function buildLineupCard(pair: { away: any; home: any }, teamRows: any[], playerRows: Record<string, any[]>, statKey: string, splitLabel: string, pitchers: any[] = []): string {
   const rec = pair.away || pair.home;
   const time = pair.away?.game_time || pair.home?.game_time || '';
   const title = `${pair.away?.team || '???'} @ ${pair.home?.team || '???'}`;
   const label = (STATS.find(s => s[0] === statKey) || STATS[0])[1];
   const out: string[] = [];
-  if (pair.away) out.push(...buildTeamLineup(pair.away, teamRows, playerRows, statKey), '');
-  if (pair.home) out.push(...buildTeamLineup(pair.home, teamRows, playerRows, statKey));
+  if (pair.away) out.push(...buildTeamLineup(pair.away, teamRows, playerRows, statKey, pitchers), '');
+  if (pair.home) out.push(...buildTeamLineup(pair.home, teamRows, playerRows, statKey, pitchers));
   return `<b>${esc(title)}</b>${time ? ` · ${esc(time)}` : ''}\n`
     + `<i>${label} · ${splitLabel} · SZN/L30/L14/L7 · hitters by initials</i>\n`
     + `<pre>${esc(out.join('\n'))}</pre>`;
@@ -352,11 +487,11 @@ async function sendLineup(chatId: number, gk: string, statKey: string, split: st
     const aHand = pair.home?.pitcher_hand, hHand = pair.away?.pitcher_hand;
     sp = aHand && aHand === hHand ? (aHand === 'L' ? 'vs_lhp' : 'vs_rhp') : 'no_split';
   }
-  const rows = await fetchPlayerSplits(sp);
+  const [rows, pitchers] = await Promise.all([fetchPlayerSplits(sp), fetchPitchers2026()]);
   const byRange: Record<string, any[]> = {};
   for (const r of rows) (byRange[(r.date_range || '').trim()] ||= []).push(r);
   const seasonTeams = teamRows.filter(r => (r.split || '').trim() === sp && (r.date_range || '').trim() === 'season');
-  await send(chatId, buildLineupCard(pair, seasonTeams, byRange, statKey, SPLIT_LABEL[sp] || sp), lineupMarkup(gk, statKey, sp));
+  await send(chatId, buildLineupCard(pair, seasonTeams, byRange, statKey, SPLIT_LABEL[sp] || sp, pitchers), lineupMarkup(gk, statKey, sp));
 }
 
 async function sendSlate(chatId: number) {
@@ -373,9 +508,10 @@ async function sendSlate(chatId: number) {
 
 // ── Handlers ────────────────────────────────────────────────────────────────
 const HELP = 'Send a team abbreviation for its offensive card. ⚾\n'
-  + '<b>LINEUPS</b> — today\'s slate with per-hitter stats 📋\n'
-  + 'Type part of a name ("NY", "dodg") and I\'ll offer the matches.\n'
-  + 'In any chat, type <code>@thisbot ny</code> to pick a team as you type.';
+  + 'Send a pitcher\'s name for his stat card. \u26be\n'
+  + '<b>LINEUPS</b> — today\'s slate, with each starter\'s stats 📋\n'
+  + 'Tap <b>/</b> for the team menu — typing <code>/ny</code> narrows it live. 🔎\n'
+  + 'Or send part of any name ("dodg", "red sox", "skenes") and I\'ll offer the matches.';
 
 async function handleMessage(chatId: number, text: string) {
   const rows = await fetchAll();
@@ -403,7 +539,19 @@ async function handleMessage(chatId: number, text: string) {
     await send(chatId, `Did you mean… 🔎`, { inline_keyboard: teamButtons(hits, 3) });
     return;
   }
-  await send(chatId, `No team matches "<b>${esc(abbr)}</b>". Pick one: ❓`, { inline_keyboard: teamButtons(teams) });
+
+  const pHits = matchPitchers(text.trim(), await pitcherIndex());
+  if (pHits.length === 1) {
+    const card = await buildPitcherCard(pHits[0].name);
+    if (card) { await send(chatId, card); return; }
+  }
+  if (pHits.length > 1) {
+    await send(chatId, `Which pitcher… ⚾`, {
+      inline_keyboard: pHits.slice(0, 8).map(p => [{ text: `${p.name} · ${p.team}`, callback_data: `p:${p.name}`.slice(0, 64) }]),
+    });
+    return;
+  }
+  await send(chatId, `No team or pitcher matches "<b>${esc(text.trim())}</b>". Pick a team: ❓`, { inline_keyboard: teamButtons(teams) });
 }
 
 async function handleCallback(cb: any) {
@@ -419,6 +567,11 @@ async function handleCallback(cb: any) {
     const card = buildCard(rows, tm);
     await send(chatId, card || `No data for ${esc(tm)} ❓`,
       card ? { inline_keyboard: [[{ text: 'Lineup stats 📋', callback_data: `lt:${tm}` }]] } : undefined);
+    return;
+  }
+  if (data.startsWith('p:')) {
+    const card = await buildPitcherCard(data.slice(2));
+    await send(chatId, card || `No data for ${esc(data.slice(2))} ❓`);
     return;
   }
   if (data.startsWith('lt:')) {
