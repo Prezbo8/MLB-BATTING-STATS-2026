@@ -101,9 +101,14 @@ const fetchAll = () => sbGet('fangraphs_splits?select=*&limit=1000');
 
 // ── Telegram ────────────────────────────────────────────────────────────────
 async function tg(method: string, body: unknown) {
-  await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
+  // Telegram answers 200-with-ok:false on a bad payload. Swallowing that made a
+  // broken answerInlineQuery look like "nothing happens" with no trace anywhere.
+  if (!res.ok) { console.error(`${method} HTTP ${res.status}`); return; }
+  const j = await res.json().catch(() => null);
+  if (j && j.ok === false) console.error(`${method} failed: ${j.error_code} ${j.description}`);
 }
 const send = (chatId: number, text: string, reply_markup?: unknown) =>
   tg('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, ...(reply_markup ? { reply_markup } : {}) });
@@ -375,7 +380,7 @@ const HELP = 'Send a team abbreviation for its offensive card. ⚾\n'
 async function handleMessage(chatId: number, text: string) {
   const rows = await fetchAll();
   const teams = [...new Set(rows.map(r => (r.tm || '').trim()).filter(Boolean))].sort();
-  const raw = text.trim().replace(/^\//, '').split(/\s+/)[0].toUpperCase();
+  const raw = text.trim().replace(/^\//, '').split(/\s+/)[0].split('@')[0].toUpperCase();
 
   if (!raw || raw === 'START' || raw === 'HELP') {
     await send(chatId, HELP, { inline_keyboard: [...teamButtons(teams), [{ text: 'Lineups 📋', callback_data: 'slate' }]] });
