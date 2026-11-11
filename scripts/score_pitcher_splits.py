@@ -10,7 +10,7 @@ Reads master_splits.csv, scores all rows, uploads to Supabase.
 Daily mode:
   - Replaces every period (one transaction per period), because each
     pitcher's composite (shared by all his rows for a split) moves
-    whenever 2026/career change
+    whenever the current season/career change
 """
 
 import os, math
@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from datetime import date
 from sb_replace import replace_rows
+from season import SEASON
 
 # ─────────────────────────────────────────
 # PATHS
@@ -64,15 +65,11 @@ SPLIT_STAT_WEIGHTS = [
 # down, so those rows are left out of the pool entirely.
 MIN_TBF = 30
 
-YEAR_WEIGHTS = {
-    "2021":   0.03,
-    "2022":   0.05,
-    "2023":   0.08,
-    "2024":   0.12,
-    "2025":   0.20,
-    "2026":   0.32,
-    "career": 0.20,
-}
+# Rolling, relative to the current season (scripts/season.py), newest first.
+# Seasons older than the window get weight 0 (still shown, not counted).
+YEAR_WEIGHTS = {str(SEASON - i): w
+                for i, w in enumerate([0.32, 0.20, 0.12, 0.08, 0.05, 0.03])}
+YEAR_WEIGHTS["career"] = 0.20
 
 def get_tier(score):
     if score is None or (isinstance(score, float) and math.isnan(score)):
@@ -86,7 +83,7 @@ def get_tier(score):
 # ─────────────────────────────────────────
 # PLAYER KEY
 # Composites must group the same human, and names collide (two different
-# Logan Allens are active). The 2026/career raws carry a FanGraphs
+# Logan Allens are active). Raws from 2026 on carry a FanGraphs
 # playerid; the static 2021-2025 raws don't.
 # ─────────────────────────────────────────
 def _norm_pid(v):
@@ -217,7 +214,7 @@ def upsert_to_supabase(df):
     df = df.drop(columns=["player_key"], errors="ignore")
 
     all_ok = True
-    for period in ["2021","2022","2023","2024","2025","2026","career"]:
+    for period in [str(y) for y in range(2021, SEASON + 1)] + ["career"]:
         df_p = df[df["period"] == period].copy()
         # Drop rows where name is null or empty
         df_p = df_p[df_p["name"].notna() & (df_p["name"].str.strip() != "")]
@@ -260,10 +257,10 @@ def run():
     print(f"\n── Step 3: Composite split scores ──")
     df = compute_composite_scores(df)
     for split, grp in df.groupby("split"):
-        # Show 2026 tier dist
-        df_26 = grp[grp["period"]=="2026"]
-        if not df_26.empty:
-            dist = df_26["split_tier"].value_counts()
+        # Show current-season tier dist
+        df_cur = grp[grp["period"]==str(SEASON)]
+        if not df_cur.empty:
+            dist = df_cur["split_tier"].value_counts()
             print(f"   {split}: " + " | ".join(f"{t}:{dist.get(t,0)}" for t in ["Elite","Good","Mid","Bad","Ass"]))
 
     # 4. Save

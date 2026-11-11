@@ -2,7 +2,7 @@
 MLB Pitcher Model — Scorer (with Career)
 ==========================================
 Scoring flow:
-1. Load master_all.csv (annual 2021-2026 + career rows)
+1. Load master_all.csv (annual 2021-current season + career rows)
 2. Per-season percentile ranks within each season group, among pitchers
    with at least MIN_IP innings (rows below it stay unrated: no
    season score, composite or tier)
@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from datetime import date
 from sb_replace import replace_rows
+from season import SEASON
 
 # ─────────────────────────────────────────
 # PATHS
@@ -37,28 +38,22 @@ SUPABASE_KEY   = os.environ.get("SUPABASE_KEY", "")
 SUPABASE_TABLE = "pitcher_scores"
 
 # ─────────────────────────────────────────
-# YEAR WEIGHTS
-# season='career' treated as its own period
-# Auto-detects whether 2026 is active
+# YEAR WEIGHTS — rolling, relative to the current season (scripts/season.py)
+# Newest first: current season, last season, 2 seasons ago, ... Seasons older
+# than the window get weight 0 (still shown, not counted).
+# season='career' treated as its own period.
+# Auto-detects whether the current season has rows yet.
 # ─────────────────────────────────────────
-WEIGHTS_WITH_2026 = {
-    2021:     0.03,
-    2022:     0.05,
-    2023:     0.08,
-    2024:     0.12,
-    2025:     0.20,
-    2026:     0.32,
-    "career": 0.20,
-}
+def rolling_weights(newest_first, newest_year, career):
+    w = {newest_year - i: wt for i, wt in enumerate(newest_first)}
+    w["career"] = career
+    return w
 
-WEIGHTS_WITHOUT_2026 = {
-    2021:     0.04,
-    2022:     0.06,
-    2023:     0.10,
-    2024:     0.15,
-    2025:     0.39,
-    "career": 0.26,
-}
+WEIGHTS_WITH_CURRENT = rolling_weights(
+    [0.32, 0.20, 0.12, 0.08, 0.05, 0.03], SEASON, career=0.20)
+
+WEIGHTS_WITHOUT_CURRENT = rolling_weights(
+    [0.39, 0.15, 0.10, 0.06, 0.04], SEASON - 1, career=0.26)
 
 # ─────────────────────────────────────────
 # STAT WEIGHTS
@@ -314,7 +309,7 @@ def upsert_to_supabase(df):
         return True
 
     all_ok = True
-    for season_val in [2021, 2022, 2023, 2024, 2025, 2026, "career"]:
+    for season_val in list(range(2021, SEASON + 1)) + ["career"]:
         df_yr = df_san[df_san["season"] == season_val]
         if df_yr.empty:
             print(f"   ⏭️  season={season_val} — no data, skipping")
@@ -340,11 +335,11 @@ def run():
     # Normalize season: int years become strings for consistent lookup
     df["season"] = df["season"].astype(str).str.strip()
     df["season"] = df["season"].apply(lambda x: int(x) if x.isdigit() else x)
-    has_2026 = (df["season"].astype(str) == '2026').any()
-    year_weights = WEIGHTS_WITH_2026 if has_2026 else WEIGHTS_WITHOUT_2026
+    has_current = (df["season"].astype(str) == str(SEASON)).any()
+    year_weights = WEIGHTS_WITH_CURRENT if has_current else WEIGHTS_WITHOUT_CURRENT
     df = assign_player_key(df)
     print(f"   {len(df)} rows × {len(df.columns)} cols")
-    print(f"   Mode: {'WITH 2026' if has_2026 else 'WITHOUT 2026'}")
+    print(f"   Mode: {'WITH' if has_current else 'WITHOUT'} {SEASON}")
     print(f"   Year weights: {year_weights}")
 
     # 2. Season scores
@@ -359,11 +354,11 @@ def run():
     df = compute_composite_scores(df, year_weights)
     print(f"   Range: {df['composite_score'].min():.1f} – {df['composite_score'].max():.1f}")
 
-    # 4. Tier distribution (2026 only)
-    print(f"\n── Step 4: 2026 Tier distribution ──")
-    df_2026 = df[df["season"] == 2026]
+    # 4. Tier distribution (current season only)
+    print(f"\n── Step 4: {SEASON} Tier distribution ──")
+    df_cur = df[df["season"] == SEASON]
     for tier in ["Elite","Good","Mid","Bad","Ass"]:
-        count = (df_2026["tier"] == tier).sum()
+        count = (df_cur["tier"] == tier).sum()
         print(f"   {tier:8s}: {count}")
 
     # 5. Save

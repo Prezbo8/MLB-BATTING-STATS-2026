@@ -1,5 +1,5 @@
 """
-Pitcher Splits — Career Scraper 2017-2026 (API version)
+Pitcher Splits — Career Scraper 2017 to current season (API version)
 Fully self-contained. Fetches 4 splits x 3 statgroups from the FanGraphs
 splits JSON API (no browser), merges on playerId, saves CSV.
 
@@ -15,6 +15,8 @@ from datetime import date
 import pandas as pd
 import requests
 
+from season import SEASON
+
 # ── CONFIG ─────────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -26,7 +28,7 @@ GROUP_BY     = "career"
 AUTO_PT      = "true"      # career: FanGraphs auto min-IP filter (server-side)
 SPLIT_PREFIX = [42]       # career qualifier split, as in the original URL
 START_DATE   = "2017-03-01"
-END_DATE     = "2026-11-01"
+END_DATE     = f"{SEASON}-11-01"
 
 DELAY        = 3
 MAX_RETRIES  = 5

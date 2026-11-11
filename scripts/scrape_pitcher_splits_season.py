@@ -1,32 +1,48 @@
 """
-Pitcher Splits — 2026 Season Scraper (API version)
-Fully self-contained. Fetches 4 splits x 3 statgroups from the FanGraphs
-splits JSON API (no browser), merges on playerId, saves CSV.
+Pitcher Splits — current-season scraper (API version)
+Fetches 4 splits x 3 statgroups from the FanGraphs splits JSON API (no
+browser), merges on playerId, saves splits_<season>_raw.csv (season from
+scripts/season.py).
 
-Output matches the old Selenium scraper's splits_2026_raw.csv format:
+Season rollover: the first run of a new season also scrapes the season that
+just ended into splits_<last season>_raw.csv and commits it to the repo
+(once), so it keeps counting as a past season in merge_pitcher_splits.py.
+
+Output matches the old Selenium scraper's raw splits format:
 percent stats on the 0-100 scale, grid-style rounding.
 
 All-or-nothing: if any table still fails after retries, exits 1 and
 writes nothing, so the downstream merger/scorer never see partial data.
 """
 
-import os, time, traceback
+import os, time, base64, traceback
 from datetime import date
 import pandas as pd
 import requests
+
+from season import SEASON, SEASON_START, opening_day
 
 # ── CONFIG ─────────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 OUTPUT_DIR   = "data/pitcher_splits_data"
-OUTPUT_CSV   = os.path.join(OUTPUT_DIR, "splits_2026_raw.csv")
-PERIOD       = "2026"
 GROUP_BY     = "season"
-AUTO_PT      = "false"     # 2026: include ALL pitchers regardless of TBF
-SPLIT_PREFIX = []          # career adds the [42] qualifier split; 2026 doesn't
-START_DATE   = "2026-03-01"
-END_DATE     = "2026-11-01"
+AUTO_PT      = "false"     # season: include ALL pitchers regardless of TBF
+SPLIT_PREFIX = []          # career adds the [42] qualifier split; season doesn't
+
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_API   = "https://api.github.com/repos/Prezbo8/MLB-BATTING-STATS-2026/contents"
+
+
+def output_csv(season):
+    return os.path.join(OUTPUT_DIR, f"splits_{season}_raw.csv")
+
+
+def date_window(season):
+    """Opening Day to Nov 1 (covers the whole regular season)."""
+    start = SEASON_START if season == SEASON else opening_day(season)
+    return start.isoformat(), f"{season}-11-01"
 
 DELAY        = 3
 MAX_RETRIES  = 5
@@ -104,7 +120,7 @@ def tg(msg):
     except Exception:
         pass
 
-def fetch_sg(split_arr, sg):
+def fetch_sg(split_arr, sg, start_date, end_date):
     payload = {
         "strPlayerId": "all",
         "strSplitArr": SPLIT_PREFIX + [split_arr],
@@ -112,8 +128,8 @@ def fetch_sg(split_arr, sg):
         "strGroup": GROUP_BY,
         "strPosition": "P",
         "strType": sg,
-        "strStartDate": START_DATE,
-        "strEndDate": END_DATE,
+        "strStartDate": start_date,
+        "strEndDate": end_date,
         "strSplitTeams": False,
         "dctFilters": [],       # empty -> server applies auto PT filter when strAutoPt is true
         "strStatType": "player",
@@ -132,12 +148,12 @@ def fetch_sg(split_arr, sg):
         raise ValueError("API returned no rows")
     return {row["playerId"]: row for row in rows}
 
-def fetch_sg_with_retries(split_name, split_arr, sg):
-    label = f"{PERIOD}_{split_name}_sg{sg}"
+def fetch_sg_with_retries(split_name, split_arr, sg, period, start_date, end_date):
+    label = f"{period}_{split_name}_sg{sg}"
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             print(f"   🌐 {label} (attempt {attempt}/{MAX_RETRIES})")
-            return fetch_sg(split_arr, sg)
+            return fetch_sg(split_arr, sg, start_date, end_date)
         except Exception as e:
             print(f"   ⚠️  {label}: {e}")
             if attempt < MAX_RETRIES:
@@ -165,10 +181,11 @@ def fmt(value, kind):
         return round(v * 100, 1)
     return v
 
-def build_split_frame(split_name, split_arr):
+def build_split_frame(split_name, split_arr, period, start_date, end_date):
     sg_rows = {}
     for sg in (1, 2, 3):
-        sg_rows[sg] = fetch_sg_with_retries(split_name, split_arr, sg)
+        sg_rows[sg] = fetch_sg_with_retries(split_name, split_arr, sg,
+                                            period, start_date, end_date)
         time.sleep(DELAY)
 
     records = []
@@ -179,7 +196,7 @@ def build_split_frame(split_name, split_arr):
             rec[csv_col] = fmt(row.get(api_key), kind) if row else None
         rec["playerid"] = pid
         rec["split"]  = split_name
-        rec["period"] = PERIOD
+        rec["period"] = period
         records.append(rec)
 
     df = pd.DataFrame(records)
@@ -188,28 +205,68 @@ def build_split_frame(split_name, split_arr):
     df = df[df["name"].notna() & (df["name"].str.strip() != "")]
     return df
 
+def scrape_season(season):
+    """All 4 splits for one season -> DataFrame (raises if any table fails)."""
+    period = str(season)
+    start_date, end_date = date_window(season)
+    print(f"   📅 {period}: {start_date} → {end_date}")
+    frames = []
+    for split_name, split_arr in SPLITS.items():
+        merged = build_split_frame(split_name, split_arr, period, start_date, end_date)
+        frames.append(merged)
+        print(f"   ✅ {period} {split_name}: {len(merged)} rows, {len(merged.columns)} cols")
+    final = pd.concat(frames, ignore_index=True)
+    return final.drop_duplicates(subset=["playerid", "split", "period"], keep="first")
+
+
+def commit_to_repo(path):
+    """Add a new file to the repo (contents API). True on success."""
+    if not GITHUB_TOKEN:
+        print(f"   ⏭️  GitHub skipped for {path} (no GITHUB_TOKEN)")
+        return False
+    with open(path, "rb") as f:
+        content = base64.b64encode(f.read()).decode("utf-8")
+    r = requests.put(f"{GITHUB_API}/{path}",
+                     headers={"Authorization": f"token {GITHUB_TOKEN}",
+                              "Accept": "application/vnd.github.v3+json"},
+                     json={"message": f"Freeze {os.path.basename(path)} (season ended)",
+                           "content": content, "branch": "main"},
+                     timeout=60)
+    if r.status_code in (200, 201):
+        print(f"   ✅ Committed {path}")
+        return True
+    print(f"   ❌ Commit of {path} failed: {r.status_code} {r.text[:200]}")
+    return False
+
+
 def run():
     today = date.today().strftime("%Y-%m-%d")
-    print(f"\n🚀 Pitcher Splits — {PERIOD} (API) — {today}")
-    tg(f"⚾ <b>Pitcher Splits {PERIOD} started</b>\n📅 {today}")
+    print(f"\n🚀 Pitcher Splits — {SEASON} (API) — {today}")
+    tg(f"⚾ <b>Pitcher Splits {SEASON} started</b>\n📅 {today}")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    all_frames = []
 
     try:
-        for split_name, split_arr in SPLITS.items():
-            merged = build_split_frame(split_name, split_arr)
-            all_frames.append(merged)
-            print(f"   ✅ {split_name}: {len(merged)} rows, {len(merged.columns)} cols")
+        final = scrape_season(SEASON)
+        # First run of a new season: freeze the season that just ended
+        prev_csv = output_csv(SEASON - 1)
+        if not os.path.exists(prev_csv):
+            print(f"\n🧊 {prev_csv} missing — freezing last season once")
+            prev = scrape_season(SEASON - 1)
+            prev.to_csv(prev_csv, index=False)
+            if not commit_to_repo(prev_csv):
+                tg(f"❌ <b>Splits: could not commit {prev_csv}</b>\n"
+                   f"Last season will be missing next run too")
+                raise SystemExit(1)
+    except SystemExit:
+        raise
     except Exception as e:
         print(f"\n💥 Crash:\n{traceback.format_exc()}")
-        tg(f"💥 <b>Splits {PERIOD} CRASHED</b>\n🚫 Nothing written\n❌ {str(e)[:200]}")
+        tg(f"💥 <b>Splits {SEASON} CRASHED</b>\n🚫 Nothing written\n❌ {str(e)[:200]}")
         raise SystemExit(1)
 
-    final = pd.concat(all_frames, ignore_index=True)
-    final = final.drop_duplicates(subset=["playerid", "split", "period"], keep="first")
-    final.to_csv(OUTPUT_CSV, index=False)
-    print(f"\n💾 Saved: {OUTPUT_CSV} ({len(final)} rows, {len(final.columns)} cols)")
-    tg(f"✅ <b>Splits {PERIOD} Done</b>\n📊 {len(final)} rows\n📅 {today}")
+    final.to_csv(output_csv(SEASON), index=False)
+    print(f"\n💾 Saved: {output_csv(SEASON)} ({len(final)} rows, {len(final.columns)} cols)")
+    tg(f"✅ <b>Splits {SEASON} Done</b>\n📊 {len(final)} rows\n📅 {today}")
 
 if __name__ == "__main__":
     run()

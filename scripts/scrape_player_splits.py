@@ -21,6 +21,7 @@ import traceback
 import requests
 import pandas as pd
 from sb_replace import replace_rows
+from season import SEASON, SEASON_START, today as season_today
 from datetime import date, timedelta
 
 # ── Secrets (from environment) ────────────────────────────────────────────────
@@ -45,7 +46,6 @@ COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_PLAYER_SPLITS_COMBINED.csv"
 DELAY_BETWEEN_CALLS = 3
 RETRY_BACKOFFS      = [15, 30, 60, 120, 300, 600]  # last value repeats
 RETRY_BUDGET_SECONDS = 45 * 60   # give up (and push nothing) after this long
-SEASON_START        = "2026-3-18"
 
 API_URL = "https://www.fangraphs.com/api/leaders/splits/splits-leaders"
 HEADERS = {
@@ -70,10 +70,10 @@ SPLITS = [
 ]
 
 def get_date_ranges():
-    today = date.today()
+    today = season_today()
     fmt = lambda d: f"{d.year}-{d.month}-{d.day}"
     return [
-        ("season",  SEASON_START,                    fmt(today)),
+        ("season",  fmt(SEASON_START),               fmt(today)),
         ("last_30", fmt(today - timedelta(days=30)), fmt(today)),
         ("last_14", fmt(today - timedelta(days=14)), fmt(today)),
         ("last_7",  fmt(today - timedelta(days=7)),  fmt(today)),
@@ -146,7 +146,14 @@ def scrape_table(split_arr, start_date, end_date, name):
     if not rows:
         print(f"   ⚠️  {name}: API returned no rows")
         return None
-    return build_table(rows)
+    out = build_table(rows)
+    # A date range reaching into another season makes FanGraphs return one
+    # row per playerid per season — refuse it instead of publishing doubles
+    seasons = sorted(set(out["Season"]))
+    if seasons != [float(SEASON)] or out["playerid"].duplicated().any():
+        raise ValueError(f"{name}: expected one row per playerid for {SEASON}, "
+                         f"got seasons {seasons} with {len(out)} rows")
+    return out
 
 # ── GitHub push ───────────────────────────────────────────────────────────────
 def push_to_github(csv_path):
