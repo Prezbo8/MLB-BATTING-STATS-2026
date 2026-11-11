@@ -3,7 +3,6 @@ FanGraphs 2026 Pitcher Stats - Master Daily Scraper
 Scrapes all 9 stat categories for the 2026 season and:
   - Saves each as a CSV (overwrites daily)
   - Pushes each CSV to GitHub
-  - Upserts each table in Supabase (truncate + insert = fresh daily)
   - Sends a Telegram notification when done
 
 Date range: 2026-03-18 to 2026-11-10
@@ -25,7 +24,6 @@ Scrapes ALL types first; aborts (pushing nothing) if any type fails.
 """
 
 import os
-import math
 import time
 import base64
 from datetime import datetime, timezone
@@ -69,102 +67,6 @@ API_HEADERS = {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  COLUMN NAME SANITIZER
-#  Explicit overrides applied BEFORE generic character replacement.
-#  Every col with +, -, %, / or spaces gets an exact Postgres-safe name.
-# ══════════════════════════════════════════════════════════════════════════════
-
-_EXPLICIT_COL_OVERRIDES = {
-    # minus stats
-    "ERA-":         "era_minus",
-    "FIP-":         "fip_minus",
-    "xFIP-":        "xfip_minus",
-    # slash-rate stats
-    "K/9":          "k_9",
-    "BB/9":         "bb_9",
-    "K/BB":         "k_bb",
-    "HR/9":         "hr_9",
-    "K/9+":         "k_9_plus",
-    "BB/9+":        "bb_9_plus",
-    "K/BB+":        "k_bb_plus",
-    "HR/9+":        "hr_9_plus",
-    # percent stats
-    "K%":           "k_pct",
-    "BB%":          "bb_pct",
-    "K-BB%":        "k_bb_pct",
-    "LOB%":         "lob_pct",
-    "GB%":          "gb_pct",
-    "LD%":          "ld_pct",
-    "FB%":          "fb_pct",
-    "IFFB%":        "iffb_pct",
-    "HR/FB":        "hr_fb",
-    "GB/FB":        "gb_fb",
-    "RS/9":         "rs_9",
-    "Pull%":        "pull_pct",
-    "Cent%":        "cent_pct",
-    "Oppo%":        "oppo_pct",
-    "Soft%":        "soft_pct",
-    "Med%":         "med_pct",
-    "Hard%":        "hard_pct",
-    "Barrel%":      "barrel_pct",
-    "HardHit%":     "hardhit_pct",
-    "O-Swing%":     "o_swing_pct",
-    "Z-Swing%":     "z_swing_pct",
-    "Swing%":       "swing_pct",
-    "O-Contact%":   "o_contact_pct",
-    "Z-Contact%":   "z_contact_pct",
-    "Contact%":     "contact_pct",
-    "Zone%":        "zone_pct",
-    "F-Strike%":    "f_strike_pct",
-    "SwStr%":       "swstr_pct",
-    "CStr%":        "cstr_pct",
-    "CSW%":         "csw_pct",
-    # plus stats
-    "K%+":          "k_pct_plus",
-    "BB%+":         "bb_pct_plus",
-    "AVG+":         "avg_plus",
-    "WHIP+":        "whip_plus",
-    "BABIP+":       "babip_plus",
-    "LOB%+":        "lob_pct_plus",
-    "LD%+":         "ld_pct_plus",
-    "GB%+":         "gb_pct_plus",
-    "FB%+":         "fb_pct_plus",
-    # Stuff+ / Location+ / Pitching+ pitch-type columns
-    "Stf+ FA":      "stf_plus_fa",
-    "Stf+ SI":      "stf_plus_si",
-    "Stf+ FC":      "stf_plus_fc",
-    "Stf+ FS":      "stf_plus_fs",
-    "Stf+ SL":      "stf_plus_sl",
-    "Stf+ CU":      "stf_plus_cu",
-    "Stf+ CH":      "stf_plus_ch",
-    "Stf+ KC":      "stf_plus_kc",
-    "Stf+ FO":      "stf_plus_fo",
-    "Stuff+":       "stuff_plus",
-    "Location+":    "location_plus",
-    "Pitching+":    "pitching_plus",
-    # misc
-    "vFA (pi)":     "vfa_pi",
-    "E-F":          "e_f",
-    "xFIP":         "xfip",
-    "xERA":         "xera",
-}
-
-
-def sanitize_col_name(col):
-    if col in _EXPLICIT_COL_OVERRIDES:
-        return _EXPLICIT_COL_OVERRIDES[col]
-    return (
-        col.lower()
-           .replace("/", "_")
-           .replace("%", "_pct")
-           .replace("-", "_")
-           .replace("+", "_plus")
-           .replace("(", "").replace(")", "")
-           .replace(" ", "_")
-    )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 #  SCRAPER DEFINITIONS  (9 stat types)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -175,7 +77,6 @@ def get_scrapers():
         {
             "name":    "Dashboard",
             "file":    "Stats_Dashboard2026.csv",
-            "table":   "pitcher_dashboard_2026",
             "type":    8,
             "columns": ["rank","Name","Team","playerid","W","L","SV","G","GS","IP",
                         "K/9","BB/9","HR/9","BABIP","LOB%","GB%","HR/FB",
@@ -197,7 +98,6 @@ def get_scrapers():
         {
             "name":    "Standard",
             "file":    "Stats_Standard2026.csv",
-            "table":   "pitcher_standard_2026",
             "type":    0,
             "columns": ["rank","Name","Team","playerid","W","L","ERA","G","GS","QS",
                         "CG","ShO","SV","HLD","BS","IP","TBF","H","R",
@@ -218,7 +118,6 @@ def get_scrapers():
         {
             "name":    "Advanced",
             "file":    "Stats_Advanced2026.csv",
-            "table":   "pitcher_advanced_2026",
             "type":    1,
             "columns": ["rank","Name","Team","playerid","K/9","BB/9","K/BB","HR/9",
                         "K%","BB%","K-BB%","AVG","WHIP","BABIP","LOB%",
@@ -242,7 +141,6 @@ def get_scrapers():
         {
             "name":    "BattedBall",
             "file":    "Stats_BattedBall2026.csv",
-            "table":   "pitcher_battedball_2026",
             "type":    2,
             "columns": ["rank","Name","Team","playerid","BABIP","GB/FB","LD%","GB%","FB%",
                         "IFFB%","HR/FB","RS","RS/9","Balls","Strikes","Pitches",
@@ -267,7 +165,6 @@ def get_scrapers():
         {
             "name":    "+Stats",
             "file":    "Stats_+Stats2026.csv",
-            "table":   "pitcher_plusstats_2026",
             "type":    23,
             "columns": ["rank","Name","Team","playerid","IP",
                         "K/9+","BB/9+","K/BB+","HR/9+","K%+","BB%+",
@@ -301,7 +198,6 @@ def get_scrapers():
         {
             "name":    "Statcast",
             "file":    "Stats_Statcast2026.csv",
-            "table":   "pitcher_statcast_2026",
             "type":    24,
             "columns": ["rank","Name","Team","playerid","IP","Events","EV","EV90","maxEV",
                         "LA","Barrels","Barrel%","HardHit","HardHit%","ERA","xERA"],
@@ -326,7 +222,6 @@ def get_scrapers():
         {
             "name":    "PlateDiscipline",
             "file":    "PlateDiscipline2026.csv",
-            "table":   "pitcher_platediscipline_2026",
             "type":    5,
             "columns": ["rank","Name","Team","playerid",
                         "O-Swing%","Z-Swing%","Swing%",
@@ -355,7 +250,6 @@ def get_scrapers():
         {
             "name":    "PitchVelocity",
             "file":    "PitchVelocity2026.csv",
-            "table":   "pitcher_pitchvelocity_2026",
             "type":    10,
             "columns": ["rank","Name","Team","playerid","IP",
                         "vFA","vFT","vFC","vFS","vFO","vSI",
@@ -389,7 +283,6 @@ def get_scrapers():
         {
             "name":    "StuffPlus",
             "file":    "Pitch_StuffPlus2026.csv",
-            "table":   "pitcher_stuffplus_2026",
             "type":    36,
             "columns": ["rank","Name","Team","playerid","IP",
                         "Stf+ FA","Stf+ SI","Stf+ FC","Stf+ FS","Stf+ SL",
@@ -436,19 +329,6 @@ def get_value(row, key_spec):
                 return row[k]
         return ""
     return row.get(key_spec, "")
-
-
-def sanitize_for_json(records):
-    clean = []
-    for row in records:
-        clean_row = {}
-        for k, v in row.items():
-            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-                clean_row[k] = None
-            else:
-                clean_row[k] = v
-        clean.append(clean_row)
-    return clean
 
 
 def check_for_nans(df, rows, name):
@@ -535,7 +415,7 @@ def push_to_github(csv_path, repo_path):
         content = base64.b64encode(f.read()).decode("utf-8")
 
     sha = None
-    r = req_lib.get(url, headers=headers)
+    r = req_lib.get(url, headers=headers, timeout=30)
     if r.status_code == 200:
         sha = r.json().get("sha")
 
@@ -547,41 +427,12 @@ def push_to_github(csv_path, repo_path):
     if sha:
         payload["sha"] = sha
 
-    r = req_lib.put(url, headers=headers, json=payload)
+    r = req_lib.put(url, headers=headers, json=payload, timeout=30)
     if r.status_code in (200, 201):
         print(f"  ✅ GitHub: {repo_path}")
         return True
     else:
         print(f"  ❌ GitHub failed for {repo_path}: {r.status_code} {r.text[:200]}")
-        return False
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  SUPABASE UPSERT
-# ══════════════════════════════════════════════════════════════════════════════
-
-def push_to_supabase(df, table_name):
-    if not SUPABASE_KEY:
-        print(f"  ⏭️  Supabase skipped for {table_name} (no SUPABASE_KEY)")
-        return False
-    try:
-        from supabase import create_client
-        sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-        df_clean = df.copy()
-        df_clean.columns = [sanitize_col_name(c) for c in df_clean.columns]
-
-        records = sanitize_for_json(
-            df_clean.where(pd.notnull(df_clean), None).to_dict(orient="records")
-        )
-
-        sb.table(table_name).delete().neq("id", 0).execute()
-        sb.table(table_name).insert(records).execute()
-
-        print(f"  ✅ Supabase: {table_name} ({len(records)} rows)")
-        return True
-    except Exception as e:
-        print(f"  ❌ Supabase failed for {table_name}: {e}")
         return False
 
 
@@ -595,7 +446,7 @@ def send_telegram(message):
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try:
-        r = req_lib.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"})
+        r = req_lib.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}, timeout=10)
         if r.status_code == 200:
             print("  ✅ Telegram notification sent.")
         else:
@@ -627,7 +478,7 @@ def main():
         result = {"name": name, "file": scraper["file"], "df": None,
                   "table": scraper["table"],
                   "rows": 0, "scrape_ok": False,
-                  "github_ok": False, "supabase_ok": False}
+                  "github_ok": False}
 
         try:
             df = scrape_one(scraper)
@@ -653,22 +504,20 @@ def main():
         )
         raise SystemExit(1)
 
-    # ── Phase 2: push all to GitHub + Supabase ────────────────────────────────
+    # ── Phase 2: push all to GitHub ────────────────────────────────────────────
     for r in results:
         repo_path = f"data/pitcher/{r['file']}"
         r["github_ok"]   = push_to_github(os.path.join(OUTPUT_DIR, r["file"]), repo_path)
-        r["supabase_ok"] = push_to_supabase(r["df"], r["table"])
 
     run_end     = utcnow()
     elapsed     = int((run_end - run_start).total_seconds())
     total       = len(scrapers)
     scraped_ok  = sum(1 for r in results if r["scrape_ok"])
     github_ok   = sum(1 for r in results if r["github_ok"])
-    supabase_ok = sum(1 for r in results if r["supabase_ok"])
 
     print(f"\n{'=' * 55}")
     print(f"✅ Done in {elapsed}s — {scraped_ok}/{total} scraped, "
-          f"{github_ok}/{total} → GitHub, {supabase_ok}/{total} → Supabase")
+          f"{github_ok}/{total} → GitHub")
 
     lines = [
         f"<b>⚾ FanGraphs 2026 Daily Pitcher Update</b>",
@@ -677,14 +526,12 @@ def main():
     for r in results:
         icon = "✅" if r["scrape_ok"]   else "❌"
         gh   = "✅" if r["github_ok"]   else "❌"
-        sb   = "✅" if r["supabase_ok"] else "❌"
-        lines.append(f"{icon} <b>{r['name']}</b> — {r['rows']} rows | GH {gh} | SB {sb}")
+        lines.append(f"{icon} <b>{r['name']}</b> — {r['rows']} rows | GH {gh}")
 
     send_telegram("\n".join(lines))
 
-    # Supabase failures are non-fatal here: the per-stat-type tables have never
-    # existed in the project (the dashboard uses pitcher_scores/pitcher_split_scores
-    # and the repo CSVs). Only a failed GitHub CSV push fails the run.
+    # The CSVs feed the merge + scorer steps (which write pitcher_scores /
+    # pitcher_split_scores); a failed GitHub CSV push fails the run.
     if GITHUB_TOKEN and github_ok < total:
         raise SystemExit(1)
 

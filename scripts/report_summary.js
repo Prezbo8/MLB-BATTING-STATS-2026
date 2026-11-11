@@ -64,8 +64,22 @@ function teamBlock(team) {
 }
 const teamPre = team => '<pre>' + teamBlock(team).join('\n') + '</pre>';
 
+// MLB games today (ET) that get a report: regular season + postseason.
+// Returns null when the schedule can't be read (then the report just runs).
+const REPORT_GAME_TYPES = new Set(['R', 'F', 'D', 'L', 'W']);
+async function gamesToday() {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  try {
+    const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}`,
+                          { signal: AbortSignal.timeout(20000) });
+    const j = await r.json();
+    return (j.dates?.[0]?.games || []).filter(g => REPORT_GAME_TYPES.has(g.gameType)).length;
+  } catch (e) { console.error('schedule check failed:', e.message); return null; }
+}
+
 (async () => {
   console.log(DRY_RUN ? '● DRY RUN (no Telegram)' : '● Live send', '→', REPORT_URL);
+  if (await gamesToday() === 0) { console.log('No MLB games today — nothing to report.'); return; }
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, timezoneId: 'America/New_York', locale: 'en-US' });
   page.setDefaultTimeout(60000);
