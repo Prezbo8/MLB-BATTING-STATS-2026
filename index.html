@@ -130,7 +130,7 @@
             background: linear-gradient(135deg, #0c1830 0%, #0f1520 55%, #180810 100%);
             border-bottom: 1px solid var(--border); padding: 0 2rem;
         }
-        .header-inner { max-width: 1440px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 1rem; }
+        .header-inner { max-width: 1440px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; min-height: 68px; padding: 6px 0; gap: 1rem; }
         .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
         .brand-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .brand-icon svg { width: 100%; height: 100%; }
@@ -138,7 +138,7 @@
         .brand-sub  { font-family: var(--display); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
         .header-right { display: flex; align-items: center; gap: 10px; }
         .nav-scroll-wrap {
-            position: relative; flex: 1; min-width: 0; max-width: 860px;
+            position: relative; flex: 1; min-width: 0;
         }
         .nav-scroll-wrap::before,
         .nav-scroll-wrap::after {
@@ -157,6 +157,7 @@
         nav {
             display: flex; align-items: center; gap: 0;
             background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 4px 6px;
+            flex-wrap: wrap; row-gap: 4px;   /* wrap to a 2nd line instead of scrolling sideways */
             overflow-x: auto; scroll-snap-type: x proximity;
             scrollbar-width: none; -ms-overflow-style: none;
         }
@@ -3155,10 +3156,25 @@ async function fetchScheduleForDates(dates) {
     }));
 }
 
+// Older lineup rows stored the hand inside the name ("Name (L)"); it has its own field
+const plainPitcherName = n => n ? n.replace(/\s*\([LRS]\)\s*$/, '') : n;
+// "Today's Games · Wed, Nov 11" / "Games · Wed, Sep 30" from the dates actually loaded
+function setLineupDateLabel(id, rows) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ds = [...new Set(rows.map(r => r.game_date).filter(Boolean))].sort();
+    if (!ds.length) { el.textContent = 'No games loaded'; return; }
+    const t = new Date();
+    const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    el.textContent = (ds.length === 1 && ds[0] === today ? "Today's Games · " : 'Games · ') + ds.map(fmt).join(' / ');
+}
+
 async function fetchLineups() {
     const all = await sbFetchAll(SUPABASE_LINEUP_TABLE,
         'select=*&order=game_date.desc,game_time.asc,team.asc');
-    lineupGames = all;
+    lineupGames = all.map(r => ({ ...r, pitcher_name: plainPitcherName(r.pitcher_name) }));
+    setLineupDateLabel('lineup-date-display', lineupGames);
     await fetchScheduleForDates([...new Set(all.map(r => r.game_date))]);
     lineupLastFetched = new Date();
     updateLineupStatusBadge();
@@ -3434,8 +3450,14 @@ function findPlayerStats(fullName, teamAbbr, splitKey) {
     const lastNameNorm = getLastName(fullName);
     const firstInit    = getFirstInit(fullName);
 
-    // 1. Best match: team + normalized last name + first initial
-    let m = data.find(p =>
+    // 0. Exact full name, same team first — two players can share a last name
+    //    and first initial (Weston / Will Wilson)
+    const fullNorm = normalizeName(fullName);
+    let m = data.find(p => normalizeName(p.name) === fullNorm && p.tm === teamAbbr)
+         || data.find(p => normalizeName(p.name) === fullNorm);
+
+    // 1. Team + normalized last name + first initial (handles Mike / Michael)
+    if (!m) m = data.find(p =>
         getLastName(p.name) === lastNameNorm &&
         getFirstInit(p.name) === firstInit &&
         p.tm === teamAbbr
