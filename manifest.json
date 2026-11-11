@@ -1,7 +1,7 @@
 {
-  "name": "MLB 2026 Team Offense Analyzer",
-  "short_name": "MLB 2026",
-  "description": "MLB 2026 team and player offensive stats analyzer",
+  "name": "MLB Team Offense Analyzer",
+  "short_name": "MLB",
+  "description": "MLB team and player offensive stats analyzer",
   "start_url": "/MLB-BATTING-STATS-2026/",
   "display": "standalone",
   "background_color": "#080a0f",

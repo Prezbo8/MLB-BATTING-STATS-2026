@@ -252,15 +252,20 @@ function pGrid(defs: readonly any[], cols: { label: string; row: any }[]): strin
 
 const fetchPitcherRows = (name: string) =>
   sbGet(`pitcher_scores?select=*&name=eq.${encodeURIComponent(name)}`);
-const fetchPitcherSplits = (name: string) =>
-  sbGet(`pitcher_split_scores?select=*&name=eq.${encodeURIComponent(name)}&period=eq.2026`);
-// Every 2026 starter in one small request — used to match lineup SPs by name.
-const fetchPitchers2026 = () =>
-  sbGetAll('pitcher_scores', 'select=name,team,tier,season_score,era,fip,whip,k_pct,bb_pct,stuff_plus,ip&season=eq.2026&order=name.asc');
+const fetchPitcherSplits = async (name: string) =>
+  sbGet(`pitcher_split_scores?select=*&name=eq.${encodeURIComponent(name)}&period=eq.${await currentSeason()}`);
+// The newest season in the data (the scrapers switch the day after Opening Day).
+async function currentSeason(): Promise<string> {
+  const rows = await sbGet('pitcher_scores?select=season&season=neq.career&order=season.desc&limit=1');
+  return String(rows[0]?.season ?? new Date().getFullYear());
+}
+// Every current-season starter in one small request — used to match lineup SPs by name.
+const fetchPitchersSeason = async () =>
+  sbGetAll('pitcher_scores', `select=name,team,tier,season_score,era,fip,whip,k_pct,bb_pct,stuff_plus,ip&season=eq.${await currentSeason()}&order=name.asc`);
 
 // Name index for the "type a pitcher's name" lookup.
 async function pitcherIndex(): Promise<any[]> {
-  return await sbGet('pitcher_scores?select=name,team&season=eq.2026&order=name.asc');
+  return await sbGet(`pitcher_scores?select=name,team&season=eq.${await currentSeason()}&order=name.asc`);
 }
 // Ranked: exact full name, last-name prefix, then any substring. Short queries
 // are ignored so a 2-letter team-ish string never lands on a pitcher.
@@ -278,16 +283,17 @@ function matchPitchers(q: string, idx: any[]): any[] {
 }
 
 async function buildPitcherCard(name: string): Promise<string | null> {
-  const [rows, splits] = await Promise.all([fetchPitcherRows(name), fetchPitcherSplits(name)]);
+  const [rows, splits, season] = await Promise.all([fetchPitcherRows(name), fetchPitcherSplits(name), currentSeason()]);
   if (!rows.length) return null;
   const byS: Record<string, any> = {};
   for (const r of rows) byS[String(r.season)] = r;
-  const cur = byS['2026'] || rows[0];
+  const prev = String(Number(season) - 1);
+  const cur = byS[season] || rows[0];
 
   const out = [`${name} · ${cur.team || '—'}`];
   out.push(...pGrid(P_OVERALL, [
-    { label: '2026', row: byS['2026'] },
-    { label: '2025', row: byS['2025'] },
+    { label: season, row: byS[season] },
+    { label: prev,   row: byS[prev] },
     { label: 'CAR', row: byS['career'] },
   ]));
   const bySp: Record<string, any> = {};
@@ -295,7 +301,7 @@ async function buildPitcherCard(name: string): Promise<string | null> {
   if (Object.keys(bySp).length) {
     const WIDTH = 26;
     const underline = (t: string) => [...t].map(c => c + '̲').join('');
-    out.push(' '.repeat(Math.max(0, Math.floor((WIDTH - 11) / 2))) + underline('2026 SPLITS'));
+    out.push(' '.repeat(Math.max(0, Math.floor((WIDTH - 11) / 2))) + underline(`${season} SPLITS`));
     out.push(...pGrid(P_SPLIT, [
       { label: 'vRHH', row: bySp['vsRHH'] },
       { label: 'vLHH', row: bySp['vsLHH'] },
@@ -487,7 +493,7 @@ async function sendLineup(chatId: number, gk: string, statKey: string, split: st
     const aHand = pair.home?.pitcher_hand, hHand = pair.away?.pitcher_hand;
     sp = aHand && aHand === hHand ? (aHand === 'L' ? 'vs_lhp' : 'vs_rhp') : 'no_split';
   }
-  const [rows, pitchers] = await Promise.all([fetchPlayerSplits(sp), fetchPitchers2026()]);
+  const [rows, pitchers] = await Promise.all([fetchPlayerSplits(sp), fetchPitchersSeason()]);
   const byRange: Record<string, any[]> = {};
   for (const r of rows) (byRange[(r.date_range || '').trim()] ||= []).push(r);
   const seasonTeams = teamRows.filter(r => (r.split || '').trim() === sp && (r.date_range || '').trim() === 'season');

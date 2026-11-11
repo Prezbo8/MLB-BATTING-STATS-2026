@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>MLB 2026 • Mobile</title>
+<title>MLB • Mobile</title>
 <link rel="apple-touch-icon" sizes="180x180" href="/MLB-BATTING-STATS-2026/assets/apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="/MLB-BATTING-STATS-2026/assets/favicon.ico">
 <link rel="manifest" href="/MLB-BATTING-STATS-2026/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MLB 2026">
+<meta name="apple-mobile-web-app-title" content="MLB">
 <meta name="theme-color" content="#080a0f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -508,7 +508,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             </svg>
         </div>
         <div>
-            <div class="m-brand-name">MLB 2026</div>
+            <div class="m-brand-name">MLB <span class="season-cur"></span></div>
             <div class="m-brand-sub">Offense Analyzer</div>
         </div>
     </div>
@@ -644,12 +644,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             <div class="m-filters">
                 <div class="m-filter-group">
                     <div class="m-filter-label">Season</div>
-                    <select id="pit-season" onchange="renderPitchers()">
-                        <option value="2026">2026</option><option value="2025">2025</option>
-                        <option value="2024">2024</option><option value="2023">2023</option>
-                        <option value="2022">2022</option><option value="2021">2021</option>
-                        <option value="career">Career</option>
-                    </select>
+                    <select id="pit-season" onchange="renderPitchers()"></select>
                 </div>
                 <div class="m-filter-group">
                     <div class="m-filter-label">Tier</div>
@@ -692,12 +687,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             <div class="m-filters">
                 <div class="m-filter-group">
                     <div class="m-filter-label">Period</div>
-                    <select id="psp-period" onchange="renderPitcherSplits()">
-                        <option value="2026">2026</option><option value="2025">2025</option>
-                        <option value="career">Career</option><option value="2024">2024</option>
-                        <option value="2023">2023</option><option value="2022">2022</option>
-                        <option value="2021">2021</option>
-                    </select>
+                    <select id="psp-period" onchange="renderPitcherSplits()"></select>
                 </div>
                 <div class="m-filter-group">
                     <div class="m-filter-label">Split</div>
@@ -888,7 +878,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             <div class="m-filters">
                 <div class="m-filter-group"><div class="m-filter-label">Game</div><select id="mlt-game" onchange="renderMLTrends()"></select></div>
                 <div class="m-filter-group"><div class="m-filter-label">Split</div><select id="mlt-split" onchange="renderMLTrends()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Range</div><select id="mlt-range" onchange="renderMLTrends()"><option value="yearly">Yearly (21–26)</option><option value="monthly">Monthly (26)</option></select></div>
+                <div class="m-filter-group"><div class="m-filter-label">Range</div><select id="mlt-range" onchange="renderMLTrends()"><option value="yearly">Yearly</option><option value="monthly">Monthly</option></select></div>
             </div>
             <div id="m-ltrends-container"></div>
         </div>
@@ -917,12 +907,12 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             <div class="m-filter-group">
                 <div class="m-filter-label">Sort</div>
                 <select id="rpg-sort-sel" onchange="renderRPG()">
-                    <option value="szn_2026">2026 R/G</option>
+                    <option value="szn_current">This season R/G</option>
                     <option value="last_3">Last 3</option>
                     <option value="last_1">Last 1</option>
                     <option value="home">Home</option>
                     <option value="away">Away</option>
-                    <option value="szn_2025">2025 R/G</option>
+                    <option value="szn_prev">Last season R/G</option>
                 </select>
             </div>
             <div class="m-filter-group">
@@ -1005,6 +995,42 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 const SUPABASE_URL   = 'https://mfliuasrygxkembqmrkr.supabase.co';
 const SUPABASE_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mbGl1YXNyeWd4a2VtYnFtcmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNTI2MzIsImV4cCI6MjA5MDgyODYzMn0.ecYwYajjAfKNl22ONtYp2i99U-ePEAZ6uHESPiiT8nw';
 const SUPABASE_TABLE        = 'fangraphs_splits';
+
+// ── CURRENT SEASON ──────────────────────────────────────────────────────────
+// The newest season found in the data. The scrapers decide when a new season
+// starts (the day after Opening Day, scripts/season.py); the site follows.
+let CUR_SEASON = null;
+function noteSeason(y) {
+    y = parseInt(y, 10);
+    if (!y || (CUR_SEASON && y <= CUR_SEASON)) return;
+    CUR_SEASON = y;
+    const yy = String(y).slice(2);
+    document.querySelectorAll('.season-cur').forEach(el => el.textContent = y);
+    const lt = document.getElementById('mlt-range');
+    if (lt) {
+        lt.querySelector('option[value="yearly"]').textContent  = `Yearly (21–${yy})`;
+        lt.querySelector('option[value="monthly"]').textContent = `Monthly (${yy})`;
+    }
+    const rs = document.getElementById('rpg-sort-sel');
+    if (rs) {
+        rs.querySelector('option[value="szn_current"]').textContent = `${y} R/G`;
+        rs.querySelector('option[value="szn_prev"]').textContent    = `${y - 1} R/G`;
+    }
+    M_YEARS = [];
+    for (let s = 2021; s <= y; s++) M_YEARS.push(s);
+    document.title = `MLB ${y} • Mobile`;
+}
+// Newest season among values like 2026 / '2025' / 'career'
+const newestSeason = vals => Math.max(0, ...vals.map(v => parseInt(v, 10)).filter(v => v > 0));
+// Fill a season <select>: newest first, Career after the previous season or at the end
+function fillSeasonSelect(id, seasons, careerAfterPrev) {
+    const sel = document.getElementById(id);
+    if (!sel || sel.options.length) return;
+    const ys = [...new Set(seasons.map(v => parseInt(v, 10)).filter(v => v > 0))].sort((a, b) => b - a);
+    const opts = ys.map(y => [String(y), String(y)]);
+    opts.splice(careerAfterPrev ? Math.min(2, opts.length) : opts.length, 0, ['career', 'Career']);
+    sel.innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+}
 const SUPABASE_PLAYER_TABLE = 'fangraphs_player_splits';
 const SUPABASE_RPG_TABLE    = 'mlb_rpg';
 const SUPABASE_LINEUP_TABLE = 'projected_lineups';
@@ -1198,6 +1224,7 @@ async function fetchData() {
     try {
         const rows = await sbFetch(SUPABASE_TABLE);
         if (!rows.length) throw new Error('0 rows');
+        noteSeason(newestSeason(rows.map(r => r.season)));
         loadTeamRows(rows);
         const now = new Date();
         const ts = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
@@ -1276,17 +1303,17 @@ function ensurePlayers() {
 async function ensureRPG() {
     if (rpgLoaded) return;
     const rows = await fetch(
-        `${SUPABASE_URL}/rest/v1/${SUPABASE_RPG_TABLE}?select=*&order=szn_2026.desc`,
+        `${SUPABASE_URL}/rest/v1/${SUPABASE_RPG_TABLE}?select=*&order=szn_current.desc`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' } }
     ).then(r => r.json());
     rpgData = rows.map(r => ({
         tm: (r.team||'').trim(),
-        szn_2026: r.szn_2026 != null ? parseFloat(r.szn_2026) : null,
+        szn_current: r.szn_current != null ? parseFloat(r.szn_current) : null,
         last_3:   r.last_3   != null ? parseFloat(r.last_3)   : null,
         last_1:   r.last_1   != null ? parseFloat(r.last_1)   : null,
         home:     r.home     != null ? parseFloat(r.home)     : null,
         away:     r.away     != null ? parseFloat(r.away)     : null,
-        szn_2025: r.szn_2025 != null ? parseFloat(r.szn_2025) : null,
+        szn_prev: r.szn_prev != null ? parseFloat(r.szn_prev) : null,
     }));
     rpgLoaded = true;
 }
@@ -2019,7 +2046,7 @@ function findPlayerStats(fullName, teamAbbr, splitKey) {
 }
 // ══ MOBILE LINEUP TRENDS / HISTORY / PLAYER CARD ══════════════════════════════
 const M_PHIST_TABLE = 'fangraphs_player_history';
-const M_YEARS = [2021, 2022, 2023, 2024, 2025, 2026];
+let M_YEARS = [];   // 2021 … CUR_SEASON (set by noteSeason)
 const M_MIN_PA = 10;
 const M_DBCOL = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus', ops:'ops', obp:'obp', slg:'slg', bbPct:'bb_pct' };
 const M_LH_STATS = ['avg','kPct','iso','babip','woba','wrcPlus'];
@@ -2095,7 +2122,7 @@ function renderMobileCard() {
     if (!body || !id) return;
     const store = mPlayerHist[id] || {};
     let tm = '';
-    for (let y = 2026; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
+    for (let y = CUR_SEASON; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
     const logo = teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'" alt="">` : '';
     const legend = M_CARD_SPLITS.map(([sp, lbl, col]) => `<div class="m-card-leg"><span class="m-card-sw" style="background:${col}"></span>${lbl}</div>`).join('') + `<div class="m-card-leg"><span class="m-card-sw dashed"></span>LG</div>`;
     const xkeys = M_YEARS.map(y => ({ label: `'${String(y).slice(2)}` }));
@@ -2107,7 +2134,7 @@ function renderMobileCard() {
         return `<div class="m-card-stat"><div class="m-card-statlbl">${M_STATLBL[sk]}</div>${svg ? `<div class="m-lh-cell" style="border:none;background:none;padding:0">${svg}</div>` : '<div class="m-lh-cell empty">no data</div>'}</div>`;
     }).join('');
     body.innerHTML = `<div class="m-card-title">${logo}${name}${tm ? ` <span style="color:var(--muted);font-size:0.7rem;">${tm}</span>` : ''}</div>` +
-        `<div class="m-card-sub">Season 2021–2026 · handedness</div><div class="m-card-legend">${legend}</div><div class="m-card-grid">${charts}</div>`;
+        `<div class="m-card-sub">Season 2021–${CUR_SEASON} · handedness</div><div class="m-card-legend">${legend}</div><div class="m-card-grid">${charts}</div>`;
 }
 function closeMobileCard() { document.getElementById('m-card-overlay').classList.remove('open'); mCardId = null; }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMobileCard(); });
@@ -2147,7 +2174,7 @@ function renderMLTrends() {
     const mode = document.getElementById('mlt-range').value;
     const xkeys = mode === 'yearly'
         ? M_YEARS.map(y => ({ label: `'${String(y).slice(2)}`, key: sp => `${sp}-season-${y}` }))
-        : [['mar_apr','M/A'],['may','May'],['jun','Jun'],['jul','Jul'],['aug','Aug'],['sep_oct','S/O']].map(([b, l]) => ({ label: l, key: sp => `${sp}-${b}-2026` }));
+        : [['mar_apr','M/A'],['may','May'],['jun','Jun'],['jul','Jul'],['aug','Aug'],['sep_oct','S/O']].map(([b, l]) => ({ label: l, key: sp => `${sp}-${b}-${CUR_SEASON}` }));
     const pairs = pairLineupGames(lineupGames);
     const pair = pairs[parseInt(document.getElementById('mlt-game').value, 10) || 0];
     if (!pair) { c.innerHTML = mEmpty('Pick a game'); return; }
@@ -2165,7 +2192,7 @@ function renderMLTrends() {
         return `<div class="m-lh-cell">${svg || '<div style="min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.6rem">no data</div>'}</div>`;
     };
     const legend = (bs, tm, col) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'">` : ''}<span style="color:${col}">${tm}</span></div><div style="display:flex;flex-wrap:wrap;gap:3px 10px;margin-bottom:6px;font-family:var(--mono);font-size:0.62rem;">${bs.map(p => `<span data-pid="${p.id || ''}" data-pname="${(p.name || '').replace(/"/g, '')}" style="color:var(--text2);cursor:pointer"><span style="display:inline-block;width:9px;height:3px;border-radius:2px;background:${p.color};vertical-align:middle"></span> ${p.name}</span>`).join('')}</div>`;
-    let html = `<div class="m-sbar-head">${awayTm} @ ${homeTm} · ${mSplitLbl(split)} · ${mode === 'yearly' ? '2021–26' : '2026 months'} · ╌ LG</div>`;
+    let html = `<div class="m-sbar-head">${awayTm} @ ${homeTm} · ${mSplitLbl(split)} · ${mode === 'yearly' ? `2021–${String(CUR_SEASON).slice(2)}` : `${CUR_SEASON} months`} · ╌ LG</div>`;
     html += legend(awayR, awayTm, colors.away) + legend(homeR, homeTm, colors.home);
     M_LH_STATS.map(sk => statMeta.find(s => s.key === sk)).forEach(s => {
         html += `<div class="m-mtrend-split">${s.label}</div><div style="display:grid;grid-template-columns:1fr;gap:6px;">${teamChart(awayR, s.key)}${teamChart(homeR, s.key)}</div>`;
@@ -2326,8 +2353,8 @@ function renderRPG() {
             <span class="m-rpg-name" style="color:${teamColor(abbr)};">${row.tm}</span>
             <div class="m-rpg-stats">
                 <div class="m-rpg-stat">
-                    <span class="m-rpg-val ${rpgTier(row.szn_2026)}">${fmt(row.szn_2026)}</span>
-                    <span class="m-rpg-lbl">2026</span>
+                    <span class="m-rpg-val ${rpgTier(row.szn_current)}">${fmt(row.szn_current)}</span>
+                    <span class="m-rpg-lbl">${CUR_SEASON || ''}</span>
                 </div>
                 <div class="m-rpg-stat">
                     <span class="m-rpg-val ${rpgTier(row.last_3)}">${fmt(row.last_3)}</span>
@@ -2534,6 +2561,9 @@ function ensurePitchers() {
         sbFetchSel(PSPL_TABLE, PSPL_SELECT),
     ]).then(([a, b]) => {
         pitData = a; pspData = b; pitLoaded = true;
+        noteSeason(newestSeason([...a.map(r => r.season), ...b.map(r => r.period)]));
+        fillSeasonSelect('pit-season', a.map(r => r.season), false);
+        fillSeasonSelect('psp-period', b.map(r => r.period), true);
         initPitStatPickers();
         renderPitchers(); renderPitcherSplits();
     }).catch(err => {
