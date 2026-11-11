@@ -8,12 +8,15 @@ import os
 import gc
 import pandas as pd
 
-# Static 2021-2025 raw CSVs are committed in this repo dir;
-# the two splits scrapers write fresh 2026/career raws into it each run.
+from season import SEASON
+
+# Earlier seasons' raw CSVs are committed in this repo dir (the season scraper
+# freezes each finished season once); the two splits scrapers write fresh
+# current-season/career raws into it each run.
 INPUT_DIR   = "data/pitcher_splits_data"
 OUTPUT_PATH = "data/pitcher_splits_data/master_splits.csv"
 
-PERIODS = ["2021","2022","2023","2024","2025","2026","career"]
+PERIODS = [str(y) for y in range(2021, SEASON + 1)] + ["career"]
 
 def run():
     print("=" * 60)
@@ -24,8 +27,8 @@ def run():
     for period in PERIODS:
         csv_path = os.path.join(INPUT_DIR, f"splits_{period}_raw.csv")
         if not os.path.exists(csv_path):
-            print(f"   ⚠️  Missing: splits_{period}_raw.csv — skipping")
-            continue
+            # A missing season would silently drop out of every composite
+            raise SystemExit(f"❌ Missing: splits_{period}_raw.csv — refusing to merge without it")
         df = pd.read_csv(csv_path, low_memory=False)
         frames.append(df)
         print(f"   ✅ {period}: {len(df)} rows, {len(df.columns)} cols")

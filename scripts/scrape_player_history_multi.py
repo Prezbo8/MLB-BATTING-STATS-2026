@@ -1,9 +1,9 @@
 """
-FanGraphs Player MULTI-YEAR History Scraper (2021–2026)
+FanGraphs Player MULTI-YEAR History Scraper (2021 to current season)
 =======================================================
 Backfills per-YEAR player batting stats so the site can chart a player's
-season-over-season trajectory (regular 2021→2026) or the same month across
-years (e.g. June 2021 → June 2026).
+season-over-season trajectory (regular 2021→current) or the same month across
+years (e.g. June 2021 → June 2027).
 
 Uses FanGraphs' month-of-season split codes (so the buckets match the site
 exactly, including the combined Mar/Apr and Sep/Oct groupings):
@@ -28,6 +28,8 @@ import requests
 import pandas as pd
 from datetime import date
 
+from season import SEASON, today as season_today
+
 # ── Secrets ───────────────────────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -42,7 +44,7 @@ COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_PLAYER_HISTORY.csv")
 DELAY_BETWEEN_CALLS = 3
 RETRY_BACKOFFS      = [15, 30, 60, 120, 300, 600]
 RETRY_BUDGET_SECONDS = 60 * 60
-YEARS               = range(2021, 2027)   # 2021 … 2026
+YEARS               = range(2021, SEASON + 1)   # 2021 … current season
 
 API_URL = "https://www.fangraphs.com/api/leaders/splits/splits-leaders"
 HEADERS = {
@@ -120,7 +122,7 @@ def scrape_table(split_arr, start_date, end_date, name):
 
 # ── Windows: (split, period, year, split_arr, start, end) per started year ─────
 def get_windows():
-    today = date.today()
+    today = season_today()
     fmt = lambda d: f"{d.year}-{d.month}-{d.day}"
     windows = []
     for y in YEARS:

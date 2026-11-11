@@ -1,24 +1,21 @@
 """
-FanGraphs 2026 Pitcher Stats - Master Daily Scraper
-Scrapes all 9 stat categories for the 2026 season and:
+FanGraphs Pitcher Stats (current season) - Master Daily Scraper
+Scrapes all 9 stat categories for the current season (scripts/season.py) and:
   - Saves each as a CSV (overwrites daily)
   - Pushes each CSV to GitHub
   - Sends a Telegram notification when done
 
-Date range: 2026-03-18 to 2026-11-10
+Date range: Opening Day to Dec 31 of the current season
 
-Output CSVs:
-    Stats_Dashboard2026.csv     Stats_Standard2026.csv
-    Stats_Advanced2026.csv      Stats_BattedBall2026.csv
-    Stats_+Stats2026.csv        Stats_Statcast2026.csv
-    PlateDiscipline2026.csv     PitchVelocity2026.csv
-    Pitch_StuffPlus2026.csv
+Output CSVs (YYYY = season, e.g. 2027): one per stat type, e.g.
+    Stats_DashboardYYYY.csv  ...  Pitch_StuffPlusYYYY.csv
+Earlier seasons' files stay in data/pitcher/ untouched and are read as past
+seasons by merge_pitcher_overall.py.
 
 Setup (one-time):
-    pip install pandas requests supabase
+    pip install pandas requests
 
-Secrets from env: GITHUB_TOKEN, SUPABASE_URL, SUPABASE_KEY,
-                  TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+Secrets from env: GITHUB_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 API version — fetches the FanGraphs leaders JSON API directly, no browser.
 Scrapes ALL types first; aborts (pushing nothing) if any type fails.
 """
@@ -30,6 +27,8 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import requests as req_lib
+
+from season import SEASON, SEASON_START
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  CREDENTIALS (from environment)
@@ -43,16 +42,12 @@ GITHUB_USERNAME = "Prezbo8"
 GITHUB_REPO     = "MLB-BATTING-STATS-2026"
 GITHUB_BRANCH   = "main"
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  SEASON CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-SEASON     = 2026
-START_DATE = "2026-03-18"
-END_DATE   = "2026-11-10"
+START_DATE = SEASON_START.isoformat()
+END_DATE   = f"{SEASON}-12-31"
 
 OUTPUT_DIR  = "pitcher_data"
 MAX_RETRIES = 5
@@ -76,7 +71,7 @@ def get_scrapers():
         # ── Dashboard (type=8) ────────────────────────────────────────────────
         {
             "name":    "Dashboard",
-            "file":    "Stats_Dashboard2026.csv",
+            "file":    f"Stats_Dashboard{SEASON}.csv",
             "type":    8,
             "columns": ["rank","Name","Team","playerid","W","L","SV","G","GS","IP",
                         "K/9","BB/9","HR/9","BABIP","LOB%","GB%","HR/FB",
@@ -97,7 +92,7 @@ def get_scrapers():
         # ── Standard (type=0) ─────────────────────────────────────────────────
         {
             "name":    "Standard",
-            "file":    "Stats_Standard2026.csv",
+            "file":    f"Stats_Standard{SEASON}.csv",
             "type":    0,
             "columns": ["rank","Name","Team","playerid","W","L","ERA","G","GS","QS",
                         "CG","ShO","SV","HLD","BS","IP","TBF","H","R",
@@ -117,7 +112,7 @@ def get_scrapers():
         # ── Advanced (type=1) ─────────────────────────────────────────────────
         {
             "name":    "Advanced",
-            "file":    "Stats_Advanced2026.csv",
+            "file":    f"Stats_Advanced{SEASON}.csv",
             "type":    1,
             "columns": ["rank","Name","Team","playerid","K/9","BB/9","K/BB","HR/9",
                         "K%","BB%","K-BB%","AVG","WHIP","BABIP","LOB%",
@@ -140,7 +135,7 @@ def get_scrapers():
         # ── Batted Ball (type=2) ──────────────────────────────────────────────
         {
             "name":    "BattedBall",
-            "file":    "Stats_BattedBall2026.csv",
+            "file":    f"Stats_BattedBall{SEASON}.csv",
             "type":    2,
             "columns": ["rank","Name","Team","playerid","BABIP","GB/FB","LD%","GB%","FB%",
                         "IFFB%","HR/FB","RS","RS/9","Balls","Strikes","Pitches",
@@ -164,7 +159,7 @@ def get_scrapers():
         # ── +Stats (type=23) ──────────────────────────────────────────────────
         {
             "name":    "+Stats",
-            "file":    "Stats_+Stats2026.csv",
+            "file":    f"Stats_+Stats{SEASON}.csv",
             "type":    23,
             "columns": ["rank","Name","Team","playerid","IP",
                         "K/9+","BB/9+","K/BB+","HR/9+","K%+","BB%+",
@@ -197,7 +192,7 @@ def get_scrapers():
         # ── Statcast (type=24) ────────────────────────────────────────────────
         {
             "name":    "Statcast",
-            "file":    "Stats_Statcast2026.csv",
+            "file":    f"Stats_Statcast{SEASON}.csv",
             "type":    24,
             "columns": ["rank","Name","Team","playerid","IP","Events","EV","EV90","maxEV",
                         "LA","Barrels","Barrel%","HardHit","HardHit%","ERA","xERA"],
@@ -221,7 +216,7 @@ def get_scrapers():
         # ── Plate Discipline (type=5) ─────────────────────────────────────────
         {
             "name":    "PlateDiscipline",
-            "file":    "PlateDiscipline2026.csv",
+            "file":    f"PlateDiscipline{SEASON}.csv",
             "type":    5,
             "columns": ["rank","Name","Team","playerid",
                         "O-Swing%","Z-Swing%","Swing%",
@@ -249,7 +244,7 @@ def get_scrapers():
         # ── Pitch Velocity (type=10) ──────────────────────────────────────────
         {
             "name":    "PitchVelocity",
-            "file":    "PitchVelocity2026.csv",
+            "file":    f"PitchVelocity{SEASON}.csv",
             "type":    10,
             "columns": ["rank","Name","Team","playerid","IP",
                         "vFA","vFT","vFC","vFS","vFO","vSI",
@@ -282,7 +277,7 @@ def get_scrapers():
         #   sp_stuff = Stuff+,  sp_location = Location+,  sp_pitching = Pitching+
         {
             "name":    "StuffPlus",
-            "file":    "Pitch_StuffPlus2026.csv",
+            "file":    f"Pitch_StuffPlus{SEASON}.csv",
             "type":    36,
             "columns": ["rank","Name","Team","playerid","IP",
                         "Stf+ FA","Stf+ SI","Stf+ FC","Stf+ FS","Stf+ SL",
@@ -461,7 +456,7 @@ def send_telegram(message):
 
 def main():
     run_start = utcnow()
-    print("🚀 FanGraphs 2026 Master Pitcher Scraper — API")
+    print(f"🚀 FanGraphs {SEASON} Master Pitcher Scraper — API")
     print(f"   Date range: {START_DATE} → {END_DATE}")
     print("=" * 55)
 
@@ -498,7 +493,7 @@ def main():
     if failed_scrapes:
         print(f"\n❌ {len(failed_scrapes)} stat type(s) failed — nothing pushed, old data left in place.")
         send_telegram(
-            f"❌ <b>2026 Pitcher Scraper GAVE UP</b>\n"
+            f"❌ <b>{SEASON} Pitcher Scraper GAVE UP</b>\n"
             f"🚫 Nothing pushed — old data left in place\n"
             f"❌ Failed: {', '.join(failed_scrapes)}"
         )
@@ -520,7 +515,7 @@ def main():
           f"{github_ok}/{total} → GitHub")
 
     lines = [
-        f"<b>⚾ FanGraphs 2026 Daily Pitcher Update</b>",
+        f"<b>⚾ FanGraphs {SEASON} Daily Pitcher Update</b>",
         f"🕐 {run_end.strftime('%Y-%m-%d %H:%M UTC')}  ({elapsed}s)\n",
     ]
     for r in results:

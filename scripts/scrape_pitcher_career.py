@@ -1,16 +1,16 @@
 """
-FanGraphs Career Pitcher Stats Scraper (2017-2026) — API version
+FanGraphs Career Pitcher Stats Scraper (2017 to current season) — API version
 Fetches all 9 stat categories from the FanGraphs leaders JSON API (no browser):
   - Scrapes ALL types first; aborts (pushing nothing) if any type fails
   - Saves each as a CSV, pushes each to GitHub
   - Sends a Telegram notification when complete
 
-Secrets from env: GITHUB_TOKEN, SUPABASE_URL, SUPABASE_KEY,
+Secrets from env: GITHUB_TOKEN,
                   TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 Steps whose env vars are missing are skipped (handy for local dry runs).
 
 Setup (one-time):
-    pip install pandas requests supabase
+    pip install pandas requests
 """
 
 import os
@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import requests as req_lib
+
+from season import SEASON
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  CREDENTIALS (from environment)
@@ -32,9 +34,6 @@ GITHUB_TOKEN    = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_USERNAME = "Prezbo8"
 GITHUB_REPO     = "MLB-BATTING-STATS-2026"
 GITHUB_BRANCH   = "main"
-
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 OUTPUT_DIR  = "pitcher_data"
 MAX_RETRIES = 5
@@ -59,7 +58,7 @@ def get_stat_types():
         {
             "name":       "Dashboard",
             "csv_file":   "Stats_Dashboard_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=8&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=8&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","W","L","SV","G","GS","IP",
                            "K/9","BB/9","HR/9","BABIP","LOB%","GB%","HR/FB",
                            "vFA (pi)","ERA","xERA","FIP","xFIP","WAR"],
@@ -80,7 +79,7 @@ def get_stat_types():
         {
             "name":       "Standard",
             "csv_file":   "Stats_Standard_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=0&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=0&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","W","L","ERA","G","GS","QS",
                            "CG","ShO","SV","HLD","BS","IP","TBF","H","R",
                            "ER","HR","BB","IBB","HBP","WP","BK","SO"],
@@ -100,7 +99,7 @@ def get_stat_types():
         {
             "name":       "Advanced",
             "csv_file":   "Stats_Advanced_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=1&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=1&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","K/9","BB/9","K/BB","HR/9",
                            "K%","BB%","K-BB%","AVG","WHIP","BABIP","LOB%",
                            "ERA-","FIP-","xFIP-","ERA","FIP","E-F","xFIP","SIERA"],
@@ -123,7 +122,7 @@ def get_stat_types():
         {
             "name":       "BattedBall",
             "csv_file":   "Stats_BattedBall_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=2&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=2&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","BABIP","GB/FB","LD%","GB%","FB%",
                            "IFFB%","HR/FB","RS","RS/9","Balls","Strikes","Pitches",
                            "Pull%","Cent%","Oppo%","Soft%","Med%","Hard%"],
@@ -147,7 +146,7 @@ def get_stat_types():
         {
             "name":       "+Stats",
             "csv_file":   "Stats_+Stats_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=23&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=23&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","IP",
                            "K/9+","BB/9+","K/BB+","HR/9+","K%+","BB%+",
                            "AVG+","WHIP+","BABIP+","LOB%+",
@@ -180,7 +179,7 @@ def get_stat_types():
         {
             "name":       "Statcast",
             "csv_file":   "Stats_Statcast_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=24&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=24&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","IP","Events","EV","EV90","maxEV",
                            "LA","Barrels","Barrel%","HardHit","HardHit%","ERA","xERA"],
             "column_map": {
@@ -204,7 +203,7 @@ def get_stat_types():
         {
             "name":       "PlateDiscipline",
             "csv_file":   "PlateDiscipline_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=5&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=5&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid",
                            "O-Swing%","Z-Swing%","Swing%",
                            "O-Contact%","Z-Contact%","Contact%",
@@ -232,7 +231,7 @@ def get_stat_types():
         {
             "name":       "PitchVelocity",
             "csv_file":   "PitchVelocity_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=10&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=10&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","IP",
                            "vFA","vFC","vFS","vFO","vSI",
                            "vSL","vCU","vKC","vEP","vCH","vSC","vKN"],
@@ -260,7 +259,7 @@ def get_stat_types():
         {
             "name":       "StuffPlus",
             "csv_file":   "Pitch_StuffPlus_career.csv",
-            "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=36&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
+            "page_url":   f"https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=36&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2={SEASON}&season1=2017&season={SEASON}",
             "columns":    ["rank","Name","Team","playerid","IP",
                            "Stf+ FA","Stf+ SI","Stf+ FC","Stf+ FS","Stf+ SL",
                            "Stf+ CU","Stf+ CH","Stf+ KC","Stf+ FO",
@@ -433,7 +432,7 @@ def main():
     stat_types = get_stat_types()
     total_jobs = len(stat_types)
 
-    print("🚀 FanGraphs Career Pitcher Stats Scraper (2017-2026) — API")
+    print(f"🚀 FanGraphs Career Pitcher Stats Scraper (2017-{SEASON}) — API")
     print(f"   {total_jobs} stat types")
     print("=" * 60)
 
@@ -491,7 +490,7 @@ def main():
           f"{github_ok}/{total_jobs} → GitHub")
 
     lines = [
-        f"<b>⚾ FanGraphs Career Load Complete (2017-2026)</b>",
+        f"<b>⚾ FanGraphs Career Load Complete (2017-{SEASON})</b>",
         f"🕐 {run_end.strftime('%Y-%m-%d %H:%M UTC')}  ({elapsed}s)",
         f"📦 {scraped_ok}/{total_jobs} scraped | GH {github_ok}/{total_jobs}",
     ]

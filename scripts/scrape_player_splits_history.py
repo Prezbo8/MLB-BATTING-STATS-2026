@@ -7,7 +7,8 @@ month at a time (March→October) and stores them in a SEPARATE Supabase table
 
 Difference from the daily scraper (scrape_player_splits.py):
   • Date windows are calendar MONTHS, not the relative season/last_30/14/7.
-  • `date_range` holds a month key ("2026-03"); start_date/end_date = the window.
+  • `date_range` holds a month key ("2027-03"); start_date/end_date = the window.
+  • Season = scripts/season.py (switches the day after Opening Day).
   • Months that haven't started yet are skipped; the current month is clipped to
     today (a partial capture that a later re-run overwrites once it closes).
   • Supabase push is delete-just-this-run's-months → insert (idempotent, and it
@@ -27,6 +28,8 @@ import requests
 import pandas as pd
 from datetime import date
 
+from season import SEASON, today as season_today
+
 # ── Secrets (from environment) ────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -42,7 +45,7 @@ COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_PLAYER_SPLITS_HISTORY.csv")
 DELAY_BETWEEN_CALLS = 3
 RETRY_BACKOFFS      = [15, 30, 60, 120, 300, 600]  # last value repeats
 RETRY_BUDGET_SECONDS = 45 * 60   # give up (and push nothing) after this long
-SEASON_YEAR         = 2026
+SEASON_YEAR         = SEASON
 SEASON_MONTHS       = range(3, 11)   # March (3) → October (10)
 
 API_URL = "https://www.fangraphs.com/api/leaders/splits/splits-leaders"
@@ -66,7 +69,7 @@ SPLITS = [
 def get_month_windows():
     """(month_key, start_date, end_date) per calendar month that has started.
     The current month is clipped to today (partial); future months are skipped."""
-    today = date.today()
+    today = season_today()
     fmt = lambda d: f"{d.year}-{d.month}-{d.day}"
     windows = []
     for m in SEASON_MONTHS:

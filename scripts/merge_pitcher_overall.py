@@ -1,6 +1,6 @@
 """
 MLB Pitcher Model — Merger (Local, with Career)
-Combines all annual CSVs (9 tabs x 6 years) + 9 career CSVs into:
+Combines all annual CSVs (9 tabs x every season since 2021) + 9 career CSVs into:
   - master_YYYY.csv per year
   - master_career.csv
   - master_all.csv (all years + career, season='career')
@@ -11,12 +11,15 @@ import gc
 import pandas as pd
 import numpy as np
 
-# Scrapers write fresh 2026/career CSVs here; the workflow copies the static
-# 2021-2025 CSVs in from pitcher/historical/ before this runs.
+from season import SEASON
+
+# Scrapers write fresh current-season/career CSVs here; the workflow copies
+# every earlier season's CSVs in (data/pitcher/historical/ for 2021-2025,
+# data/pitcher/ for 2026 on) before this runs.
 UPLOAD_DIR = "pitcher_data"
 OUTPUT_DIR = "pitcher_data"
 
-YEARS = [2021, 2022, 2023, 2024, 2025, 2026]
+YEARS = list(range(2021, SEASON + 1))
 
 ANNUAL_TAB_FILES = [
     ("Dashboard",      "Stats_Dashboard"),
@@ -125,14 +128,15 @@ def run():
     for year in YEARS:
         df = merge_tabs(ANNUAL_TAB_FILES, year)
         if df.empty:
-            continue
+            # A missing season would silently drop out of every composite
+            raise SystemExit(f"❌ No CSVs found for {year} — refusing to merge without it")
         year_path = os.path.join(OUTPUT_DIR, f"master_{year}.csv")
         df.to_csv(year_path, index=False)
         print(f"   💾 master_{year}.csv saved")
         master_frames.append(df)
 
     # ── Career ────────────────────────────────────────────────
-    df_career = merge_tabs(CAREER_TAB_FILES, "career", label="Career (2017-2026)")
+    df_career = merge_tabs(CAREER_TAB_FILES, "career", label=f"Career (2017-{SEASON})")
     if not df_career.empty:
         career_path = os.path.join(OUTPUT_DIR, "master_career.csv")
         df_career.to_csv(career_path, index=False)
