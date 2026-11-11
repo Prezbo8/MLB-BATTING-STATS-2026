@@ -13,7 +13,7 @@
             }
         })();
     </script>
-    <title>MLB 2026 • Team Offense Analyzer</title>
+    <title>MLB • Team Offense Analyzer</title>
     <link rel="apple-touch-icon" sizes="180x180" href="/MLB-BATTING-STATS-2026/assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/MLB-BATTING-STATS-2026/assets/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/MLB-BATTING-STATS-2026/assets/favicon-16x16.png">
@@ -24,7 +24,7 @@
     <link rel="manifest" href="/MLB-BATTING-STATS-2026/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MLB 2026">
+    <meta name="apple-mobile-web-app-title" content="MLB">
     <meta name="theme-color" content="#080a0f">
     <meta name="mobile-web-app-capable" content="yes">
 
@@ -992,7 +992,7 @@
 <header>
     <div class="header-inner">
         <div class="brand">
-            <div class="brand-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MLB 2026 logo">
+            <div class="brand-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MLB logo">
                 <ellipse cx="32" cy="56" rx="22" ry="6" fill="#f97316" opacity="0.4"/>
                 <path d="M14 40 Q8 26 16 12 Q14 24 22 26 Q12 14 20 2 Q22 16 30 20 Q24 8 32 0 Q40 8 34 20 Q42 12 44 2 Q52 14 50 26 Q58 20 56 10 Q64 24 50 40" fill="#f97316"/>
                 <path d="M16 38 Q10 26 18 14 Q16 24 24 26 Q14 14 22 4 Q24 16 32 20 Q40 12 42 4 Q50 16 48 26 Q56 22 54 12 Q60 26 52 40" fill="#fbbf24" opacity="0.85"/>
@@ -1004,7 +1004,7 @@
                 <path d="M26 34 Q24 28 28 22 Q28 28 32 26 Q30 20 34 14 Q38 20 36 26 Q40 22 40 16 Q44 22 42 32" fill="#f97316" opacity="0.65"/>
             </svg></div>
             <div>
-                <div class="brand-name">MLB 2026</div>
+                <div class="brand-name">MLB <span class="season-cur"></span></div>
                 <div class="brand-sub">Team Offense Analyzer</div>
             </div>
         </div>
@@ -1302,8 +1302,8 @@
                 <div class="filter-group">
                     <div class="filter-label">Range</div>
                     <select id="lt-range" onchange="renderLineupTrends()">
-                        <option value="monthly">Monthly (2026)</option>
-                        <option value="yearly">Yearly (2021–26)</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
                     </select>
                 </div>
             </div>
@@ -1317,7 +1317,7 @@
     <!-- PANEL 12: LINEUP HISTORY -->
     <div id="panel-12" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-12">
         <div class="section-header">
-            <div class="section-title">📅 Lineup History <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0;text-transform:none;">2021–2026</span></div>
+            <div class="section-title">📅 Lineup History <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0;text-transform:none;">2021–<span class="season-cur"></span></span></div>
             <div class="lineup-controls">
                 <div class="filter-group">
                     <div class="filter-label">Game</div>
@@ -1483,12 +1483,12 @@
                     <tr>
                         <th style="text-align:center;width:46px;"><div class="th-inner" style="justify-content:center">#</div></th>
                         <th style="text-align:left;width:220px;"><div class="th-inner">Team</div></th>
-                        <th class="num sortable sort-active" id="rpg-th-szn_2026"  onclick="sortRpg('szn_2026')"  data-tip="2026 Season Runs Per Game — full season average so far."><div class="th-inner">2026 R/G <span class="sort-icon">↓</span></div></th>
+                        <th class="num sortable sort-active" id="rpg-th-szn_current"  onclick="sortRpg('szn_current')"  data-tip="This season's runs per game — full season average so far."><div class="th-inner"><span class="season-cur"></span> R/G <span class="sort-icon">↓</span></div></th>
                         <th class="num sortable"             id="rpg-th-last_3"    onclick="sortRpg('last_3')"    data-tip="Last 3 Games — average runs per game over the last 3 games played."><div class="th-inner">Last 3 <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable"             id="rpg-th-last_1"    onclick="sortRpg('last_1')"    data-tip="Last 1 Game — runs scored in the most recent game played."><div class="th-inner">Last 1 <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable"             id="rpg-th-home"      onclick="sortRpg('home')"      data-tip="Home R/G — average runs per game at home this season."><div class="th-inner">Home <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable"             id="rpg-th-away"      onclick="sortRpg('away')"      data-tip="Away R/G — average runs per game on the road this season."><div class="th-inner">Away <span class="sort-icon">↕</span></div></th>
-                        <th class="num sortable"             id="rpg-th-szn_2025"  onclick="sortRpg('szn_2025')"  data-tip="2025 Season R/G — last season's full-year runs per game average (for comparison)."><div class="th-inner">2025 R/G <span class="sort-icon">↕</span></div></th>
+                        <th class="num sortable"             id="rpg-th-szn_prev"  onclick="sortRpg('szn_prev')"  data-tip="Last season's full-year runs per game average (for comparison)."><div class="th-inner"><span class="season-prev"></span> R/G <span class="sort-icon">↕</span></div></th>
                     </tr>
                 </thead>
                 <tbody id="rpg-body">
@@ -1547,12 +1547,7 @@
         </div>
         <div id="pts-view-overall">
             <div class="filters-row">                <div class="filter-group"><div class="filter-label">Season</div>
-                    <select id="prk-season" onchange="prkFilter()">
-                        <option value="2026">2026</option><option value="2025">2025</option>
-                        <option value="2024">2024</option><option value="2023">2023</option>
-                        <option value="2022">2022</option><option value="2021">2021</option>
-                        <option value="career">Career</option>
-                    </select></div>
+                    <select id="prk-season" onchange="prkFilter()"></select></div>
                 <div class="filter-group"><div class="filter-label">Tier</div>
                     <select id="prk-tier" onchange="prkFilter()">
                         <option value="">All Tiers</option><option value="Elite">Elite</option>
@@ -1583,10 +1578,10 @@
                 <thead><tr>                        <th style="text-align:center;width:46px;"><div class="th-inner" style="justify-content:center;">#</div></th>
                         <th style="text-align:left;min-width:150px;"><div class="th-inner">Pitcher</div></th>
                         <th style="text-align:left;width:55px;"><div class="th-inner">Team</div></th>
-                        <th class="num sortable sort-active" id="prk-th-season" onclick="prkSort('season_score')" data-tip="Season Score — Percentile rank within this season (0-100)."><div class="th-inner"><span id="prk-szn-label">2026</span> Score <span class="sort-icon">↓</span></div></th>
+                        <th class="num sortable sort-active" id="prk-th-season" onclick="prkSort('season_score')" data-tip="Season Score — Percentile rank within this season (0-100)."><div class="th-inner"><span id="prk-szn-label"></span> Score <span class="sort-icon">↓</span></div></th>
                         <th class="num" style="min-width:150px;"><div class="th-inner">Grade</div></th>
-                        <th class="num sortable" id="prk-th-prev" onclick="prkSort('prev_season_score')" data-tip="2025 Season Score — Percentile rank in the 2025 season."><div class="th-inner">2025 Szn <span class="sort-icon">↕</span></div></th>
-                        <th class="num sortable" id="prk-th-career" onclick="prkSort('career_season_score')" data-tip="Career Season Score — Percentile rank across career (2017-2026)."><div class="th-inner">Career Szn <span class="sort-icon">↕</span></div></th>
+                        <th class="num sortable" id="prk-th-prev" onclick="prkSort('prev_season_score')" data-tip="Previous season's score — percentile rank in that season."><div class="th-inner"><span class="season-prev"></span> Szn <span class="sort-icon">↕</span></div></th>
+                        <th class="num sortable" id="prk-th-career" onclick="prkSort('career_season_score')" data-tip="Career Season Score — Percentile rank across career (2017 to now)."><div class="th-inner">Career Szn <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable" id="prk-th-composite" onclick="prkSort('composite_score')" data-tip="Composite Score — Cross-year weighted score (0-100)."><div class="th-inner">Composite <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable" id="prk-th-era" onclick="prkSort('era')" data-tip="ERA"><div class="th-inner">ERA <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable" id="prk-th-fip" onclick="prkSort('fip')" data-tip="FIP"><div class="th-inner">FIP <span class="sort-icon">↕</span></div></th>
@@ -1613,11 +1608,7 @@
         <div class="section-header">
             <div class="filters-row">
                 <div class="filter-group"><div class="filter-label">Period</div>
-                    <select id="ps-period" onchange="psFilter()">
-                        <option value="2026">2026</option><option value="2025">2025</option>
-                        <option value="career">Career</option><option value="2024">2024</option>
-                        <option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option>
-                    </select></div>
+                    <select id="ps-period" onchange="psFilter()"></select></div>
                 <div class="filter-group"><div class="filter-label">Split</div>
                     <select id="ps-split" onchange="psFilter()">
                         <option value="vsRHH">vs RHH</option><option value="vsLHH">vs LHH</option>
@@ -1657,10 +1648,10 @@
                     <th style="text-align:center;width:46px;"><div class="th-inner" style="justify-content:center;">#</div></th>
                     <th style="text-align:left;min-width:150px;"><div class="th-inner">Pitcher</div></th>
                     <th style="text-align:left;width:55px;"><div class="th-inner">Team</div></th>
-                    <th class="num sortable sort-active" id="ps-th-szn" onclick="psSort('season_score')" data-tip="Season Score — Percentile rank within this split+period."><div class="th-inner"><span id="ps-szn-label">2026</span> Score <span class="sort-icon">↓</span></div></th>
+                    <th class="num sortable sort-active" id="ps-th-szn" onclick="psSort('season_score')" data-tip="Season Score — Percentile rank within this split+period."><div class="th-inner"><span id="ps-szn-label"></span> Score <span class="sort-icon">↓</span></div></th>
                     <th class="num" style="min-width:120px;" data-tip="Grade bar showing score visually."><div class="th-inner">Color Grade</div></th>
                     <th class="num" style="width:70px;" data-tip="Tier label: Elite/Good/Mid/Bad/Ass"><div class="th-inner">Grade</div></th>
-                    <th class="num sortable" id="ps-th-prev" onclick="psSort('prev_split_score')" data-tip="2025 Split Score for this split."><div class="th-inner">2025 Szn <span class="sort-icon">↕</span></div></th>
+                    <th class="num sortable" id="ps-th-prev" onclick="psSort('prev_split_score')" data-tip="Previous season's score for this split."><div class="th-inner"><span class="season-prev"></span> Szn <span class="sort-icon">↕</span></div></th>
                     <th class="num sortable" id="ps-th-career" onclick="psSort('career_split_score')" data-tip="Career Split Score for this split."><div class="th-inner">Career Szn <span class="sort-icon">↕</span></div></th>
                     <th class="num sortable" id="ps-th-era" onclick="psSort('era')" data-tip="ERA"><div class="th-inner">ERA <span class="sort-icon">↕</span></div></th>
                     <th class="num sortable" id="ps-th-fip" onclick="psSort('fip')" data-tip="FIP"><div class="th-inner">FIP <span class="sort-icon">↕</span></div></th>
@@ -1739,7 +1730,7 @@
 
 </main>
 
-<footer>Live data via <code>Supabase</code> &nbsp;·&nbsp; MLB 2026 Offense Analyzer &nbsp;·&nbsp; <span id="last-updated-footer" style="color:var(--text2);"></span></footer>
+<footer>Live data via <code>Supabase</code> &nbsp;·&nbsp; MLB <span class="season-cur"></span> Offense Analyzer &nbsp;·&nbsp; <span id="last-updated-footer" style="color:var(--text2);"></span></footer>
 
 <script>
 // ── SUPABASE CONFIG ──────────────────────────────────────────────────────
@@ -1792,6 +1783,38 @@ async function sbFetchAll(table, params) {
     return all;
 }
 
+// ── CURRENT SEASON ──────────────────────────────────────────────────────
+// The newest season found in the data. The scrapers decide when a new season
+// starts (the day after Opening Day, scripts/season.py); the site follows.
+let CUR_SEASON = null;
+function noteSeason(y) {
+    y = parseInt(y, 10);
+    if (!y || (CUR_SEASON && y <= CUR_SEASON)) return;
+    CUR_SEASON = y;
+    const yy = String(y).slice(2);
+    document.querySelectorAll('.season-cur').forEach(el => el.textContent = y);
+    document.querySelectorAll('.season-prev').forEach(el => el.textContent = y - 1);
+    const lt = document.getElementById('lt-range');
+    if (lt) {
+        lt.querySelector('option[value="monthly"]').textContent = `Monthly (${y})`;
+        lt.querySelector('option[value="yearly"]').textContent  = `Yearly (2021–${yy})`;
+    }
+    LH_YEARS = [];
+    for (let s = 2021; s <= y; s++) LH_YEARS.push(s);
+    document.title = `MLB ${y} • Team Offense Analyzer`;
+}
+// Newest season among values like 2026 / '2025' / 'career'
+const newestSeason = vals => Math.max(0, ...vals.map(v => parseInt(v, 10)).filter(v => v > 0));
+// Fill a season <select>: newest first, Career after the previous season or at the end
+function fillSeasonSelect(id, seasons, careerAfterPrev) {
+    const sel = document.getElementById(id);
+    if (!sel || sel.options.length) return;
+    const ys = [...new Set(seasons.map(v => parseInt(v, 10)).filter(v => v > 0))].sort((a, b) => b - a);
+    const opts = ys.map(y => [String(y), String(y)]);
+    opts.splice(careerAfterPrev ? Math.min(2, opts.length) : opts.length, 0, ['career', 'Career']);
+    sel.innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+}
+
 async function fetchFromSupabase() {
     const btn      = document.getElementById('upload-btn');
     const btnIcon  = document.getElementById('btn-icon');
@@ -1808,6 +1831,7 @@ async function fetchFromSupabase() {
             'select=*&order=tm.asc,split.asc,date_range.asc');
 
         if (!allRows.length) throw new Error('Table returned 0 rows');
+        noteSeason(newestSeason(allRows.map(r => r.season)));
         loadFromRows(allRows);
 
         // Success state
@@ -1981,8 +2005,8 @@ function updateSummaryBar(activeTab) {
 
         // SZN only: append R/G leader
         if (drIdx === 0 && rpgLoaded && rpgData.length) {
-            const leader = [...rpgData].sort((a,b) => (b.szn_2026??0)-(a.szn_2026??0))[0];
-            if (leader?.szn_2026 != null) {
+            const leader = [...rpgData].sort((a,b) => (b.szn_current??0)-(a.szn_current??0))[0];
+            if (leader?.szn_current != null) {
                 const abbr = RPG_TEAM_ABBR[leader.tm] || '';
                 const tc   = abbr ? (teamColorsPdf[abbr] || { primary:'#9aa3b8' }) : { primary:'#9aa3b8' };
                 allItems += `<div class="ticker-item">
@@ -1990,7 +2014,7 @@ function updateSummaryBar(activeTab) {
                     <span class="ticker-item-abbr" style="color:${tc.primary};">${abbr || leader.tm}</span>
                     <div class="ticker-item-stat">
                         <span class="ticker-item-key">R/G</span>
-                        <span class="ticker-item-val t-elite">${leader.szn_2026.toFixed(2)}</span>
+                        <span class="ticker-item-val t-elite">${leader.szn_current.toFixed(2)}</span>
                     </div>
                 </div>`;
             }
@@ -2448,7 +2472,7 @@ const MON_ABBR = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 const monthLabel = m => MON_ABBR[parseInt(m.slice(5, 7), 10)] || m;
 
 let teamHistory = {};      // teamHistory[split][month] = [ {tm, pa, ...stats} ]
-let historyMonths = [];    // sorted month keys present, e.g. ['2026-03', ...]
+let historyMonths = [];    // newest season's month keys, e.g. ['2027-03', ...]
 let historyLoaded = false, historyLoading = false;
 
 // Same row→object shape as loadFromRows, keyed by split then month.
@@ -2480,7 +2504,14 @@ function loadHistoryRows(rows) {
             wrcPlus: parseNum(r.wrcplus),
         });
     }
-    historyMonths = [...monthSet].sort();
+    historyMonths = newestSeasonMonths(monthSet);
+}
+
+// History tables keep every season's months; charts show the newest season's
+function newestSeasonMonths(monthSet) {
+    const ms = [...monthSet].sort();
+    const yr = ms.length ? ms[ms.length - 1].slice(0, 4) : '';
+    return ms.filter(m => m.startsWith(yr));
 }
 
 async function fetchTeamHistory() {
@@ -2661,7 +2692,7 @@ async function fetchPlayerHistory(split) {
                 iso: parseNum(r.iso), babip: parseNum(r.babip), woba: parseNum(r.woba), wrcPlus: parseNum(r.wrcplus),
             });
         }
-        playerHistory[split] = { months: [...ms].sort(), byMonth };
+        playerHistory[split] = { months: newestSeasonMonths(ms), byMonth };
     } catch (e) {
         console.error('player history fetch', e);
     } finally {
@@ -2825,7 +2856,7 @@ function renderLineupTrends() {
 
     const colors = teamPairColors(awayTm, homeTm);
     const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP', home: 'Home', away: 'Away' }[split] || split;
-    const rangeLbl = mode === 'yearly' ? 'Season 2021–26' : 'Monthly 2026';
+    const rangeLbl = mode === 'yearly' ? `Season 2021–${String(CUR_SEASON).slice(2)}` : `Monthly ${CUR_SEASON}`;
     const legend = (bs, tm, tc) => `<div class="lt-legend"><div class="lt-legend-team" style="color:${tc}">${tm}</div><div class="lt-legend-items">${bs.length ? bs.map((p, i) => `<div class="lt-leg"><span class="lt-leg-sw" style="background:${LINEUP_PALETTE[i % LINEUP_PALETTE.length]}"></span>${p.order ? p.order + '. ' : ''}${esc(p.name)}</div>`).join('') : '<span style="color:var(--muted)">No lineup posted</span>'}</div></div>`;
 
     let html = `<div class="lt-game-head"><img src="${teamLogos[awayTm] || ''}" onerror="this.style.opacity='.15'" alt=""> ${awayTm} <span style="color:var(--muted)">@</span> ${homeTm} <img src="${teamLogos[homeTm] || ''}" onerror="this.style.opacity='.15'" alt=""></div>`;
@@ -2840,12 +2871,12 @@ function renderLineupTrends() {
     wireLineupTips();
 }
 
-// ── LINEUP HISTORY (2021–2026 per-player season/month line charts) ────────────
+// ── LINEUP HISTORY (2021–current season per-player season/month line charts) ──
 // For a game's two lineups, a 9 batters × 6 stat grid (AVG/K%/ISO/BABIP/wOBA/
 // wRC+), each cell a line chart across the years. Reads fangraphs_player_history
 // (keyed by playerid), resolving each batter → playerid via the live player data.
 const SUPABASE_PLAYER_HIST_TABLE = 'fangraphs_player_history';
-const LH_YEARS   = [2021, 2022, 2023, 2024, 2025, 2026];
+let   LH_YEARS   = [];                       // 2021 … CUR_SEASON (set by noteSeason)
 const LH_MIN_PA  = 10;                       // skip low-sample points (noisy rate stats)
 const LH_DBCOL   = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus', ops:'ops', obp:'obp', slg:'slg', bbPct:'bb_pct' };
 const _pn = v => parseFloat(v) || 0;
@@ -3022,14 +3053,14 @@ function renderPlayerCard() {
     if (!body || !id) return;
     const store = playerHist[id] || {};
     let tm = '';
-    for (let y = 2026; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
+    for (let y = CUR_SEASON; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
     const logo = teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : '';
     const legend = CARD_SPLITS.map(([sp, lbl, col]) => `<div class="lh-card-leg"><span class="lh-card-sw" style="background:${col}"></span>${lbl}</div>`).join('') +
         `<div class="lh-card-leg"><span class="lh-card-sw dashed"></span>LG avg</div>`;
     const charts = LS_STATS.map((sk, i) =>
         `<div class="lh-card-stat"><div class="lh-card-statlbl">${LS_STAT_LABELS[i]}</div>${buildPlayerCardChart(id, sk)}</div>`).join('');
     body.innerHTML = `<div class="lh-card-title">${logo}${esc(name)}${tm ? ` <span style="color:var(--muted);font-size:0.8rem;font-weight:700;">${tm}</span>` : ''}</div>` +
-        `<div class="lh-card-sub">Season 2021–2026 · handedness splits</div>` +
+        `<div class="lh-card-sub">Season 2021–${CUR_SEASON} · handedness splits</div>` +
         `<div class="lh-card-legend">${legend}</div><div class="lh-card-grid">${charts}</div>`;
 }
 function closePlayerCard() { document.getElementById('lh-card-overlay').classList.remove('open'); lhCardId = null; }
@@ -4202,12 +4233,12 @@ function renderHotColdPlayers() {
 const SUPABASE_RPG_TABLE = 'mlb_rpg';
 let rpgData  = [];
 let rpgLoaded = false;
-let rpgSortKey = 'szn_2026', rpgSortDir = 'desc';
+let rpgSortKey = 'szn_current', rpgSortDir = 'desc';
 
 async function ensureRpgData() {
     if (rpgLoaded) return;
     const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/${SUPABASE_RPG_TABLE}?select=*&order=szn_2026.desc`,
+        `${SUPABASE_URL}/rest/v1/${SUPABASE_RPG_TABLE}?select=*&order=szn_current.desc`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' } }
     );
     if (!res.ok) {
@@ -4218,12 +4249,12 @@ async function ensureRpgData() {
     rpgData = rows.map(r => ({
         tm:       (r.team || '').trim(),
         rank:     parseInt(r.rank)           || 0,
-        szn_2026: r.szn_2026 != null ? parseFloat(r.szn_2026) : null,
+        szn_current: r.szn_current != null ? parseFloat(r.szn_current) : null,
         last_3:   r.last_3   != null ? parseFloat(r.last_3)   : null,
         last_1:   r.last_1   != null ? parseFloat(r.last_1)   : null,
         home:     r.home     != null ? parseFloat(r.home)     : null,
         away:     r.away     != null ? parseFloat(r.away)     : null,
-        szn_2025: r.szn_2025 != null ? parseFloat(r.szn_2025) : null,
+        szn_prev: r.szn_prev != null ? parseFloat(r.szn_prev) : null,
     }));
     rpgLoaded = true;
 }
@@ -4283,12 +4314,12 @@ function renderRpg() {
         return `<tr class="animated" style="animation-delay:${Math.min(i*16,280)}ms">
             <td class="rank-cell">${rankHtml}</td>
             <td style="width:220px;"><div class="team-cell">${logo}<span style="font-family:var(--body);font-size:0.9rem;font-weight:600;letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${abbr?(teamColorsPdf[abbr]||{primary:'var(--text)'}).primary:'var(--text)'};">${fullName}</span></div></td>
-            <td class="wrc-cell ${rpgTier(row.szn_2026)}">${fmt(row.szn_2026)}</td>
+            <td class="wrc-cell ${rpgTier(row.szn_current)}">${fmt(row.szn_current)}</td>
             <td class="num ${rpgTier(row.last_3)}">${fmt(row.last_3)}</td>
             <td class="num ${rpgTier(row.last_1)}">${fmt(row.last_1)}</td>
             <td class="num ${rpgTier(row.home)}">${fmt(row.home)}</td>
             <td class="num ${rpgTier(row.away)}">${fmt(row.away)}</td>
-            <td class="num">${fmt(row.szn_2025)}</td>
+            <td class="num">${fmt(row.szn_prev)}</td>
         </tr>`;
     }).join('');
 }
@@ -4763,7 +4794,7 @@ function reportExportPDF(btn) {
 
     var titleEl = document.createElement('div');
     titleEl.style.cssText = 'font-family:system-ui,sans-serif;font-size:16px;font-weight:900;color:#e8eaf0;margin-bottom:12px;letter-spacing:0.04em;';
-    titleEl.textContent = '\ud83d\udcf0 MLB 2026 Daily Report' + (matchupTitle ? ' \u2014 ' + matchupTitle : '') + ' \u00b7 ' + ts;
+    titleEl.textContent = '\ud83d\udcf0 MLB ' + CUR_SEASON + ' Daily Report' + (matchupTitle ? ' \u2014 ' + matchupTitle : '') + ' \u00b7 ' + ts;
     root.appendChild(titleEl);
 
     var clone = report.cloneNode(true);
@@ -4781,7 +4812,7 @@ function reportExportPDF(btn) {
 
     // Name the PDF via document.title (browsers use it as the default filename)
     var prevTitle = document.title;
-    document.title = 'MLB_2026_Daily_Report_' + localDateStr();
+    document.title = 'MLB_' + CUR_SEASON + '_Daily_Report_' + localDateStr();
 
     var cleanedUp = false;
     var cleanup = function() {
@@ -4893,7 +4924,7 @@ const PT_TABLE = 'pitcher_scores';
 
 let _ptData    = [];   // all rows, all seasons
 let _ptLoaded  = false;
-let _pt2025    = {};   // name → season_score for 2025
+let _ptPrev    = {};   // name → season_score for the previous season
 let _ptCareer  = {};   // name → season_score for career
 let _ptPromise = null;
 
@@ -4915,8 +4946,11 @@ function ptEnsure() {
     _ptPromise = (async () => {
         const all = await sbFetchAll(PT_TABLE, PT_SELECT);
         _ptData = all;
+        noteSeason(newestSeason(all.map(r => r.season)));
+        fillSeasonSelect('prk-season', all.map(r => r.season), false);
+        const prev = String(CUR_SEASON - 1);
         for (const r of all) {
-            if (String(r.season) === '2025')   _pt2025[r.name]   = r.season_score;
+            if (String(r.season) === prev)     _ptPrev[r.name]   = r.season_score;
             if (String(r.season) === 'career') _ptCareer[r.name] = r.season_score;
         }
         _ptLoaded = true; // only mark loaded on full success
@@ -5030,7 +5064,7 @@ function ptStatCls(val, col) {
 function ptEnrich(r) {
     return {
         ...r,
-        prev_season_score:   _pt2025[r.name]   ?? null,
+        prev_season_score:   _ptPrev[r.name]   ?? null,
         career_season_score: _ptCareer[r.name] ?? null,
     };
 }
@@ -5062,10 +5096,10 @@ function ptRow(r, i, sortFn) {
     if (szn != null && prev != null) {
         const d = szn - prev;
         trend = Math.abs(d) < 3
-            ? '<span class="trend-arrow trend-flat" title="Stable vs 2025">●</span>'
+            ? `<span class="trend-arrow trend-flat" title="Stable vs ${CUR_SEASON - 1}">●</span>`
             : d > 0
-                ? `<span class="trend-arrow trend-up" title="+${d.toFixed(1)} vs 2025">▲</span>`
-                : `<span class="trend-arrow trend-down" title="${d.toFixed(1)} vs 2025">▼</span>`;
+                ? `<span class="trend-arrow trend-up" title="+${d.toFixed(1)} vs ${CUR_SEASON - 1}">▲</span>`
+                : `<span class="trend-arrow trend-down" title="${d.toFixed(1)} vs ${CUR_SEASON - 1}">▼</span>`;
     }
     return `<tr class="animated" style="animation-delay:${Math.min(i*8,200)}ms">
         <td class="rank-cell">${ptRankBadge(i)}</td>
@@ -5200,6 +5234,8 @@ function psEnsure() {
     if (_psPromise) return _psPromise;
     _psPromise = (async () => {
         _psData   = await sbFetchAll(PS_TABLE, PS_SELECT);
+        noteSeason(newestSeason(_psData.map(r => r.period)));
+        fillSeasonSelect('ps-period', _psData.map(r => r.period), true);
         _psLoaded = true; // only mark loaded on full success
     })().catch(err => {
         _psPromise = null; // allow the next tab click to retry instead of caching failure
@@ -5324,12 +5360,13 @@ function psFilter() {
     const team   = document.getElementById('ps-team').value.trim().toUpperCase();
     const name   = document.getElementById('ps-name').value.trim().toLowerCase();
 
-    // Build 2025 and career lookup maps for this split
-    const prev2025Map   = {};
+    // Build previous-season and career lookup maps for this split
+    const prevSznMap    = {};
+    const prevSzn       = String(CUR_SEASON - 1);
     const prevCareerMap = {};
     _psData.forEach(function(r) {
         if (r.split !== split) return;
-        if (r.period === '2025')   prev2025Map[r.name]   = r.season_score;
+        if (r.period === prevSzn)  prevSznMap[r.name]    = r.season_score;
         if (r.period === 'career') prevCareerMap[r.name] = r.season_score;
     });
 
@@ -5342,7 +5379,7 @@ function psFilter() {
                (!name || (r.name||'').toLowerCase().indexOf(name) >= 0);
     }).map(function(r) {
         return Object.assign({}, r, {
-            prev_split_score:   prev2025Map[r.name]   != null ? +prev2025Map[r.name]   : null,
+            prev_split_score:   prevSznMap[r.name]    != null ? +prevSznMap[r.name]    : null,
             career_split_score: prevCareerMap[r.name] != null ? +prevCareerMap[r.name] : null,
         });
     });
@@ -5410,7 +5447,7 @@ function renderPsTable(rows) {
                     ? '<span class="trend-arrow trend-up" title="+' + d.toFixed(1) + ' vs composite">▲</span>'
                     : '<span class="trend-arrow trend-down" title="' + d.toFixed(1) + ' vs composite">▼</span>';
         }
-        // 2025 grade cell
+        // previous-season grade cell
         
         return '<tr class="animated" style="animation-delay:' + Math.min(i*8,200) + 'ms">' +
             '<td class="rank-cell">' + rank + '</td>' +
@@ -5424,7 +5461,7 @@ function renderPsTable(rows) {
             '</div></td>' +
             // Grade = tier pill
             '<td class="num"><span class="tier-pill ' + tc + '">' + (tier||'—') + '</span></td>' +
-            // 2025 Szn grade
+            // previous-season Szn grade
             psGradeCell(r.prev_split_score) +
             // Career Szn grade
             psGradeCell(r.career_split_score) +
@@ -5465,7 +5502,7 @@ function renderPsTable(rows) {
 
 // ════════════════════════════════════════════════════════════════
 //  PITCHER COMPARE (panel 11)
-//  Shows 2025 / 2026 / Career scores for each split immediately
+//  Shows current / previous season / Career scores for each split immediately
 // ════════════════════════════════════════════════════════════════
 var pcA = null;
 var pcB = null;
@@ -5475,12 +5512,12 @@ function pcSuggest(side) {
     var sug = document.getElementById('pc-sug-' + side);
     var q   = inp.value.trim().toLowerCase();
     if (!q || q.length < 2) { sug.style.display = 'none'; return; }
-    // Only use 2026 pitchers for name suggestions
+    // Only use current-season pitchers for name suggestions
     var seen = {};
     var matches = [];
     for (var i = 0; i < _ptData.length; i++) {
         var r = _ptData[i];
-        if (String(r.season) !== '2026') continue;
+        if (String(r.season) !== String(CUR_SEASON)) continue;
         var n = (r.name || '').toLowerCase();
         if (n.indexOf(q) >= 0 && !seen[r.name]) {
             seen[r.name] = true;
@@ -5526,7 +5563,7 @@ function pcRenderCompare() {
 
     var SPLITS     = ['No Split', 'vs LHH', 'vs RHH', 'Home', 'Away'];
     var SPLIT_KEYS = ['overall',  'vsLHH',  'vsRHH',  'Home', 'Away'];
-    var PERIODS    = ['2026', '2025', 'career'];
+    var PERIODS    = [String(CUR_SEASON), String(CUR_SEASON - 1), 'career'];
     var COLORS     = ['var(--blue)', 'var(--orange)'];
     var NAMES      = [pcA, pcB].filter(Boolean);
 
@@ -5591,9 +5628,9 @@ function pcRenderCompare() {
     function getStat(name, splitKey, col) {
         var row;
         if (splitKey === 'overall') {
-            row = _ptData.find(function(r) { return r.name === name && String(r.season) === '2026'; });
+            row = _ptData.find(function(r) { return r.name === name && String(r.season) === String(CUR_SEASON); });
         } else {
-            row = _psData.find(function(r) { return r.name === name && r.split === splitKey && r.period === '2026'; });
+            row = _psData.find(function(r) { return r.name === name && r.split === splitKey && r.period === String(CUR_SEASON); });
         }
         if (!row || row[col] == null) return null;
         return +row[col];
@@ -5665,7 +5702,7 @@ function pcRenderCompare() {
                 '</tr>';
         });
 
-        // ── Stat rows (2026 / 2025 / Career) ──
+        // ── Stat rows (current / previous season / Career) ──
         var statMeta = splitKey === 'overall' ? OVERALL_STAT_META : SPLIT_STAT_META;
 
         function getStatForPeriod(name, splitKey, col, period) {
@@ -5679,7 +5716,7 @@ function pcRenderCompare() {
         }
 
         var statSection = '';
-        var STAT_PERIODS = ['2026','2025','career'];
+        var STAT_PERIODS = [String(CUR_SEASON), String(CUR_SEASON - 1), 'career'];
         NAMES.forEach(function(name, ni) {
             var color = COLORS[ni];
             // One row per period
@@ -5726,7 +5763,7 @@ function pcRenderCompare() {
             '</div>' +
             // Stats divider
             '<div style="background:var(--surface2);border-top:2px solid var(--border);border-bottom:1px solid var(--border);padding:5px 14px;">' +
-                '<span style="font-family:var(--display);font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">2026 Stats · ✓ = better value</span>' +
+                '<span style="font-family:var(--display);font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">' + CUR_SEASON + ' Stats · ✓ = better value</span>' +
             '</div>' +
             // Stats table
             '<div style="overflow-x:auto;">' +
@@ -5801,7 +5838,7 @@ function pcCapture(btn, container) {
     var titleEl = document.createElement('div');
     var names = [pcA, pcB].filter(Boolean).join(' vs ');
     titleEl.style.cssText = 'font-family:system-ui,sans-serif;font-size:15px;font-weight:900;color:#fff;margin-bottom:12px;letter-spacing:0.04em;';
-    titleEl.textContent = '⚔️  ' + names + ' — MLB 2026 Pitcher Compare';
+    titleEl.textContent = '⚔️  ' + names + ' — MLB ' + CUR_SEASON + ' Pitcher Compare';
     wrap.appendChild(titleEl);
 
     var clone = container.cloneNode(true);

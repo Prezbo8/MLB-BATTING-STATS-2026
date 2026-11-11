@@ -2,7 +2,8 @@
 TeamRankings MLB Runs Per Game Scraper (API-free, no browser)
 ==============================================================
 Fetches https://www.teamrankings.com/mlb/stat/runs-per-game daily.
-Columns: Rank, Team, 2026, Last 3, Last 1, Home, Away, 2025
+Columns: Rank, Team, <season>, Last 3, Last 1, Home, Away, <season - 1>
+  -> saved as szn_current / szn_prev (season from scripts/season.py)
 
 Saves to CSV, pushes to GitHub, upserts to Supabase.
 Sends Telegram notifications.
@@ -25,6 +26,7 @@ import traceback
 import requests
 import pandas as pd
 from sb_replace import replace_rows
+from season import SEASON
 from datetime import date
 
 # ── Secrets (from environment) ────────────────────────────────────────────────
@@ -144,15 +146,21 @@ def clean_df(df, today_str):
         cl = str(col).lower().strip()
         if cl == "rank":           col_map[col] = "rank"
         elif cl == "team":         col_map[col] = "team"
-        elif "2026" in cl:         col_map[col] = "szn_2026"
+        elif cl == str(SEASON):    col_map[col] = "szn_current"
         elif "last 3" in cl:       col_map[col] = "last_3"
         elif "last 1" in cl:       col_map[col] = "last_1"
         elif cl == "home":         col_map[col] = "home"
         elif cl == "away":         col_map[col] = "away"
-        elif "2025" in cl:         col_map[col] = "szn_2025"
+        elif cl == str(SEASON - 1): col_map[col] = "szn_prev"
         else:                      col_map[col] = cl.replace(" ", "_")
 
     df = df.rename(columns=col_map)
+    # TeamRankings labels the season columns by year; if they don't match the
+    # season we expect, stop rather than show one season under the other's name
+    missing = [c for c in ("szn_current", "szn_prev") if c not in df.columns]
+    if missing:
+        raise ValueError(f"TeamRankings headers {list(col_map)} have no column for "
+                         f"{SEASON if 'szn_current' in missing else SEASON - 1}")
 
     # Clean team names — strip trailing record/rank suffixes if present
     if "team" in df.columns:
@@ -162,8 +170,8 @@ def clean_df(df, today_str):
     df["scraped_date"] = today_str
 
     # Keep only known columns that exist
-    valid_cols = ["rank", "team", "szn_2026", "last_3", "last_1",
-                  "home", "away", "szn_2025", "scraped_date"]
+    valid_cols = ["rank", "team", "szn_current", "last_3", "last_1",
+                  "home", "away", "szn_prev", "scraped_date"]
     df = df[[c for c in valid_cols if c in df.columns]]
 
     return df
@@ -198,7 +206,12 @@ def main():
     print(df.head(5).to_string(index=False))
 
     # Clean
-    df = clean_df(df, today_str)
+    try:
+        df = clean_df(df, today_str)
+    except ValueError as e:
+        print(f"\n❌ {e}")
+        send_telegram(f"❌ <b>RPG Scraper stopped</b>\n📅 {today_str}\n{e}\nNothing pushed")
+        raise SystemExit(1)
 
     # Save CSV
     df.to_csv(OUTPUT_CSV, index=False)
