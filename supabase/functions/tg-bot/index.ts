@@ -615,7 +615,9 @@ async function handleInline(iq: any) {
 }
 
 Deno.serve(async (req) => {
-  if (WEBHOOK_SECRET && req.headers.get('X-Telegram-Bot-Api-Secret-Token') !== WEBHOOK_SECRET) {
+  // Fail closed: with no WEBHOOK_SECRET configured, refuse every request rather
+  // than accepting updates from anyone who finds the function URL.
+  if (!WEBHOOK_SECRET || req.headers.get('X-Telegram-Bot-Api-Secret-Token') !== WEBHOOK_SECRET) {
     return new Response('forbidden', { status: 403 });
   }
   const update = await req.json().catch(() => null);
