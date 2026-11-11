@@ -343,21 +343,15 @@ def parse_lineup_card(card):
                 "bat_side": bats_el.get_text(strip=True) if bats_el else "",
             })
 
-        # Format pitcher_name as "Nick Martinez (R)"
-        if pitcher_name and pitcher_hand:
-            pitcher_display = f"{pitcher_name} ({pitcher_hand})"
-        elif pitcher_name:
-            pitcher_display = pitcher_name
-        else:
-            pitcher_display = None
-
+        # pitcher_name is the plain name; the hand lives in pitcher_hand (the
+        # site and bot show it from there — storing it twice showed "(L) (L)")
         logging.info(
             f"  {side_label} | {status} | "
-            f"pitcher={pitcher_display} | batters={len(order)}"
+            f"pitcher={pitcher_name} ({pitcher_hand}) | batters={len(order)}"
         )
         return {
             "lineup_status": status,
-            "pitcher_name":  pitcher_display,
+            "pitcher_name":  pitcher_name,
             "pitcher_hand":  pitcher_hand,
             "batting_order": order,
         }
