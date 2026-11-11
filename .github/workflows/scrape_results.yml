@@ -1,0 +1,47 @@
+name: Scrape MLB Results (final scores)
+
+# Rebuilds data/results/results_<season>.csv from MLB's official schedule API
+# (replaces the old local ~/2025_MLB_RESULTS.py cron job). Commits only when a
+# score was added or changed, so offseason runs make no commits.
+on:
+  schedule:
+    # Daily at 10:00 UTC (6 AM EDT), after every West Coast game is final
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # lets the built-in GITHUB_TOKEN commit the CSV
+
+jobs:
+  results:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Build results CSV
+        run: python scripts/scrape_results.py
+
+      - name: Commit if changed
+        run: |
+          git add data/results
+          if git diff --cached --quiet; then
+            echo "No new results"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update MLB results $(date -u +%Y-%m-%d)"
+          git pull --rebase
+          git push
