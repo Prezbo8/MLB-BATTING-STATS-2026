@@ -471,7 +471,6 @@ def main():
         print(f"📊 {name}")
 
         result = {"name": name, "file": scraper["file"], "df": None,
-                  "table": scraper["table"],
                   "rows": 0, "scrape_ok": False,
                   "github_ok": False}
 
