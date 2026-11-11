@@ -6,25 +6,56 @@ name: MLB Pitcher Pipeline
 # The season comes from scripts/season.py (switches the day after Opening Day).
 # Within a chain, a failure stops the rest of that chain (so partial data is
 # never merged/scored). Chain B still runs if Chain A failed.
+# All CSVs of the run are committed once at the end (one commit, one Pages build).
 
 on:
   schedule:
     # Daily at 05:00 UTC (1 AM EDT) — pitcher chains run in the 1-3 AM ET window
     - cron: '0 5 * * *'
+    # Retry 09:00 UTC — runs only if the first run failed (see job 'check')
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write   # built-in GITHUB_TOKEN pushes CSVs via the contents API
+  actions: read     # job 'check' looks up today's earlier runs
+  contents: write   # the final step commits the run's CSVs
 
 env:
-  GITHUB_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
   SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
   SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
   TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
   TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false   # a second run waits for the first instead of overlapping
+
 jobs:
+  # The second (retry) schedule only does work if today's first run failed —
+  # FanGraphs sometimes blocks GitHub's servers for a few hours (403s).
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 9 * * *" ]; then
+            n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow mlb_pitcher_pipeline.yml --status success \
+                  --created ">=$(date -u +%F)" --json databaseId --jq length)
+            if [ "$n" -gt 0 ]; then
+              echo "Today's first run already succeeded — skipping the retry"
+              echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
   pipeline:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -39,7 +70,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install pandas numpy requests
+        run: pip install pandas==3.1.1 numpy==2.4.6 requests==2.34.2
 
       # ── Chain A: pitcher overalls ────────────────────────────────────
       - name: Scrape pitcher career stats (2017 to current season)
@@ -66,14 +97,29 @@ jobs:
 
       - name: Scrape pitcher splits career
         id: splitscareer
-        if: steps.splitsseason.conclusion == 'success'
+        if: always() && steps.splitsseason.conclusion == 'success'
         run: python scripts/scrape_pitcher_splits_career.py
 
       - name: Merge pitcher splits
         id: splitsmerge
-        if: steps.splitscareer.conclusion == 'success'
+        if: always() && steps.splitscareer.conclusion == 'success'
         run: python scripts/merge_pitcher_splits.py
 
       - name: Score pitcher splits
-        if: steps.splitsmerge.conclusion == 'success'
+        if: always() && steps.splitsmerge.conclusion == 'success'
         run: python scripts/score_pitcher_splits.py
+
+      # ── One commit for every CSV this run wrote (either chain) ──────
+      - name: Commit CSVs
+        if: always()
+        run: |
+          git add data/pitcher data/pitcher_splits_data
+          if git diff --cached --quiet; then echo "No CSV changes"; exit 0; fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Pitcher data $(date -u +'%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull -q --rebase && git push -q && exit 0
+            sleep 15
+          done
+          exit 1
