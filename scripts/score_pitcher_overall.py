@@ -9,19 +9,18 @@ Scoring flow:
 3. Per-pitcher weighted avg across seasons using YEAR_WEIGHTS
 4. Normalize weighted avg to 0-100 composite score
 5. Assign tier label
-6. Upsert to Supabase: every season is deleted and reinserted daily,
-   because each pitcher's composite (shared by all his rows) moves
-   whenever the current season or career rows change
+6. Upsert to Supabase: every season is replaced daily (one transaction
+   per season), because each pitcher's composite (shared by all his
+   rows) moves whenever the current season or career rows change
 """
 
 import os
 import gc
 import math
-import time
 import numpy as np
 import pandas as pd
-import requests
 from datetime import date
+from sb_replace import replace_rows
 
 # ─────────────────────────────────────────
 # PATHS
@@ -36,14 +35,6 @@ SCORED_CSV = os.path.join(OUTPUT_DIR, "scored_all.csv")
 SUPABASE_URL   = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY   = os.environ.get("SUPABASE_KEY", "")
 SUPABASE_TABLE = "pitcher_scores"
-BATCH_SIZE     = 500
-
-SUPABASE_HEADERS = {
-    "apikey":        SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type":  "application/json",
-    "Prefer":        "return=minimal",
-}
 
 # ─────────────────────────────────────────
 # YEAR WEIGHTS
@@ -302,68 +293,6 @@ def clean_records(df):
     return records
 
 
-def sb_request(method, url, headers, json=None, timeout=30):
-    """Supabase call with up to 3 attempts (5s/15s backoff) on network
-    errors and 5xx. Returns the last Response, or None if all attempts
-    raised."""
-    last = None
-    for attempt in range(3):
-        if attempt:
-            wait = (5, 15)[attempt - 1]
-            print(f"   🔄 retry {attempt+1}/3 in {wait}s...")
-            time.sleep(wait)
-        try:
-            last = requests.request(method, url, headers=headers,
-                                    json=json, timeout=timeout)
-            if last.status_code < 500:
-                return last
-            print(f"   ⚠️  [{last.status_code}] {last.text[:150]}")
-        except requests.RequestException as e:
-            print(f"   ⚠️  {e}")
-    return last
-
-
-def delete_season(season_val):
-    """Delete rows where season = season_val (works for int years and
-    'career'). Returns True on success — callers must NOT insert the
-    season's fresh rows if this failed, or the table gets duplicates."""
-    print(f"   🗑️  Deleting season={season_val}...")
-    r = sb_request(
-        "DELETE",
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?season=eq.{season_val}",
-        headers=SUPABASE_HEADERS,
-    )
-    if r is not None and r.status_code in (200, 204):
-        print(f"   ✅ Cleared")
-        return True
-    code = r.status_code if r is not None else "no response"
-    print(f"   ❌ Failed [{code}]")
-    return False
-
-
-def insert_batches(records, label="", upsert=False):
-    pushed = 0
-    headers = SUPABASE_HEADERS.copy()
-    if upsert:
-        headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
-    for i in range(0, len(records), BATCH_SIZE):
-        batch = records[i : i + BATCH_SIZE]
-        r = sb_request(
-            "POST",
-            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
-            headers=headers,
-            json=batch,
-        )
-        if r is not None and r.status_code in (200, 201):
-            pushed += len(batch)
-            print(f"   ✅ {label} batch {i//BATCH_SIZE+1}: {len(batch)} rows")
-        else:
-            code = r.status_code if r is not None else "no response"
-            body = r.text[:300] if r is not None else ""
-            print(f"   ❌ {label} batch {i//BATCH_SIZE+1} failed [{code}]: {body}")
-    return pushed
-
-
 def sanitize_df_cols(df):
     df = df.copy()
     df.columns = [sanitize_col(c) for c in df.columns]
@@ -371,11 +300,9 @@ def sanitize_df_cols(df):
     return df
 
 
-def upsert_to_supabase(df, force_reseed=False):
-    """
-    force_reseed=True : wipe entire table, reinsert all years (first run)
-    force_reseed=False: delete+reinsert every season (daily)
-    """
+def upsert_to_supabase(df):
+    """Replace each season's rows in one transaction (sql/replace_rows.sql).
+    A season whose swap fails keeps yesterday's rows; the run goes red."""
     df_san = sanitize_df_cols(df)
     # Push the FanGraphs playerid (unique (playerid, season) lets two
     # same-named pitchers coexist); player_key is internal-only and the
@@ -387,39 +314,15 @@ def upsert_to_supabase(df, force_reseed=False):
         return True
 
     all_ok = True
-    if force_reseed:
-        print("   🗑️  Full reseed — clearing all rows...")
-        r = sb_request(
-            "DELETE",
-            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?updated_at=gte.2000-01-01T00:00:00Z",
-            headers=SUPABASE_HEADERS,
-        )
-        if r is None or r.status_code not in (200, 204):
-            print("   ❌ Clear failed — aborting push, old data left in place")
-            return False
-        print("   ✅ Cleared")
-        seasons_to_insert = [2021, 2022, 2023, 2024, 2025, 2026, "career"]
-    else:
-        # Daily: refresh every season (each row carries the pitcher's
-        # composite, which moves daily), but only where the delete worked
-        seasons_to_insert = []
-        for season_val in [2021, 2022, 2023, 2024, 2025, 2026, "career"]:
-            if delete_season(season_val):
-                seasons_to_insert.append(season_val)
-            else:
-                print(f"   🚫 season={season_val}: delete failed — "
-                      f"old rows kept, reinsert skipped")
-                all_ok = False
-    for season_val in seasons_to_insert:
+    for season_val in [2021, 2022, 2023, 2024, 2025, 2026, "career"]:
         df_yr = df_san[df_san["season"] == season_val]
         if df_yr.empty:
             print(f"   ⏭️  season={season_val} — no data, skipping")
             continue
-        records = clean_records(df_yr)
-        pushed  = insert_batches(records, label=f"season={season_val}", upsert=True)
-        print(f"   📊 season={season_val}: {pushed}/{len(records)} rows pushed")
-        if pushed != len(records):
-            all_ok = False
+        ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE,
+                          clean_records(df_yr), where_col="season",
+                          where_val=season_val, label=f"season={season_val}")
+        all_ok = all_ok and ok
     return all_ok
 
 
@@ -470,7 +373,7 @@ def run():
 
     # 6. Upsert
     print(f"\n── Step 6: Upserting to Supabase ──")
-    ok = upsert_to_supabase(df, force_reseed=False)
+    ok = upsert_to_supabase(df)
 
     print(f"\n{'=' * 60}")
     print(f"✅ SCORING COMPLETE — {len(df)} rows")

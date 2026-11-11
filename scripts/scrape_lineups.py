@@ -167,6 +167,25 @@ def send_telegram(msg):
     except Exception as e:
         logging.warning(f"Telegram send failed: {e}")
 
+# MLB games that should have lineups on RotoWire: regular season + postseason
+# (no spring training, exhibitions or the All-Star Game)
+LINEUP_GAME_TYPES = {"R", "F", "D", "L", "W"}
+
+
+def games_today(today):
+    """Number of MLB games scheduled today, or None if the schedule can't be
+    read (then a 0-lineup scrape is not treated as a failure)."""
+    try:
+        r = requests.get("https://statsapi.mlb.com/api/v1/schedule",
+                         params={"sportId": 1, "date": today}, timeout=20)
+        r.raise_for_status()
+        dates = r.json().get("dates") or [{}]
+        return sum(1 for g in dates[0].get("games", [])
+                   if g.get("gameType") in LINEUP_GAME_TYPES)
+    except Exception as e:
+        logging.warning(f"MLB schedule check failed: {e}")
+        return None
+
 # ── SCRAPER ───────────────────────────────────────────────────────────────
 def scrape_rotowire():
     """Scrape RotoWire lineups page. Returns list of team records."""
@@ -500,6 +519,18 @@ def main():
     logging.info(f"  Confirmed: {confirmed} | Projected: {projected}")
 
     write_to_supabase(records, today)
+
+    # 0 lineups on a day with games = RotoWire changed or blocked us: go red
+    if not records:
+        n_games = games_today(today)
+        if n_games:
+            msg = (f"❌ Lineup scraper: 0 lineups found but {n_games} MLB "
+                   f"games are scheduled today ({today}). RotoWire may have "
+                   f"changed its page.")
+            logging.error(msg)
+            send_telegram(msg)
+            raise SystemExit(1)
+        logging.info("0 lineups and no games today (or schedule unknown) — OK")
     logging.info("Done")
 
 

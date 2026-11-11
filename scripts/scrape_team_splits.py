@@ -19,6 +19,7 @@ import base64
 import traceback
 import requests
 import pandas as pd
+from sb_replace import replace_rows
 from datetime import date, timedelta
 
 # ── Secrets (from environment) ────────────────────────────────────────────────
@@ -165,7 +166,7 @@ def push_to_github(csv_path):
 
     # Check if file already exists in repo (need its SHA to update)
     sha = None
-    r = requests.get(api, headers=headers)
+    r = requests.get(api, headers=headers, timeout=30)
     if r.status_code == 200:
         sha = r.json().get("sha")
 
@@ -185,9 +186,9 @@ def push_to_github(csv_path):
         print(f"   ❌ GitHub push failed: {r.status_code} {r.text[:200]}")
         return False
 
-# ── Supabase: delete-all then insert fresh ────────────────────────────────────
+# ── Supabase: swap all rows in one transaction (sql/replace_rows.sql) ─────────
 def upsert_to_supabase(csv_path):
-    print("\n📤 Pushing fresh data to Supabase (delete → insert)...")
+    print("\n📤 Pushing fresh data to Supabase (atomic replace)...")
     if not SUPABASE_KEY:
         print("   ⏭️  Skipped (no SUPABASE_KEY)")
         return False
@@ -220,47 +221,7 @@ def upsert_to_supabase(csv_path):
         for row in records
     ]
 
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-    }
-
-    # ── Step 1: Delete ALL existing rows ─────────────────────────────────────
-    print("   🗑️  Deleting all existing rows...")
-    r = requests.delete(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?updated_at=gte.2000-01-01T00:00:00Z",
-        headers=headers,
-        timeout=30
-    )
-    if r.status_code in (200, 204):
-        print("   ✅ Table cleared")
-    else:
-        print(f"   ❌ Delete failed: {r.status_code} {r.text[:200]}")
-        return False
-
-    # ── Step 2: Insert today's fresh rows in batches ──────────────────────────
-    batch_size = 500
-    total      = len(records)
-    pushed     = 0
-
-    for i in range(0, total, batch_size):
-        batch = records[i:i + batch_size]
-        r = requests.post(
-            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
-            headers=headers,
-            json=batch,
-            timeout=30
-        )
-        if r.status_code in (200, 201):
-            pushed += len(batch)
-            print(f"   ✅ Batch {i // batch_size + 1}: {len(batch)} rows inserted")
-        else:
-            print(f"   ❌ Batch {i // batch_size + 1} failed: {r.status_code} {r.text[:200]}")
-
-    print(f"   📊 Total inserted: {pushed}/{total} rows")
-    return pushed == total
+    return replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, records)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
@@ -397,7 +358,9 @@ def main():
         f"{failed_msg}"
     )
 
-    if failed or not (github_ok or supabase_ok):
+    # Red when any table failed, Supabase (what the site reads) failed, or
+    # nothing was saved anywhere
+    if failed or (SUPABASE_KEY and not supabase_ok) or not (github_ok or supabase_ok):
         raise SystemExit(1)
 
 if __name__ == "__main__":

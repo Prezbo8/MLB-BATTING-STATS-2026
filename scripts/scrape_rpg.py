@@ -24,6 +24,7 @@ import base64
 import traceback
 import requests
 import pandas as pd
+from sb_replace import replace_rows
 from datetime import date
 
 # ── Secrets (from environment) ────────────────────────────────────────────────
@@ -83,7 +84,7 @@ def push_to_github(csv_path):
     with open(csv_path, "rb") as f:
         content = base64.b64encode(f.read()).decode("utf-8")
     sha = None
-    r = requests.get(api, headers=headers)
+    r = requests.get(api, headers=headers, timeout=30)
     if r.status_code == 200:
         sha = r.json().get("sha")
     payload = {
@@ -100,48 +101,19 @@ def push_to_github(csv_path):
     print(f"   ❌ GitHub failed: {r.status_code} {r.text[:200]}")
     return False
 
-# ── Supabase: delete all rows then insert fresh data ─────────────────────────
+# ── Supabase: swap all rows in one transaction (sql/replace_rows.sql) ─────────
 def upsert_to_supabase(df):
-    print("\n📤 Pushing to Supabase (delete → insert)...")
+    print("\n📤 Pushing to Supabase (atomic replace)...")
     if not SUPABASE_KEY:
         print("   ⏭️  Skipped (no SUPABASE_KEY)")
         return False
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-    }
-
-    # Step 1: delete ALL existing rows (wipe the table clean)
-    del_r = requests.delete(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?scraped_date=gte.2000-01-01",
-        headers=headers,
-        timeout=30
-    )
-    if del_r.status_code in (200, 204):
-        print("   🗑️  Old rows deleted")
-    else:
-        print(f"   ⚠️  Delete returned {del_r.status_code}: {del_r.text[:200]}")
-
-    # Step 2: insert today's fresh records
     df = df.where(pd.notnull(df), other=None)
     records = df.to_dict(orient="records")
     records = [
         {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in row.items()}
         for row in records
     ]
-    ins_r = requests.post(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
-        headers={**headers, "Prefer": "return=minimal"},
-        json=records,
-        timeout=30
-    )
-    if ins_r.status_code in (200, 201):
-        print(f"   ✅ {len(records)} rows inserted to Supabase")
-        return True
-    print(f"   ❌ Supabase insert failed: {ins_r.status_code} {ins_r.text[:300]}")
-    return False
+    return replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, records)
 
 # ── Scrape the table ──────────────────────────────────────────────────────────
 def scrape_rpg():

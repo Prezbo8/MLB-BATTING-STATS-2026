@@ -8,15 +8,16 @@ Reads master_splits.csv, scores all rows, uploads to Supabase.
 - split_tier: Elite/Good/Mid/Bad/Ass
 
 Daily mode:
-  - Deletes and reinserts every period, because each pitcher's composite
-    (shared by all his rows for a split) moves whenever 2026/career change
+  - Replaces every period (one transaction per period), because each
+    pitcher's composite (shared by all his rows for a split) moves
+    whenever 2026/career change
 """
 
-import os, math, time
+import os, math
 import numpy as np
 import pandas as pd
-import requests
 from datetime import date
+from sb_replace import replace_rows
 
 # ─────────────────────────────────────────
 # PATHS
@@ -30,14 +31,6 @@ SCORED_CSV  = "data/pitcher_splits_data/scored_splits.csv"
 SUPABASE_URL   = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY   = os.environ.get("SUPABASE_KEY", "")
 SUPABASE_TABLE = "pitcher_split_scores"
-BATCH_SIZE     = 500
-
-SB_HEADERS = {
-    "apikey":        SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type":  "application/json",
-    "Prefer":        "return=minimal",
-}
 
 # ─────────────────────────────────────────
 # STAT WEIGHTS (splits only stats)
@@ -211,56 +204,9 @@ def clean_records(df):
         records.append(r)
     return records
 
-def sb_request(method, url, json=None, timeout=30):
-    """Supabase call with up to 3 attempts (5s/15s backoff) on network
-    errors and 5xx. Returns the last Response, or None if all attempts
-    raised."""
-    last = None
-    for attempt in range(3):
-        if attempt:
-            wait = (5, 15)[attempt - 1]
-            print(f"   🔄 retry {attempt+1}/3 in {wait}s...")
-            time.sleep(wait)
-        try:
-            last = requests.request(method, url, headers=SB_HEADERS,
-                                    json=json, timeout=timeout)
-            if last.status_code < 500:
-                return last
-            print(f"   ⚠️  [{last.status_code}] {last.text[:150]}")
-        except requests.RequestException as e:
-            print(f"   ⚠️  {e}")
-    return last
-
-def delete_period(period):
-    """Returns True on success — callers must NOT insert the period's fresh
-    rows if this failed, or the table gets duplicates."""
-    print(f"   🗑️  Deleting period={period}...")
-    r = sb_request("DELETE", f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?period=eq.{period}")
-    if r is not None and r.status_code in (200, 204):
-        print("   ✅ Cleared")
-        return True
-    print(f"   ❌ [{r.status_code if r is not None else 'no response'}]")
-    return False
-
-def insert_batches(records, label=""):
-    pushed = 0
-    for i in range(0, len(records), BATCH_SIZE):
-        batch = records[i:i+BATCH_SIZE]
-        r = sb_request("POST", f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}", json=batch)
-        if r is not None and r.status_code in (200, 201):
-            pushed += len(batch)
-            print(f"   ✅ {label} batch {i//BATCH_SIZE+1}: {len(batch)} rows")
-        else:
-            code = r.status_code if r is not None else "no response"
-            body = r.text[:200] if r is not None else ""
-            print(f"   ❌ {label} batch {i//BATCH_SIZE+1} [{code}]: {body}")
-    return pushed
-
-def upsert_to_supabase(df, force_reseed=False):
-    """
-    force_reseed=True : wipe entire table, reinsert all periods
-    force_reseed=False: delete+reinsert every period (daily)
-    """
+def upsert_to_supabase(df):
+    """Replace each period's rows in one transaction (sql/replace_rows.sql).
+    A period whose swap fails keeps yesterday's rows; the run goes red."""
     if not SUPABASE_KEY:
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
         return True
@@ -271,46 +217,23 @@ def upsert_to_supabase(df, force_reseed=False):
     df = df.drop(columns=["player_key"], errors="ignore")
 
     all_ok = True
-    if force_reseed:
-        print("   🗑️  Full reseed — clearing all rows...")
-        r = sb_request(
-            "DELETE",
-            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?updated_at=gte.2000-01-01T00:00:00Z",
-        )
-        if r is None or r.status_code not in (200, 204):
-            print("   ❌ Clear failed — aborting push, old data left in place")
-            return False
-        print("   ✅ Cleared")
-        periods_to_insert = ["2021","2022","2023","2024","2025","2026","career"]
-    else:
-        # Daily: refresh every period (each row carries the pitcher's
-        # composite, which moves daily), but only where the delete worked
-        periods_to_insert = []
-        for p in ["2021","2022","2023","2024","2025","2026","career"]:
-            if delete_period(p):
-                periods_to_insert.append(p)
-            else:
-                print(f"   🚫 period={p}: delete failed — old rows kept, reinsert skipped")
-                all_ok = False
-
-    for period in periods_to_insert:
+    for period in ["2021","2022","2023","2024","2025","2026","career"]:
         df_p = df[df["period"] == period].copy()
         # Drop rows where name is null or empty
         df_p = df_p[df_p["name"].notna() & (df_p["name"].str.strip() != "")]
         if df_p.empty:
             print(f"   ⏭️  period={period} — no data")
             continue
-        records = clean_records(df_p)
-        pushed  = insert_batches(records, label=f"splits_{period}")
-        print(f"   📊 {period}: {pushed}/{len(records)} rows pushed")
-        if pushed != len(records):
-            all_ok = False
+        ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE,
+                          clean_records(df_p), where_col="period",
+                          where_val=period, label=f"splits_{period}")
+        all_ok = all_ok and ok
     return all_ok
 
 # ─────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────
-def run(force_reseed=False):
+def run():
     print("=" * 60)
     print("PITCHER SPLITS — SCORER")
     print("=" * 60)
@@ -350,7 +273,7 @@ def run(force_reseed=False):
 
     # 5. Upload
     print(f"\n── Step 5: Upserting to Supabase ──")
-    ok = upsert_to_supabase(df, force_reseed=force_reseed)
+    ok = upsert_to_supabase(df)
 
     print(f"\n{'=' * 60}")
     print(f"✅ SPLITS SCORING COMPLETE — {len(df)} rows")
@@ -359,6 +282,4 @@ def run(force_reseed=False):
         raise SystemExit(1)
 
 if __name__ == "__main__":
-    import sys
-    force = "--reseed" in sys.argv
-    run(force_reseed=force)
+    run()

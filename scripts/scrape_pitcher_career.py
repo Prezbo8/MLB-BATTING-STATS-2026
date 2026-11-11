@@ -2,7 +2,7 @@
 FanGraphs Career Pitcher Stats Scraper (2017-2026) — API version
 Fetches all 9 stat categories from the FanGraphs leaders JSON API (no browser):
   - Scrapes ALL types first; aborts (pushing nothing) if any type fails
-  - Saves each as a CSV, pushes each to GitHub, upserts each Supabase table
+  - Saves each as a CSV, pushes each to GitHub
   - Sends a Telegram notification when complete
 
 Secrets from env: GITHUB_TOKEN, SUPABASE_URL, SUPABASE_KEY,
@@ -14,7 +14,6 @@ Setup (one-time):
 """
 
 import os
-import math
 import time
 import base64
 from datetime import datetime, timezone
@@ -50,94 +49,6 @@ API_HEADERS = {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  COLUMN NAME SANITIZER
-# ══════════════════════════════════════════════════════════════════════════════
-
-_EXPLICIT_COL_OVERRIDES = {
-    "ERA-":         "era_minus",
-    "FIP-":         "fip_minus",
-    "xFIP-":        "xfip_minus",
-    "K/9":          "k_9",
-    "BB/9":         "bb_9",
-    "K/BB":         "k_bb",
-    "HR/9":         "hr_9",
-    "K/9+":         "k_9_plus",
-    "BB/9+":        "bb_9_plus",
-    "K/BB+":        "k_bb_plus",
-    "HR/9+":        "hr_9_plus",
-    "K%":           "k_pct",
-    "BB%":          "bb_pct",
-    "K-BB%":        "k_bb_pct",
-    "LOB%":         "lob_pct",
-    "GB%":          "gb_pct",
-    "LD%":          "ld_pct",
-    "FB%":          "fb_pct",
-    "IFFB%":        "iffb_pct",
-    "HR/FB":        "hr_fb",
-    "GB/FB":        "gb_fb",
-    "RS/9":         "rs_9",
-    "Pull%":        "pull_pct",
-    "Cent%":        "cent_pct",
-    "Oppo%":        "oppo_pct",
-    "Soft%":        "soft_pct",
-    "Med%":         "med_pct",
-    "Hard%":        "hard_pct",
-    "Barrel%":      "barrel_pct",
-    "HardHit%":     "hardhit_pct",
-    "O-Swing%":     "o_swing_pct",
-    "Z-Swing%":     "z_swing_pct",
-    "Swing%":       "swing_pct",
-    "O-Contact%":   "o_contact_pct",
-    "Z-Contact%":   "z_contact_pct",
-    "Contact%":     "contact_pct",
-    "Zone%":        "zone_pct",
-    "F-Strike%":    "f_strike_pct",
-    "SwStr%":       "swstr_pct",
-    "CStr%":        "cstr_pct",
-    "CSW%":         "csw_pct",
-    "K%+":          "k_pct_plus",
-    "BB%+":         "bb_pct_plus",
-    "AVG+":         "avg_plus",
-    "WHIP+":        "whip_plus",
-    "BABIP+":       "babip_plus",
-    "LOB%+":        "lob_pct_plus",
-    "LD%+":         "ld_pct_plus",
-    "GB%+":         "gb_pct_plus",
-    "FB%+":         "fb_pct_plus",
-    "Stf+ FA":      "stf_plus_fa",
-    "Stf+ SI":      "stf_plus_si",
-    "Stf+ FC":      "stf_plus_fc",
-    "Stf+ FS":      "stf_plus_fs",
-    "Stf+ SL":      "stf_plus_sl",
-    "Stf+ CU":      "stf_plus_cu",
-    "Stf+ CH":      "stf_plus_ch",
-    "Stf+ KC":      "stf_plus_kc",
-    "Stf+ FO":      "stf_plus_fo",
-    "Stuff+":       "stuff_plus",
-    "Location+":    "location_plus",
-    "Pitching+":    "pitching_plus",
-    "vFA (pi)":     "vfa_pi",
-    "E-F":          "e_f",
-    "xFIP":         "xfip",
-    "xERA":         "xera",
-}
-
-
-def sanitize_col_name(col):
-    if col in _EXPLICIT_COL_OVERRIDES:
-        return _EXPLICIT_COL_OVERRIDES[col]
-    return (
-        col.lower()
-           .replace("/", "_")
-           .replace("%", "_pct")
-           .replace("-", "_")
-           .replace("+", "_plus")
-           .replace("(", "").replace(")", "")
-           .replace(" ", "_")
-    )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 #  STAT TYPE DEFINITIONS  (9 types, hardcoded career URLs)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -148,7 +59,6 @@ def get_stat_types():
         {
             "name":       "Dashboard",
             "csv_file":   "Stats_Dashboard_career.csv",
-            "table":      "pitcher_dashboard_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=8&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","W","L","SV","G","GS","IP",
                            "K/9","BB/9","HR/9","BABIP","LOB%","GB%","HR/FB",
@@ -170,7 +80,6 @@ def get_stat_types():
         {
             "name":       "Standard",
             "csv_file":   "Stats_Standard_career.csv",
-            "table":      "pitcher_standard_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=0&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","W","L","ERA","G","GS","QS",
                            "CG","ShO","SV","HLD","BS","IP","TBF","H","R",
@@ -191,7 +100,6 @@ def get_stat_types():
         {
             "name":       "Advanced",
             "csv_file":   "Stats_Advanced_career.csv",
-            "table":      "pitcher_advanced_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=1&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","K/9","BB/9","K/BB","HR/9",
                            "K%","BB%","K-BB%","AVG","WHIP","BABIP","LOB%",
@@ -215,7 +123,6 @@ def get_stat_types():
         {
             "name":       "BattedBall",
             "csv_file":   "Stats_BattedBall_career.csv",
-            "table":      "pitcher_battedball_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=2&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","BABIP","GB/FB","LD%","GB%","FB%",
                            "IFFB%","HR/FB","RS","RS/9","Balls","Strikes","Pitches",
@@ -240,7 +147,6 @@ def get_stat_types():
         {
             "name":       "+Stats",
             "csv_file":   "Stats_+Stats_career.csv",
-            "table":      "pitcher_plusstats_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=23&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","IP",
                            "K/9+","BB/9+","K/BB+","HR/9+","K%+","BB%+",
@@ -274,7 +180,6 @@ def get_stat_types():
         {
             "name":       "Statcast",
             "csv_file":   "Stats_Statcast_career.csv",
-            "table":      "pitcher_statcast_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=24&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","IP","Events","EV","EV90","maxEV",
                            "LA","Barrels","Barrel%","HardHit","HardHit%","ERA","xERA"],
@@ -299,7 +204,6 @@ def get_stat_types():
         {
             "name":       "PlateDiscipline",
             "csv_file":   "PlateDiscipline_career.csv",
-            "table":      "pitcher_platediscipline_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=5&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid",
                            "O-Swing%","Z-Swing%","Swing%",
@@ -328,7 +232,6 @@ def get_stat_types():
         {
             "name":       "PitchVelocity",
             "csv_file":   "PitchVelocity_career.csv",
-            "table":      "pitcher_pitchvelocity_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=10&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","IP",
                            "vFA","vFC","vFS","vFO","vSI",
@@ -357,7 +260,6 @@ def get_stat_types():
         {
             "name":       "StuffPlus",
             "csv_file":   "Pitch_StuffPlus_career.csv",
-            "table":      "pitcher_stuffplus_career",
             "page_url":   "https://www.fangraphs.com/leaders/major-league?pos=all&lg=all&type=36&month=0&ind=0&rost=0&age=0&filter=&players=0&team=0&stats=sta&qual=10&pageitems=2000000000&startdate=&enddate=&season2=2026&season1=2017&season=2026",
             "columns":    ["rank","Name","Team","playerid","IP",
                            "Stf+ FA","Stf+ SI","Stf+ FC","Stf+ FS","Stf+ SL",
@@ -404,19 +306,6 @@ def get_value(row, key_spec):
                 return row[k]
         return ""
     return row.get(key_spec, "")
-
-
-def sanitize_for_json(records):
-    clean = []
-    for row in records:
-        clean_row = {}
-        for k, v in row.items():
-            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-                clean_row[k] = None
-            else:
-                clean_row[k] = v
-        clean.append(clean_row)
-    return clean
 
 
 def check_for_nans(df, rows, label):
@@ -495,7 +384,7 @@ def push_to_github(csv_path, repo_path):
         content = base64.b64encode(f.read()).decode("utf-8")
 
     sha = None
-    r = req_lib.get(url, headers=headers)
+    r = req_lib.get(url, headers=headers, timeout=30)
     if r.status_code == 200:
         sha = r.json().get("sha")
 
@@ -507,41 +396,12 @@ def push_to_github(csv_path, repo_path):
     if sha:
         payload["sha"] = sha
 
-    r = req_lib.put(url, headers=headers, json=payload)
+    r = req_lib.put(url, headers=headers, json=payload, timeout=30)
     if r.status_code in (200, 201):
         print(f"  ✅ GitHub: {repo_path}")
         return True
     else:
         print(f"  ❌ GitHub failed for {repo_path}: {r.status_code} {r.text[:150]}")
-        return False
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  SUPABASE
-# ══════════════════════════════════════════════════════════════════════════════
-
-def push_to_supabase(df, table_name):
-    if not SUPABASE_KEY:
-        print(f"  ⏭️  Supabase skipped for {table_name} (no SUPABASE_KEY)")
-        return False
-    try:
-        from supabase import create_client
-        sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-        df_clean = df.copy()
-        df_clean.columns = [sanitize_col_name(c) for c in df_clean.columns]
-
-        records = sanitize_for_json(
-            df_clean.where(pd.notnull(df_clean), None).to_dict(orient="records")
-        )
-
-        sb.table(table_name).delete().neq("id", 0).execute()
-        sb.table(table_name).insert(records).execute()
-
-        print(f"  ✅ Supabase: {table_name} ({len(records)} rows)")
-        return True
-    except Exception as e:
-        print(f"  ❌ Supabase failed for {table_name}: {e}")
         return False
 
 
@@ -555,7 +415,7 @@ def send_telegram(message):
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try:
-        r = req_lib.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"})
+        r = req_lib.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}, timeout=10)
         if r.status_code == 200:
             print("  ✅ Telegram notification sent.")
         else:
@@ -590,7 +450,7 @@ def main():
 
         result = {"name": name, "file": csv_file, "df": None,
                   "rows": 0, "scrape_ok": False,
-                  "github_ok": False, "supabase_ok": False}
+                  "github_ok": False}
 
         try:
             df = scrape_one(st)
@@ -616,34 +476,30 @@ def main():
         )
         raise SystemExit(1)
 
-    # ── Phase 2: push all to GitHub + Supabase ────────────────────────────────
+    # ── Phase 2: push all to GitHub ────────────────────────────────────────────
     for r in results:
         repo_path = f"data/pitcher/career/{r['file']}"
         r["github_ok"]   = push_to_github(os.path.join(OUTPUT_DIR, r["file"]), repo_path)
-        r["supabase_ok"] = push_to_supabase(r["df"], next(
-            st["table"] for st in stat_types if st["name"] == r["name"]))
 
     run_end     = utcnow()
     elapsed     = int((run_end - run_start).total_seconds())
     scraped_ok  = sum(1 for r in results if r["scrape_ok"])
     github_ok   = sum(1 for r in results if r["github_ok"])
-    supabase_ok = sum(1 for r in results if r["supabase_ok"])
 
     print(f"\n{'=' * 60}")
     print(f"✅ Done in {elapsed}s — {scraped_ok}/{total_jobs} scraped, "
-          f"{github_ok}/{total_jobs} → GitHub, {supabase_ok}/{total_jobs} → Supabase")
+          f"{github_ok}/{total_jobs} → GitHub")
 
     lines = [
         f"<b>⚾ FanGraphs Career Load Complete (2017-2026)</b>",
         f"🕐 {run_end.strftime('%Y-%m-%d %H:%M UTC')}  ({elapsed}s)",
-        f"📦 {scraped_ok}/{total_jobs} scraped | GH {github_ok}/{total_jobs} | SB {supabase_ok}/{total_jobs}",
+        f"📦 {scraped_ok}/{total_jobs} scraped | GH {github_ok}/{total_jobs}",
     ]
 
     send_telegram("\n".join(lines))
 
-    # Supabase failures are non-fatal here: the per-stat-type tables have never
-    # existed in the project (the dashboard uses pitcher_scores/pitcher_split_scores
-    # and the repo CSVs). Only a failed GitHub CSV push fails the run.
+    # The CSVs feed the merge + scorer steps (which write pitcher_scores /
+    # pitcher_split_scores); a failed GitHub CSV push fails the run.
     if GITHUB_TOKEN and github_ok < total_jobs:
         raise SystemExit(1)
 
