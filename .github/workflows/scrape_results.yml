@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write   # lets the built-in GITHUB_TOKEN commit the CSV
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false   # a second run waits for the first instead of overlapping
+
 jobs:
   results:
     runs-on: ubuntu-latest
@@ -28,7 +32,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests==2.34.2
 
       - name: Build results CSV
         run: python scripts/scrape_results.py

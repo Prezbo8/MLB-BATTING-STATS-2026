@@ -1,7 +1,7 @@
 """
 FanGraphs Team Splits Leaderboard Scraper (API version)
 ========================================================
-Fetches 20 tables from the FanGraphs splits JSON API (no browser needed),
+Fetches 36 tables (9 splits x 4 date ranges) from the FanGraphs splits JSON API (no browser needed),
 saves to CSV, pushes to GitHub, upserts to Supabase.
 
 Secrets come from environment variables (set as GitHub Actions secrets):

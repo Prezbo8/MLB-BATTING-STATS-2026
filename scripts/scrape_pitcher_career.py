@@ -2,11 +2,10 @@
 FanGraphs Career Pitcher Stats Scraper (2017 to current season) — API version
 Fetches all 9 stat categories from the FanGraphs leaders JSON API (no browser):
   - Scrapes ALL types first; aborts (pushing nothing) if any type fails
-  - Saves each as a CSV, pushes each to GitHub
+  - Saves each as a CSV into data/pitcher/career/ (the workflow commits them all at once)
   - Sends a Telegram notification when complete
 
-Secrets from env: GITHUB_TOKEN,
-                  TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+Secrets from env: TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 Steps whose env vars are missing are skipped (handy for local dry runs).
 
 Setup (one-time):
@@ -15,7 +14,7 @@ Setup (one-time):
 
 import os
 import time
-import base64
+import shutil
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -30,10 +29,6 @@ from season import SEASON
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-GITHUB_TOKEN    = os.environ.get("GITHUB_TOKEN", "")
-GITHUB_USERNAME = "Prezbo8"
-GITHUB_REPO     = "MLB-BATTING-STATS-2026"
-GITHUB_BRANCH   = "main"
 
 OUTPUT_DIR  = "pitcher_data"
 MAX_RETRIES = 5
@@ -367,41 +362,13 @@ def scrape_one(stat_type_def):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GITHUB
+#  SAVE INTO THE REPO (the workflow commits every CSV of the run at once)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def push_to_github(csv_path, repo_path):
-    if not GITHUB_TOKEN:
-        print(f"  ⏭️  GitHub skipped for {repo_path} (no GITHUB_TOKEN)")
-        return False
-    url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{repo_path}"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-    with open(csv_path, "rb") as f:
-        content = base64.b64encode(f.read()).decode("utf-8")
-
-    sha = None
-    r = req_lib.get(url, headers=headers, timeout=30)
-    if r.status_code == 200:
-        sha = r.json().get("sha")
-
-    payload = {
-        "message": f"Career load {utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
-        "content": content,
-        "branch":  GITHUB_BRANCH,
-    }
-    if sha:
-        payload["sha"] = sha
-
-    r = req_lib.put(url, headers=headers, json=payload, timeout=30)
-    if r.status_code in (200, 201):
-        print(f"  ✅ GitHub: {repo_path}")
-        return True
-    else:
-        print(f"  ❌ GitHub failed for {repo_path}: {r.status_code} {r.text[:150]}")
-        return False
+def save_to_repo(csv_path, repo_path):
+    os.makedirs(os.path.dirname(repo_path), exist_ok=True)
+    shutil.copyfile(csv_path, repo_path)
+    print(f"  💾 {repo_path}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -448,8 +415,7 @@ def main():
         print(f"  📊 {name}")
 
         result = {"name": name, "file": csv_file, "df": None,
-                  "rows": 0, "scrape_ok": False,
-                  "github_ok": False}
+                  "rows": 0, "scrape_ok": False}
 
         try:
             df = scrape_one(st)
@@ -475,32 +441,25 @@ def main():
         )
         raise SystemExit(1)
 
-    # ── Phase 2: push all to GitHub ────────────────────────────────────────────
+    # ── Phase 2: save all into the repo (committed by the workflow) ─────────────
     for r in results:
         repo_path = f"data/pitcher/career/{r['file']}"
-        r["github_ok"]   = push_to_github(os.path.join(OUTPUT_DIR, r["file"]), repo_path)
+        save_to_repo(os.path.join(OUTPUT_DIR, r["file"]), repo_path)
 
     run_end     = utcnow()
     elapsed     = int((run_end - run_start).total_seconds())
     scraped_ok  = sum(1 for r in results if r["scrape_ok"])
-    github_ok   = sum(1 for r in results if r["github_ok"])
 
     print(f"\n{'=' * 60}")
-    print(f"✅ Done in {elapsed}s — {scraped_ok}/{total_jobs} scraped, "
-          f"{github_ok}/{total_jobs} → GitHub")
+    print(f"✅ Done in {elapsed}s — {scraped_ok}/{total_jobs} scraped")
 
     lines = [
         f"<b>⚾ FanGraphs Career Load Complete (2017-{SEASON})</b>",
         f"🕐 {run_end.strftime('%Y-%m-%d %H:%M UTC')}  ({elapsed}s)",
-        f"📦 {scraped_ok}/{total_jobs} scraped | GH {github_ok}/{total_jobs}",
+        f"📦 {scraped_ok}/{total_jobs} scraped",
     ]
 
     send_telegram("\n".join(lines))
-
-    # The CSVs feed the merge + scorer steps (which write pitcher_scores /
-    # pitcher_split_scores); a failed GitHub CSV push fails the run.
-    if GITHUB_TOKEN and github_ok < total_jobs:
-        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@ on:
     - cron: '30 15 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false   # a second run waits for the first instead of overlapping
+
 jobs:
   report-summary:
     runs-on: ubuntu-latest
@@ -21,7 +25,7 @@ jobs:
 
       - name: Install Playwright + Chromium
         run: |
-          npm install playwright@latest
+          npm install playwright@1.63.0
           npx playwright install --with-deps chromium
 
       - name: Build game summaries and send to Telegram

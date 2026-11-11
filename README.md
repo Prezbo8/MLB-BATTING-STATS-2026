@@ -23,12 +23,15 @@ data/                                pipeline outputs and static inputs
 
 | UTC | ET | Workflow |
 |---|---|---|
-| 05:00 | 1 AM | `mlb_pitcher_pipeline.yml` — pitcher overalls chain, then pitcher splits chain |
-| 08:00 | 4 AM | `scrape_team_splits.yml` — team batting splits |
+| 05:00 (retry 09:00) | 1 AM (5 AM) | `mlb_pitcher_pipeline.yml` — pitcher overalls chain, then pitcher splits chain; one commit per run |
+| 08:00 (retry 12:00) | 4 AM (8 AM) | `scrape_team_splits.yml` — team batting splits |
 | 10:00 | 6 AM | `scrape_results.yml` — MLB final scores → `data/results/results_<season>.csv` |
-| 11:00 | 7 AM | `scrape_player_splits.yml` — player batting splits |
+| 11:00 (retry 15:00) | 7 AM (11 AM) | `scrape_player_splits.yml` — player batting splits |
 | 14:00 | 10 AM | `scrape_rpg.yml` — runs per game |
-| 15:00–02:00, every 30 min | 11 AM–10 PM | `scrape_lineups.yml` — RotoWire lineups |
+| 15:17–01:17, hourly | 11 AM–9 PM | `scrape_lineups.yml` — RotoWire lineups |
+
+The retry runs only do work when that day's first run failed (FanGraphs sometimes
+blocks GitHub's servers for a few hours).
 
 All scrapers hit JSON APIs / plain HTML with `requests` (no browser), read secrets
 from repo Actions secrets, retry with escalating waits, and push nothing on failure

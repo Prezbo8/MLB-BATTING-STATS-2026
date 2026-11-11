@@ -14,3 +14,5 @@ package-lock.json
 
 # supabase CLI scratch
 supabase/.temp/
+__pycache__/
+*.pyc

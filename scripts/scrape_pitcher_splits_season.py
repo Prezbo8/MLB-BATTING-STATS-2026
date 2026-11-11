@@ -5,8 +5,10 @@ browser), merges on playerId, saves splits_<season>_raw.csv (season from
 scripts/season.py).
 
 Season rollover: the first run of a new season also scrapes the season that
-just ended into splits_<last season>_raw.csv and commits it to the repo
-(once), so it keeps counting as a past season in merge_pitcher_splits.py.
+just ended into splits_<last season>_raw.csv (once). The workflow commits
+data/pitcher_splits_data/ at the end of the run, so that file and the
+current season's file stay in the repo as past seasons for
+merge_pitcher_splits.py.
 
 Output matches the old Selenium scraper's raw splits format:
 percent stats on the 0-100 scale, grid-style rounding.
@@ -15,7 +17,7 @@ All-or-nothing: if any table still fails after retries, exits 1 and
 writes nothing, so the downstream merger/scorer never see partial data.
 """
 
-import os, time, base64, traceback
+import os, time, traceback
 from datetime import date
 import pandas as pd
 import requests
@@ -30,9 +32,6 @@ OUTPUT_DIR   = "data/pitcher_splits_data"
 GROUP_BY     = "season"
 AUTO_PT      = "false"     # season: include ALL pitchers regardless of TBF
 SPLIT_PREFIX = []          # career adds the [42] qualifier split; season doesn't
-
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
-GITHUB_API   = "https://api.github.com/repos/Prezbo8/MLB-BATTING-STATS-2026/contents"
 
 
 def output_csv(season):
@@ -219,26 +218,6 @@ def scrape_season(season):
     return final.drop_duplicates(subset=["playerid", "split", "period"], keep="first")
 
 
-def commit_to_repo(path):
-    """Add a new file to the repo (contents API). True on success."""
-    if not GITHUB_TOKEN:
-        print(f"   ⏭️  GitHub skipped for {path} (no GITHUB_TOKEN)")
-        return False
-    with open(path, "rb") as f:
-        content = base64.b64encode(f.read()).decode("utf-8")
-    r = requests.put(f"{GITHUB_API}/{path}",
-                     headers={"Authorization": f"token {GITHUB_TOKEN}",
-                              "Accept": "application/vnd.github.v3+json"},
-                     json={"message": f"Freeze {os.path.basename(path)} (season ended)",
-                           "content": content, "branch": "main"},
-                     timeout=60)
-    if r.status_code in (200, 201):
-        print(f"   ✅ Committed {path}")
-        return True
-    print(f"   ❌ Commit of {path} failed: {r.status_code} {r.text[:200]}")
-    return False
-
-
 def run():
     today = date.today().strftime("%Y-%m-%d")
     print(f"\n🚀 Pitcher Splits — {SEASON} (API) — {today}")
@@ -251,14 +230,7 @@ def run():
         prev_csv = output_csv(SEASON - 1)
         if not os.path.exists(prev_csv):
             print(f"\n🧊 {prev_csv} missing — freezing last season once")
-            prev = scrape_season(SEASON - 1)
-            prev.to_csv(prev_csv, index=False)
-            if not commit_to_repo(prev_csv):
-                tg(f"❌ <b>Splits: could not commit {prev_csv}</b>\n"
-                   f"Last season will be missing next run too")
-                raise SystemExit(1)
-    except SystemExit:
-        raise
+            scrape_season(SEASON - 1).to_csv(prev_csv, index=False)
     except Exception as e:
         print(f"\n💥 Crash:\n{traceback.format_exc()}")
         tg(f"💥 <b>Splits {SEASON} CRASHED</b>\n🚫 Nothing written\n❌ {str(e)[:200]}")
