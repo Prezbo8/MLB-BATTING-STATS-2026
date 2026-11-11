@@ -25,6 +25,7 @@ data/                                pipeline outputs and static inputs
 |---|---|---|
 | 05:00 | 1 AM | `mlb_pitcher_pipeline.yml` — pitcher overalls chain, then pitcher splits chain |
 | 08:00 | 4 AM | `scrape_team_splits.yml` — team batting splits |
+| 10:00 | 6 AM | `scrape_results.yml` — MLB final scores → `data/results/results_<season>.csv` |
 | 11:00 | 7 AM | `scrape_player_splits.yml` — player batting splits |
 | 14:00 | 10 AM | `scrape_rpg.yml` — runs per game |
 | 15:00–02:00, every 30 min | 11 AM–10 PM | `scrape_lineups.yml` — RotoWire lineups |
