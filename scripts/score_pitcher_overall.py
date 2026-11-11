@@ -3,13 +3,15 @@ MLB Pitcher Model — Scorer (with Career)
 ==========================================
 Scoring flow:
 1. Load master_all.csv (annual 2021-2026 + career rows)
-2. Per-season percentile ranks within each season group
+2. Per-season percentile ranks within each season group, among pitchers
+   with at least MIN_IP innings (rows below it stay unrated: no
+   season score, composite or tier)
 3. Per-pitcher weighted avg across seasons using YEAR_WEIGHTS
 4. Normalize weighted avg to 0-100 composite score
 5. Assign tier label
-6. Upsert to Supabase:
-   - Delete 2026 + career rows daily (re-scraped daily)
-   - 2021-2025 inserted once, never deleted
+6. Upsert to Supabase: every season is deleted and reinserted daily,
+   because each pitcher's composite (shared by all his rows) moves
+   whenever the current season or career rows change
 """
 
 import os
@@ -107,6 +109,11 @@ STAT_WEIGHTS = [
     ("AVG",        0.005,-1),
 ]
 
+# Minimum innings for a season (or career) row to be ranked. Below it a
+# 0.00 ERA in 1 IP lands at the top of every percentile and pushes real
+# pitchers down, so those rows are left out of the pool entirely.
+MIN_IP = 20
+
 # ─────────────────────────────────────────
 # COLUMN SANITIZER
 # ─────────────────────────────────────────
@@ -145,7 +152,7 @@ def sanitize_col(col):
 # TIER
 # ─────────────────────────────────────────
 def get_tier(score):
-    if pd.isna(score): return "Unknown"
+    if pd.isna(score): return None
     if score >= 90:    return "Elite"
     if score >= 75:    return "Good"
     if score >= 50:    return "Mid"
@@ -198,19 +205,21 @@ def assign_player_key(df):
 # STEP 1 — PERCENTILE RANKS WITHIN SEASON
 # ─────────────────────────────────────────
 def compute_season_scores(df):
-    """Rank each stat within its season group, combine into season_score."""
+    """Rank each stat within its season group (pitchers with MIN_IP+ only),
+    combine into season_score. Rows below MIN_IP get no season_score."""
     result_frames = []
 
     for season, grp in df.groupby("season"):
         grp        = grp.copy()
         score_acc  = pd.Series(0.0, index=grp.index)
         weight_acc = pd.Series(0.0, index=grp.index)
+        qualified  = pd.to_numeric(grp["IP"], errors="coerce") >= MIN_IP
 
         for raw_col, weight, direction in STAT_WEIGHTS:
             col = raw_col if raw_col in grp.columns else sanitize_col(raw_col)
             if col not in grp.columns:
                 continue
-            numeric = pd.to_numeric(grp[col], errors="coerce")
+            numeric = pd.to_numeric(grp[col], errors="coerce").where(qualified)
             ranks   = numeric.rank(pct=True, na_option="keep") * 100
             if direction == -1:
                 ranks = 100 - ranks
@@ -266,6 +275,9 @@ def compute_composite_scores(df, year_weights):
         composite_map = normalized.to_dict()
 
     df["composite_score"] = df["player_key"].map(composite_map)
+    # A row below MIN_IP is unrated even if the pitcher has a composite
+    # from his other seasons
+    df.loc[df["season_score"].isna(), "composite_score"] = np.nan
     df["tier"]            = df["composite_score"].apply(get_tier)
     return df
 
@@ -329,24 +341,6 @@ def delete_season(season_val):
     return False
 
 
-def season_exists(season_val):
-    """On any failure, assume the season exists — skipping a reinsert is
-    harmless, reinserting on top of existing rows duplicates them."""
-    r = sb_request(
-        "GET",
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?season=eq.{season_val}&limit=1",
-        headers=SUPABASE_HEADERS,
-        timeout=15,
-    )
-    if r is None or r.status_code != 200:
-        print(f"   ⚠️  Could not check season={season_val} — assuming it exists")
-        return True
-    try:
-        return len(r.json()) > 0
-    except ValueError:
-        return True
-
-
 def insert_batches(records, label="", upsert=False):
     pushed = 0
     headers = SUPABASE_HEADERS.copy()
@@ -380,7 +374,7 @@ def sanitize_df_cols(df):
 def upsert_to_supabase(df, force_reseed=False):
     """
     force_reseed=True : wipe entire table, reinsert all years (first run)
-    force_reseed=False: only delete+reinsert 2026 and career (daily)
+    force_reseed=False: delete+reinsert every season (daily)
     """
     df_san = sanitize_df_cols(df)
     # Push the FanGraphs playerid (unique (playerid, season) lets two
@@ -406,14 +400,10 @@ def upsert_to_supabase(df, force_reseed=False):
         print("   ✅ Cleared")
         seasons_to_insert = [2021, 2022, 2023, 2024, 2025, 2026, "career"]
     else:
+        # Daily: refresh every season (each row carries the pitcher's
+        # composite, which moves daily), but only where the delete worked
         seasons_to_insert = []
-        for year in [2021, 2022, 2023, 2024, 2025]:
-            if season_exists(year):
-                print(f"   ⏭️  season={year} already exists — skipping")
-            else:
-                seasons_to_insert.append(year)
-        # Daily: refresh 2026 and career, but only where the delete worked
-        for season_val in [2026, "career"]:
+        for season_val in [2021, 2022, 2023, 2024, 2025, 2026, "career"]:
             if delete_season(season_val):
                 seasons_to_insert.append(season_val)
             else:

@@ -1,13 +1,15 @@
 """
 Pitcher Splits — Scorer
 Reads master_splits.csv, scores all rows, uploads to Supabase.
-- season_score: percentile rank within (split + period)
+- season_score: percentile rank within (split + period), among pitchers
+  with at least MIN_TBF batters faced (rows below it stay unrated: no
+  season score, composite or tier)
 - composite_split_score: weighted avg across periods per (name, split)
 - split_tier: Elite/Good/Mid/Bad/Ass
 
 Daily mode:
-  - Deletes 2026 + career rows then reinserts fresh
-  - Historical rows (2021-2025) inserted once, never touched again
+  - Deletes and reinserts every period, because each pitcher's composite
+    (shared by all his rows for a split) moves whenever 2026/career change
 """
 
 import os, math, time
@@ -64,6 +66,11 @@ SPLIT_STAT_WEIGHTS = [
     ("slg",       0.01, -1),
 ]
 
+# Minimum batters faced for a split row to be ranked. Below it a catcher
+# who faced 2 lefties can top the vs-LHH list and pushes real pitchers
+# down, so those rows are left out of the pool entirely.
+MIN_TBF = 30
+
 YEAR_WEIGHTS = {
     "2021":   0.03,
     "2022":   0.05,
@@ -76,7 +83,7 @@ YEAR_WEIGHTS = {
 
 def get_tier(score):
     if score is None or (isinstance(score, float) and math.isnan(score)):
-        return "Unknown"
+        return None
     if score >= 90: return "Elite"
     if score >= 75: return "Good"
     if score >= 50: return "Mid"
@@ -128,15 +135,17 @@ def assign_player_key(df):
 # SCORING
 # ─────────────────────────────────────────
 def compute_season_scores(df):
-    """Percentile rank within (split + period) group."""
+    """Percentile rank within (split + period) group (MIN_TBF+ only).
+    Rows below MIN_TBF get no season_score."""
     result_frames = []
     for (split, period), grp in df.groupby(["split","period"]):
         grp = grp.copy()
         score_acc  = pd.Series(0.0, index=grp.index)
         weight_acc = pd.Series(0.0, index=grp.index)
+        qualified  = pd.to_numeric(grp["tbf"], errors="coerce") >= MIN_TBF
         for col, weight, direction in SPLIT_STAT_WEIGHTS:
             if col not in grp.columns: continue
-            numeric = pd.to_numeric(grp[col], errors="coerce")
+            numeric = pd.to_numeric(grp[col], errors="coerce").where(qualified)
             # Normalize 0-1 pct to 0-100
             if numeric.dropna().max() <= 1.5 and col.endswith("_pct"):
                 numeric = numeric * 100
@@ -179,6 +188,9 @@ def compute_composite_scores(df):
     df["composite_split_score"] = df.apply(
         lambda r: composite_map.get((r["player_key"], r["split"]), np.nan), axis=1
     )
+    # A row below MIN_TBF is unrated even if the pitcher has a composite
+    # from his other periods
+    df.loc[df["season_score"].isna(), "composite_split_score"] = np.nan
     df["split_tier"] = df["composite_split_score"].apply(get_tier)
     return df
 
@@ -230,19 +242,6 @@ def delete_period(period):
     print(f"   ❌ [{r.status_code if r is not None else 'no response'}]")
     return False
 
-def period_exists(period):
-    """On any failure, assume the period exists — skipping a reinsert is
-    harmless, reinserting on top of existing rows duplicates them."""
-    r = sb_request("GET", f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?period=eq.{period}&limit=1",
-                   timeout=15)
-    if r is None or r.status_code != 200:
-        print(f"   ⚠️  Could not check period={period} — assuming it exists")
-        return True
-    try:
-        return len(r.json()) > 0
-    except ValueError:
-        return True
-
 def insert_batches(records, label=""):
     pushed = 0
     for i in range(0, len(records), BATCH_SIZE):
@@ -260,7 +259,7 @@ def insert_batches(records, label=""):
 def upsert_to_supabase(df, force_reseed=False):
     """
     force_reseed=True : wipe entire table, reinsert all periods
-    force_reseed=False: delete 2026+career, skip historical if exists
+    force_reseed=False: delete+reinsert every period (daily)
     """
     if not SUPABASE_KEY:
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
@@ -284,14 +283,10 @@ def upsert_to_supabase(df, force_reseed=False):
         print("   ✅ Cleared")
         periods_to_insert = ["2021","2022","2023","2024","2025","2026","career"]
     else:
+        # Daily: refresh every period (each row carries the pitcher's
+        # composite, which moves daily), but only where the delete worked
         periods_to_insert = []
-        for p in ["2021","2022","2023","2024","2025"]:
-            if period_exists(p):
-                print(f"   ⏭️  period={p} already exists — skipping")
-            else:
-                periods_to_insert.append(p)
-        # Daily: refresh 2026 and career, but only where the delete worked
-        for p in ["2026","career"]:
+        for p in ["2021","2022","2023","2024","2025","2026","career"]:
             if delete_period(p):
                 periods_to_insert.append(p)
             else:
