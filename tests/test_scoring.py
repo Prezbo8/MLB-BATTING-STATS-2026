@@ -102,7 +102,8 @@ def test_scores_match_snapshot(request, name, cols):
         df.to_csv(path, index=False)
         pytest.skip(f"snapshot written: {path}")
     expected = pd.read_csv(path, dtype=str, keep_default_na=False)
-    got = df.astype(str).replace({"nan": "", "None": ""})
+    # missing -> "" the same way under pandas 2 and 3 (3 keeps NaN in str columns)
+    got = df.apply(lambda col: col.map(lambda v: "" if pd.isna(v) else str(v)))
     assert list(got.columns) == list(expected.columns)
     assert len(got) == len(expected)
     for c in cols:
