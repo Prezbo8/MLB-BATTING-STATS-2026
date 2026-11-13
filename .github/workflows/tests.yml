@@ -1,0 +1,39 @@
+name: Tests
+
+# Offline test suite (tests/): no secrets, no network — every HTTP call is
+# answered from tests/fixtures/. Required to pass before merging into main.
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (same pins as the scrapers)
+        run: pip install pandas==3.1.1 numpy==2.4.6 requests==2.34.2 lxml==6.1.3 PyYAML==6.0.3 pytest==8.4.2
+
+      - name: Run tests
+        run: python -m pytest -q tests
