@@ -1806,14 +1806,21 @@ function noteSeason(y) {
 }
 // Newest season among values like 2026 / '2025' / 'career'
 const newestSeason = vals => Math.max(0, ...vals.map(v => parseInt(v, 10)).filter(v => v > 0));
-// Fill a season <select>: newest first, Career after the previous season or at the end
-function fillSeasonSelect(id, seasons, careerAfterPrev) {
+// Fill a season <select> from data rows: newest first, Career after the
+// previous season or at the end. It opens on the newest season with at least
+// minRated rated rows, so early in a season (few pitchers past the innings
+// cutoff yet) it shows last season instead of an almost empty list.
+function fillSeasonSelect(id, rows, key, careerAfterPrev, minRated) {
     const sel = document.getElementById(id);
     if (!sel || sel.options.length) return;
-    const ys = [...new Set(seasons.map(v => parseInt(v, 10)).filter(v => v > 0))].sort((a, b) => b - a);
+    const rated = {};
+    rows.forEach(r => { const y = parseInt(r[key], 10); if (y > 0 && r.season_score != null) rated[y] = (rated[y] || 0) + 1; });
+    const ys = [...new Set(rows.map(r => parseInt(r[key], 10)).filter(v => v > 0))].sort((a, b) => b - a);
     const opts = ys.map(y => [String(y), String(y)]);
     opts.splice(careerAfterPrev ? Math.min(2, opts.length) : opts.length, 0, ['career', 'Career']);
     sel.innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+    const open = ys.find(y => (rated[y] || 0) >= minRated);
+    if (open) sel.value = String(open);
 }
 
 async function fetchFromSupabase() {
@@ -4969,7 +4976,7 @@ function ptEnsure() {
         const all = await sbFetchAll(PT_TABLE, PT_SELECT);
         _ptData = all;
         noteSeason(newestSeason(all.map(r => r.season)));
-        fillSeasonSelect('prk-season', all.map(r => r.season), false);
+        fillSeasonSelect('prk-season', all, 'season', false, 100);
         const prev = String(CUR_SEASON - 1);
         for (const r of all) {
             if (String(r.season) === prev)     _ptPrev[r.name]   = r.season_score;
@@ -5257,7 +5264,7 @@ function psEnsure() {
     _psPromise = (async () => {
         _psData   = await sbFetchAll(PS_TABLE, PS_SELECT);
         noteSeason(newestSeason(_psData.map(r => r.period)));
-        fillSeasonSelect('ps-period', _psData.map(r => r.period), true);
+        fillSeasonSelect('ps-period', _psData, 'period', true, 400);
         _psLoaded = true; // only mark loaded on full success
     })().catch(err => {
         _psPromise = null; // allow the next tab click to retry instead of caching failure

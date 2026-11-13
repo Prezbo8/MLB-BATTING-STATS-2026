@@ -2,9 +2,10 @@
 Pitcher Splits — Scorer
 Reads master_splits.csv, scores all rows, uploads to Supabase.
 - season_score: percentile rank within (split + period), among pitchers
-  with at least MIN_TBF batters faced (rows below it stay unrated: no
-  season score, composite or tier)
-- composite_split_score: weighted avg across periods per (name, split)
+  with at least MIN_TBF batters faced (rows below it get no season score
+  but keep the composite + tier from the pitcher's other periods)
+- composite_split_score: weighted avg across periods per (name, split),
+  each period's weight scaled by batters faced (full at FULL_WEIGHT_TBF)
 - split_tier: Elite/Good/Mid/Bad/Ass
 
 Daily mode:
@@ -64,6 +65,11 @@ SPLIT_STAT_WEIGHTS = [
 # who faced 2 lefties can top the vs-LHH list and pushes real pitchers
 # down, so those rows are left out of the pool entirely.
 MIN_TBF = 30
+
+# A period's composite weight grows with batters faced: full weight at this
+# many, proportionally less below it (a few weeks of a new season shouldn't
+# outweigh a whole previous season)
+FULL_WEIGHT_TBF = 150
 
 # Rolling, relative to the current season (scripts/season.py), newest first.
 # Seasons older than the window get weight 0 (still shown, not counted).
@@ -163,7 +169,8 @@ def compute_composite_scores(df):
             period = str(row["period"])
             score  = row.get("season_score")
             if score is None or (isinstance(score, float) and math.isnan(score)): continue
-            yw = YEAR_WEIGHTS.get(period, 0.0)
+            tbf = pd.to_numeric(row["tbf"], errors="coerce")
+            yw = YEAR_WEIGHTS.get(period, 0.0) * min(1.0, (tbf if tbf > 0 else 0) / FULL_WEIGHT_TBF)
             num += float(score) * yw
             denom += yw
         composite_map[(key, split)] = round(num / denom, 2) if denom > 0 else np.nan
@@ -178,9 +185,8 @@ def compute_composite_scores(df):
     df["composite_split_score"] = df.apply(
         lambda r: composite_map.get((r["player_key"], r["split"]), np.nan), axis=1
     )
-    # A row below MIN_TBF is unrated even if the pitcher has a composite
-    # from his other periods
-    df.loc[df["season_score"].isna(), "composite_split_score"] = np.nan
+    # Every row carries the pitcher's composite for that split — including a
+    # period below MIN_TBF (no season score), so early-season rows keep a tier
     df["split_tier"] = df["composite_split_score"].apply(get_tier)
     return df
 

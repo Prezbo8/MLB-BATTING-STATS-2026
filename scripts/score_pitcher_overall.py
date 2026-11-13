@@ -4,9 +4,10 @@ MLB Pitcher Model — Scorer (with Career)
 Scoring flow:
 1. Load master_all.csv (annual 2021-current season + career rows)
 2. Per-season percentile ranks within each season group, among pitchers
-   with at least MIN_IP innings (rows below it stay unrated: no
-   season score, composite or tier)
-3. Per-pitcher weighted avg across seasons using YEAR_WEIGHTS
+   with at least MIN_IP innings (rows below it get no season score, but
+   keep the pitcher's composite + tier from his other seasons)
+3. Per-pitcher weighted avg across seasons using YEAR_WEIGHTS, each season's
+   weight scaled by its innings (full weight at FULL_WEIGHT_IP)
 4. Normalize weighted avg to 0-100 composite score
 5. Assign tier label
 6. Upsert to Supabase: every season is replaced daily (one transaction
@@ -99,6 +100,11 @@ STAT_WEIGHTS = [
 # 0.00 ERA in 1 IP lands at the top of every percentile and pushes real
 # pitchers down, so those rows are left out of the pool entirely.
 MIN_IP = 20
+
+# A season's composite weight grows with its innings: full weight at this many
+# IP, proportionally less below it. Without this, 20 IP of a new season (weight
+# .32) outweighed a whole previous season (.20).
+FULL_WEIGHT_IP = 60
 
 # ─────────────────────────────────────────
 # COLUMN SANITIZER
@@ -248,7 +254,8 @@ def compute_composite_scores(df, year_weights):
                 season_key = int(season)
             except (ValueError, TypeError):
                 season_key = season
-            yw     = year_weights.get(season_key, 0.0)
+            ip     = pd.to_numeric(row["IP"], errors="coerce")
+            yw     = year_weights.get(season_key, 0.0) * min(1.0, (ip if ip > 0 else 0) / FULL_WEIGHT_IP)
             num   += score * yw
             denom += yw
         composite_map[key] = round(num / denom, 2) if denom > 0 else np.nan
@@ -260,10 +267,9 @@ def compute_composite_scores(df, year_weights):
         normalized = (raw_scores.rank(pct=True) * 100).round(2)
         composite_map = normalized.to_dict()
 
+    # Every row of a pitcher carries his composite — including a season below
+    # MIN_IP (no season score), so early-season rows still show a tier
     df["composite_score"] = df["player_key"].map(composite_map)
-    # A row below MIN_IP is unrated even if the pitcher has a composite
-    # from his other seasons
-    df.loc[df["season_score"].isna(), "composite_score"] = np.nan
     df["tier"]            = df["composite_score"].apply(get_tier)
     return df
 

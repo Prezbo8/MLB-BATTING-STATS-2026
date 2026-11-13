@@ -25,8 +25,10 @@ OUTPUT_DIR   = "data/pitcher_splits_data"
 OUTPUT_CSV   = os.path.join(OUTPUT_DIR, "splits_career_raw.csv")
 PERIOD       = "career"
 GROUP_BY     = "career"
-AUTO_PT      = "true"      # career: FanGraphs auto min-IP filter (server-side)
-SPLIT_PREFIX = [42]       # career qualifier split, as in the original URL
+AUTO_PT      = "false"     # every pitcher, like the season files; the scorer
+                           # applies its own MIN_TBF cutoff to every period
+SPLIT_PREFIX = []          # was [42], which limited career lines to games as a
+                           # starter (and qualified starters only)
 START_DATE   = "2017-03-01"
 END_DATE     = f"{SEASON}-11-01"
 
