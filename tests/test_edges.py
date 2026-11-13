@@ -54,7 +54,8 @@ def test_site_labels_come_from_the_starter_part():
 
 @pytest.mark.parametrize("page", ["index.html", "mobile.html"])
 def test_pages_use_the_same_numbers_as_the_backtest(page):
-    html = open(os.path.join(REPO, page)).read()
+    # the matchup math lives in assets/js/shared.js (Round G3); PA_BY_SLOT stays in each page
+    html = open(os.path.join(REPO, page)).read() + open(os.path.join(REPO, "assets", "js", "shared.js")).read()
     num = lambda pat: float(re.search(pat, html).group(1))
     assert num(r"const SPLIT_PRIOR_PA = (\d+)") == be.SPLIT_PRIOR_PA
     assert num(r"PRIOR_PA = (\d+), LAST_SEASON_SHRINK_PA") == be.PRIOR_PA

@@ -8,6 +8,9 @@ The site reads from Supabase; the CSVs in `data/` are the pipeline's archived ou
 ```
 index.html, mobile.html              the dashboard (GitHub Pages serves from root)
 assets/                              favicons and app icons
+assets/js/shared.js                  code both pages load: matchups/edges, drawer, trend lines,
+                                     tier cards (tests/test_shared_js.py checks it against the Python;
+                                     bump the ?v= in both pages' script tag — the test tells you the value)
 manifest.json, site.webmanifest      PWA manifests
 scripts/                             all scrapers, mergers, scorers (run by Actions)
 data/                                pipeline outputs and static inputs
