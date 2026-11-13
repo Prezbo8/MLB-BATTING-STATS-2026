@@ -445,8 +445,8 @@
            grid vs cells that don't. Pull it out of flow so every value
            right-aligns to the same edge — monospace + constant decimals then
            line the decimal points up column-wide. */
-        #panel-0 th.num { padding-right: 22px; }
-        #panel-0 td.num { padding-right: 22px; }
+        #panel-0 th.num { padding-right: 17px; }
+        #panel-0 td.num { padding-right: 17px; }
         /* position:relative gives the trend arrow a containing block, but must NOT
            hit the sticky-pinned LG AVG row — its td.num has to stay position:sticky
            or its stat cells desync from the frozen wRC+/team cells. */
@@ -454,7 +454,7 @@
         /* wRC+ is a frozen (position:sticky) column, which already establishes a
            containing block for the arrow — only pad it; never set position here
            or the override clobbers sticky and the left offset shifts the cell. */
-        #panel-0 td.wrc-cell { padding-right: 22px; }
+        #panel-0 td.wrc-cell { padding-right: 18px; }
         #panel-0 td.num .trend-arrow, #panel-0 td.wrc-cell .trend-arrow {
             position: absolute; right: 5px; top: 50%; transform: translateY(-50%); margin-left: 0;
         }
@@ -988,6 +988,23 @@
         #tier-tip .tt-bt { color: var(--text2); } #tier-tip .tt-bt b { color: var(--text); font-family: var(--mono); }
         #tier-tip .tt-warn { margin-top: 6px; color: var(--muted); font-size: 0.68rem; }
         #pd-drawer .t-elite { color: var(--elite); } #pd-drawer .t-good { color: var(--good); } #pd-drawer .t-mid { color: var(--mid); } #pd-drawer .t-bad { color: var(--bad); } #pd-drawer .t-ass { color: var(--ass); }
+        /* ══ TEAM TRENDS (Round F4) ══ */
+        .spark { display: block; overflow: visible; }
+        .spark-line { fill: none; stroke: var(--text2); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; opacity: 0.8; }
+        .spark-avg { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.7; }
+        .spark .d-elite { fill: var(--elite); } .spark .d-good { fill: var(--good); } .spark .d-mid { fill: var(--mid); }
+        .spark .d-bad { fill: var(--bad); } .spark .d-ass { fill: var(--ass); }
+        .spark-na { color: var(--muted); font-family: var(--mono); font-size: 0.75rem; }
+        #panel-0 td.spark-cell, #panel-0 th.spark-th { padding: 4px 5px; width: 70px; }
+        #panel-0 th.spark-th .th-inner { justify-content: center; }
+        /* Ticker sections (Round F4) */
+        .ticker-sep.sep-hot { background: #f97316; } .ticker-sep.sep-cold { background: #60a5fa; } .ticker-sep.sep-today { background: var(--accent); }
+        .ticker-sep.sep-today .ticker-sep-main, .ticker-sep.sep-today .ticker-sep-sub { color: #fff; }
+        .tk-delta { font-family: var(--mono); font-size: 0.72rem; margin-left: 4px; }
+        .tk-delta.pos { color: var(--elite); } .tk-delta.neg { color: var(--ass); }
+        .tk-at { font-family: var(--display); font-size: 0.8rem; color: var(--muted); }
+        .tk-sps { font-family: var(--body); font-size: 0.8rem; color: var(--text2); display: inline-flex; align-items: center; gap: 4px; }
+        .tk-sps .tier-pill { font-size: 0.5rem; padding: 1px 5px; }
                 /* ══ MATCHUPS (Round F2) ══ */
         .wrc-chip { margin-left: 6px; min-width: 32px; padding: 1px 5px; border-radius: 6px; font-family: var(--mono); font-size: 0.72rem; font-weight: 700;
                     text-align: center; border: 1px solid currentColor; background: rgba(var(--tint),0.04); flex-shrink: 0; }
@@ -1369,6 +1386,7 @@
                         <th style="text-align:center;width:46px;"><div class="th-inner" style="justify-content:center">#</div></th>
                         <th style="text-align:left;"><div class="th-inner">Team</div></th>
                         <th class="num sortable sort-active" id="th-wrcplus" onclick="sortTable('wrcPlus')" data-tip="wRC+ — Weighted Runs Created+. 100 = league avg. 120+ = elite, 80- = below avg. Best all-in-one offensive metric."><div class="th-inner">wRC+ <span class="sort-icon">↓</span></div></th>
+                        <th class="spark-th" data-tip="Trend — the team's wRC+ month by month this season (for the chosen split). Dashed line = 100, league average; dots colored by tier."><div class="th-inner">Trend</div></th>
                         <th class="num sortable" id="th-woba"  onclick="sortTable('woba')"  data-tip="wOBA — Weighted On-Base Average. Weights each way of reaching base by run value. League avg ≈ .320. Elite: .380+"><div class="th-inner">wOBA <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable" id="th-ops"   onclick="sortTable('ops')"   data-tip="OPS — On-Base % + Slugging %. Quick power/patience combo. .900+ = elite, .800+ = good, .700- = poor."><div class="th-inner">OPS <span class="sort-icon">↕</span></div></th>
                         <th class="num sortable" id="th-avg"   onclick="sortTable('avg')"   data-tip="AVG — Batting Average. Hits ÷ At-Bats. League avg ≈ .250. .300+ is excellent; lower context with modern analytics."><div class="th-inner">AVG <span class="sort-icon">↕</span></div></th>
@@ -1382,7 +1400,7 @@
                     </tr>
                 </thead>
                 <tbody id="rankings-body">
-                    <tr><td colspan="13"><div class="empty-state"><div class="empty-state-icon">📤</div><div class="empty-state-text">Upload your CSV to view rankings</div></div></td></tr>
+                    <tr><td colspan="14"><div class="empty-state"><div class="empty-state-icon">📤</div><div class="empty-state-text">Upload your CSV to view rankings</div></div></td></tr>
                 </tbody>
             </table>
           </div>
@@ -2040,6 +2058,52 @@ async function sbFetchAll(table, params) {
         pg++;
     }
     return all;
+}
+
+// ── TEAM TRENDS (Round F4): each team's wRC+ month by month this season ──
+// One small request per split (30 teams × ~7 months) from the monthly history
+// table; drawn as an inline SVG on a fixed 60–160 scale so lines compare across teams.
+const _trendCache = {};
+let _trendSeasonP = null;
+const _trendHdr = () => ({ apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` });
+function trendSeason() {
+    if (CUR_SEASON) return Promise.resolve(CUR_SEASON);
+    if (!_trendSeasonP) _trendSeasonP = fetch(`${SUPABASE_URL}/rest/v1/fangraphs_splits_history?select=season&order=season.desc&limit=1`, { headers: _trendHdr() })
+        .then(r => r.json()).then(d => parseInt(d?.[0]?.season, 10) || null).catch(() => null);
+    return _trendSeasonP;
+}
+function loadTrends(split) {
+    if (!_trendCache[split]) _trendCache[split] = (async () => {
+        const S = await trendSeason();
+        if (!S) throw new Error('no season');
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/fangraphs_splits_history?select=tm,date_range,wrcplus&season=eq.${S}&split=eq.${split}&order=date_range.asc`, { headers: _trendHdr() });
+        const rows = await r.json();
+        if (!Array.isArray(rows)) throw new Error('bad response');
+        const by = {};
+        rows.forEach(x => { const v = parseFloat(x.wrcplus); if (!isNaN(v) && x.tm) (by[x.tm] = by[x.tm] || []).push({ m: x.date_range, v }); });
+        return by;
+    })().catch(e => { console.warn('[trends]', e); delete _trendCache[split]; return {}; });
+    return _trendCache[split];
+}
+const TREND_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function sparkSvg(pts, w = 84, h = 26) {
+    if (!pts || pts.length < 2) return '<span class="spark-na">—</span>';
+    const meta = statMeta.find(s => s.key === 'wrcPlus');
+    const lo = 60, hi = 160, pad = 3;
+    const x = i => pad + i * (w - 2 * pad) / (pts.length - 1);
+    const y = v => pad + (1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (h - 2 * pad);
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+    const dots = pts.map((p, i) => `<circle class="d-${getTier(meta, p.v)}" cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${i === pts.length - 1 ? 2.6 : 1.7}"/>`).join('');
+    const label = pts.map(p => `${TREND_MON[+p.m.slice(5, 7) - 1] || p.m} ${Math.round(p.v)}`).join(' · ');
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Monthly wRC+: ${label}"><title>Monthly wRC+: ${label}</title>`
+        + `<line class="spark-avg" x1="0" x2="${w}" y1="${y(100).toFixed(1)}" y2="${y(100).toFixed(1)}"/><path class="spark-line" d="${line}"/>${dots}</svg>`;
+}
+// Fill every [data-spark] cell under root once the split's months are in
+function fillSparks(root, split, isCurrent, w, h) {
+    loadTrends(split).then(by => {
+        if (!isCurrent()) return;
+        root.querySelectorAll('[data-spark]').forEach(td => { td.innerHTML = sparkSvg(by[td.dataset.spark], w, h); });
+    });
 }
 
 // ── MATCHUPS (Round F2): batters vs the opposing starter's hand + edges ──
@@ -2832,12 +2896,6 @@ function getFilteredData(split, dateRange) {
 }
 
 // ── SUMMARY TICKER ───────────────────────────────────────────────────────────
-const TICKER_DATE_RANGES = [
-    { value: 'season',  label: 'SZN',  sub: 'FULL SEASON'  },
-    { value: 'last_30', label: 'L30',  sub: 'LAST 30 DAYS' },
-    { value: 'last_14', label: 'L14',  sub: 'LAST 14 DAYS' },
-    { value: 'last_7',  label: 'L7',   sub: 'LAST 7 DAYS'  },
-];
 const TICKER_STATS = [
     { key:'wrcPlus', label:'wRC+',  fmt:v=>Math.round(v),    lowest:false },
     { key:'woba',    label:'wOBA',  fmt:v=>v.toFixed(3).replace(/^(-?)0\./,'$1.'),     lowest:false },
@@ -2848,12 +2906,13 @@ const TICKER_STATS = [
 ];
 
 let _tickerBuilt = false;
+let _tickerBuilding = false;
 let _tickerRAF = null;
 let _tickerX = 0;
 let _tickerPaused = false;
 let _tickerSpeed = 25; // px/s — JS-driven so it never resets
 
-function updateSummaryBar(activeTab) {
+async function updateSummaryBar(activeTab) {
     // Only build once. Filter/sort/tab changes must not restart the ticker.
     if (_tickerBuilt) return;
 
@@ -2872,58 +2931,67 @@ function updateSummaryBar(activeTab) {
         'Pittsburgh':'PIT','Colorado':'COL','Chi Sox':'CHW',
     };
 
+    // Round F4: grouped sections — Leaders · Hot L7 · Cold L7 · Today
+    const season = getFilteredData('no_split', 'season');
+    if (!season.length) return;              // data not in yet; called again after it loads
+    if (_tickerBuilding) return;
+    _tickerBuilding = true;
+    try { await Promise.all([loadSlate(), loadPitcherIndex()]); } catch (e) { /* Today section just shrinks */ }
+
+    const sep = (main, sub, cls = '') => `<div class="ticker-sep ${cls}"><span class="ticker-sep-main">${main}</span><span class="ticker-sep-sub">${sub}</span></div>`;
+    const teamBit = abbr => `<img class="ticker-item-logo" src="${teamLogos[abbr]||''}" onerror="this.style.opacity='.1'" alt="${abbr}">
+                <span class="ticker-item-abbr" style="color:${(teamColorsPdf[abbr] || { primary:'#9aa3b8' }).primary};">${abbr}</span>`;
+    const item = (abbr, key, val, cls = '', extra = '') => `<div class="ticker-item">${teamBit(abbr)}
+                <div class="ticker-item-stat"><span class="ticker-item-key">${key}</span><span class="ticker-item-val ${cls}">${val}${extra}</span></div></div>`;
+    const wrcMeta = statMeta.find(m => m.key === 'wrcPlus');
     let allItems = '';
-    let hasAny = false;
 
-    for (let drIdx = 0; drIdx < TICKER_DATE_RANGES.length; drIdx++) {
-        const dr   = TICKER_DATE_RANGES[drIdx];
-        const data = getFilteredData('no_split', dr.value);
-
-        // Skip entire section if no data for this date range
-        if (!data.length) continue;
-        hasAny = true;
-
-        allItems += `<div class="ticker-sep">
-            <span class="ticker-sep-main">${dr.label}</span>
-            <span class="ticker-sep-sub">${dr.sub}</span>
-        </div>`;
-
-        for (const s of TICKER_STATS) {
-            const valid = data.filter(r => r[s.key] != null && !isNaN(r[s.key]));
-            if (!valid.length) continue;
-            const sorted = [...valid].sort((a,b) => s.lowest ? a[s.key]-b[s.key] : b[s.key]-a[s.key]);
-            const best = sorted[0];
-            const meta = statMeta.find(m => m.key === s.key) || { thresholds:[999,999,999,999], higherBetter:!s.lowest };
-            const tier = 't-' + getTier(meta, best[s.key]);
-            const tc   = teamColorsPdf[best.tm] || { primary:'#9aa3b8' };
-            allItems += `<div class="ticker-item">
-                <img class="ticker-item-logo" src="${teamLogos[best.tm]||''}" onerror="this.style.opacity='.1'" alt="${best.tm}">
-                <span class="ticker-item-abbr" style="color:${tc.primary};">${best.tm}</span>
-                <div class="ticker-item-stat">
-                    <span class="ticker-item-key">${s.label}</span>
-                    <span class="ticker-item-val ${tier}">${s.fmt(best[s.key])}</span>
-                </div>
-            </div>`;
-        }
-
-        // SZN only: append R/G leader
-        if (drIdx === 0 && rpgLoaded && rpgData.length) {
-            const leader = [...rpgData].sort((a,b) => (b.szn_current??0)-(a.szn_current??0))[0];
-            if (leader?.szn_current != null) {
-                const abbr = RPG_TEAM_ABBR[leader.tm] || '';
-                const tc   = abbr ? (teamColorsPdf[abbr] || { primary:'#9aa3b8' }) : { primary:'#9aa3b8' };
-                allItems += `<div class="ticker-item">
-                    ${abbr ? `<img class="ticker-item-logo" src="${teamLogos[abbr]||''}" onerror="this.style.opacity='.1'" alt="${abbr}">` : ''}
-                    <span class="ticker-item-abbr" style="color:${tc.primary};">${abbr || leader.tm}</span>
-                    <div class="ticker-item-stat">
-                        <span class="ticker-item-key">R/G</span>
-                        <span class="ticker-item-val t-elite">${leader.szn_current.toFixed(2)}</span>
-                    </div>
-                </div>`;
-            }
-        }
+    // 1. Leaders — season leader per stat (+ R/G)
+    allItems += sep('Leaders', 'Full season');
+    for (const s of TICKER_STATS) {
+        const valid = season.filter(r => r[s.key] != null && !isNaN(r[s.key]));
+        if (!valid.length) continue;
+        const best = [...valid].sort((a,b) => s.lowest ? a[s.key]-b[s.key] : b[s.key]-a[s.key])[0];
+        const meta = statMeta.find(m => m.key === s.key) || { thresholds:[999,999,999,999], higherBetter:!s.lowest };
+        allItems += item(best.tm, s.label, s.fmt(best[s.key]), 't-' + getTier(meta, best[s.key]));
+    }
+    if (rpgLoaded && rpgData.length) {
+        const leader = [...rpgData].sort((a,b) => (b.szn_current??0)-(a.szn_current??0))[0];
+        const abbr = leader && RPG_TEAM_ABBR[leader.tm];
+        if (abbr && leader.szn_current != null) allItems += item(abbr, 'R/G', leader.szn_current.toFixed(2), 't-elite');
     }
 
+    // 2–3. Hot / cold — last 7 days vs each team's own season wRC+ (same as the sidebar)
+    const l7 = getFilteredData('no_split', 'last_7');
+    const bySeason = Object.fromEntries(season.map(r => [r.tm, r.wrcPlus]));
+    const delta = l7.filter(r => bySeason[r.tm] != null && r.wrcPlus != null)
+        .map(r => ({ tm: r.tm, v: r.wrcPlus, d: r.wrcPlus - bySeason[r.tm] })).sort((a, b) => b.d - a.d);
+    const dItem = (t, cls) => item(t.tm, 'L7 wRC+', Math.round(t.v), 't-' + getTier(wrcMeta, t.v),
+        `<span class="tk-delta ${cls}">${t.d > 0 ? '+' : ''}${Math.round(t.d)}</span>`);
+    if (delta.length >= 6) {
+        allItems += sep('🔥 Hot', 'Last 7 days', 'sep-hot') + delta.slice(0, 3).map(t => dItem(t, 'pos')).join('');
+        allItems += sep('🧊 Cold', 'Last 7 days', 'sep-cold') + delta.slice(-3).reverse().map(t => dItem(t, 'neg')).join('');
+    }
+
+    // 4. Today — games with starters + tier pills; offseason: Opening Day countdown
+    const slate = _slate || { games: [] };
+    const spBit = (name, abbr) => {
+        if (!name) return '<span>TBD</span>';
+        const ps = findPitcherScore(name, abbr);
+        return `<span>${esc(lastName(name))}</span>${ps && ps.composite_score != null ? `<span class="tier-pill ${ptTierCls(ps.tier)}">${Math.round(ps.composite_score)}</span>` : ''}`;
+    };
+    if (slate.games.length) {
+        const isToday = /^Today/.test(slate.label || '');
+        allItems += sep(isToday ? 'Today' : 'Next', isToday ? 'Games' : (slate.label || '').replace(/^Next games · /, ''), 'sep-today');
+        allItems += slate.games.map(g => `<div class="ticker-item">${teamBit(g.away.abbr)}<span class="tk-at">@</span>${teamBit(g.home.abbr)}
+                <div class="ticker-item-stat"><span class="ticker-item-key">${esc(gameTime(g))}</span>
+                <span class="tk-sps">${spBit(g.away.sp, g.away.abbr)}<span class="tk-at">vs</span>${spBit(g.home.sp, g.home.abbr)}</span></div></div>`).join('');
+    } else if (slate.opening) {
+        const days = Math.round((new Date(slate.opening + 'T12:00:00') - new Date(localDateStr() + 'T12:00:00')) / 864e5);
+        allItems += sep('Today', 'No games', 'sep-today') + `<div class="ticker-item"><div class="ticker-item-stat">
+                <span class="ticker-item-key">Opening Day</span><span class="ticker-item-val">${fmtDay(slate.opening)} · ${days} day${days === 1 ? '' : 's'}</span></div></div>`;
+    }
+    const hasAny = true;
     if (!hasAny) { bar.classList.remove('visible'); return; }
 
     // Duplicate content for seamless infinite loop
@@ -3088,7 +3156,7 @@ function loadRankings() {
 
     const tbody = document.getElementById('rankings-body');
     if (!sorted.length) {
-        tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">${searchVal?'No teams match "'+searchVal+'"':'No data for this selection'}</div></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="14"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">${searchVal?'No teams match "'+searchVal+'"':'No data for this selection'}</div></div></td></tr>`;
         return;
     }
 
@@ -3114,6 +3182,7 @@ function loadRankings() {
         <td class="rank-cell">—</td>
         <td><span class="lg-avg-label">LG AVG</span></td>
         <td class="wrc-cell">${Math.round(lg.wrcPlus)}</td>
+        <td class="spark-cell"></td>
         <td class="num">${lg.woba.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
         <td class="num">${lg.ops.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
         <td class="num">${lg.avg.toFixed(3).replace(/^(-?)0\./,'$1.')}</td>
@@ -3135,6 +3204,7 @@ function loadRankings() {
             <td class="rank-cell">${rankHtml}</td>
             <td class="team-color-cell" style="background:${teamCellColor(row.tm)};"><div class="team-cell"><img src="${teamLogos[row.tm]||''}" class="team-logo" alt="${row.tm}" onerror="this.style.opacity='.1'">${teamNameStack(row.tm, teamCellText(row.tm))}</div></td>
             <td class="wrc-cell ${tc('wrcPlus',row.wrcPlus)}">${row.wrcPlus}${arr('wrcPlus',true)}</td>
+            <td class="spark-cell" data-spark="${row.tm}"></td>
             <td class="num ${tc('woba',row.woba)}">${row.woba.toFixed(3).replace(/^(-?)0\./,'$1.')}${arr('woba',true)}</td>
             <td class="num ${tc('ops',row.ops)}">${row.ops.toFixed(3).replace(/^(-?)0\./,'$1.')}${arr('ops',true)}</td>
             <td class="num ${tc('avg',row.avg)}">${row.avg.toFixed(3).replace(/^(-?)0\./,'$1.')}${arr('avg',true)}</td>
@@ -3148,6 +3218,7 @@ function loadRankings() {
         </tr>`;
     }).join('');
     setTheadOffset(tbody);
+    fillSparks(tbody, st, () => document.getElementById('split-type').value === st, 60, 24);
     updateSummaryBar();
 }
 
