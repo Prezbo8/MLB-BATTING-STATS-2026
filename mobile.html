@@ -578,6 +578,22 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .tier-bad   { background: rgba(249,115,22,0.13); color: var(--bad);   border: 1px solid rgba(249,115,22,0.3); }
 .tier-ass   { background: rgba(239,68,68,0.13);  color: var(--ass);   border: 1px solid rgba(239,68,68,0.3); }
 
+/* ══ MATCHUPS (Round F2) ══ */
+.m-wrc-chip { flex-shrink: 0; min-width: 26px; padding: 0 3px; border-radius: 5px; border: 1px solid currentColor; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; text-align: center; line-height: 1.45; }
+.m-wrc-chip.na { color: var(--muted); border-color: var(--border2); }
+.m-wrc-chip.fb { border-style: dashed; }
+.m-sp-pill { flex-shrink: 0; padding: 0 5px; font-family: var(--mono); letter-spacing: 0; font-size: 0.6rem; }
+.m-tc-vsrow { background: rgba(96,165,250,0.03); }
+.m-card-sub { font-family: var(--mono); font-size: 0.62rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.m-edge { padding: 8px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.m-edge-label { font-family: var(--display); font-weight: 900; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 3px; }
+.m-edge-label.strong { color: var(--accent); } .m-edge-label.lean { color: var(--orange, #f97316); }
+.m-edge-side { display: grid; grid-template-columns: 18px 36px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 2px 0; font-size: 0.78rem; }
+.m-edge-part { color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-edge-part b { font-family: var(--mono); }
+.m-edge-na { color: var(--muted); font-size: 0.68rem; }
+.m-edge-note { margin-top: 6px; font-size: 0.66rem; color: var(--muted); }
+
 /* ══ SHELL (Round F1): theme button · scoreboard · Today ══ */
 .m-theme-btn { width: 34px; height: 30px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface2); font-size: 0.9rem; line-height: 1; flex-shrink: 0; margin-left: auto; }
 .m-scoreboard { flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border); position: relative; z-index: 5; }
@@ -648,6 +664,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
     <div id="mp-today" class="m-panel active">
         <div class="m-today">
             <section class="m-card"><h3 class="m-card-h" id="today-title">Today</h3><div id="today-games"><div class="m-sb-empty">Loading…</div></div></section>
+            <section class="m-card"><h3 class="m-card-h">Today's edges <span class="m-card-sub" id="today-edges-date"></span></h3><div id="today-edges"><div class="m-sb-empty">Loading…</div></div></section>
             <section class="m-card"><h3 class="m-card-h">Top offenses · season wRC+</h3><div id="today-offense"></div></section>
             <section class="m-card"><h3 class="m-card-h">Top pitchers · score</h3><div id="today-pitchers"></div></section>
             <section class="m-card"><h3 class="m-card-h">Leaders</h3><div id="side-leaders"></div></section>
@@ -1338,7 +1355,7 @@ function switchPanel(id) {
     if (id === 'pitchers') ensurePitchers();
     if (id === 'compare') { initComparePickers(); renderMobileCompare(); }
     if (id === 'hotcold') renderHCTeams();
-    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers()]).then(() => renderLineupsMobile());
+    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex()]).then(() => renderLineupsMobile());
     if (id === 'rpg') ensureRPG().then(() => renderRPG());
     if (id === 'report') initMobileReport();
     if (id === 'today') renderToday();
@@ -2423,6 +2440,96 @@ function mLineupWrc(rec, abbr) {
     return matched ? { wrc: Math.round(acc / wsum), matched, total: batters.length } : null;
 }
 
+// ── MATCHUPS (Round F2): batters vs the opposing starter's hand + edges ──
+// Same math as the desktop page: a vs-hand split is blended with the batter's
+// overall line counted as SPLIT_PRIOR_PA plate appearances (small splits are noise).
+const SPLIT_PRIOR_PA = 100;
+const handSplit = hand => hand === 'L' ? 'vs_lhp' : hand === 'R' ? 'vs_rhp' : null;
+const handLabel = hand => hand === 'L' ? 'vs LHP' : hand === 'R' ? 'vs RHP' : 'overall';
+const WRC_META = statMeta.find(s => s.key === 'wrcPlus');
+function batterVsHand(p, abbr, hand) {
+    const name = correctPlayerName(p.name);
+    const sp = handSplit(hand);
+    const split = sp ? findPlayerStats(name, abbr, `${sp}-season`) : null;
+    const all = findPlayerStats(name, abbr, 'no_split-season');
+    const ok = v => v && !isNaN(v.wrcPlus) && v.pa > 0;
+    if (ok(split) && ok(all)) return { wrc: (split.wrcPlus * split.pa + all.wrcPlus * SPLIT_PRIOR_PA) / (split.pa + SPLIT_PRIOR_PA), pa: split.pa, fallback: false };
+    if (ok(split)) return { wrc: split.wrcPlus, pa: split.pa, fallback: false };
+    if (ok(all)) return { wrc: all.wrcPlus, pa: all.pa, fallback: true };
+    return null;
+}
+function lineupVsHand(bats, abbr, hand) {
+    if (!bats.length) return null;
+    let w = 0, acc = 0, n = 0;
+    bats.forEach(p => {
+        const v = batterVsHand(p, abbr, hand);
+        if (!v) return;
+        const wt = PA_BY_SLOT[(p.order || 0) - 1] ?? 4.2;
+        w += wt; acc += wt * v.wrc; n++;
+    });
+    return n ? { wrc: Math.round(acc / w), n, total: bats.length } : null;
+}
+let _pitcherIdx = null, _pitcherIdxPromise = null;
+function loadPitcherIndex() {
+    if (_pitcherIdx) return Promise.resolve(_pitcherIdx);
+    if (!_pitcherIdxPromise) _pitcherIdxPromise = (async () => {
+        try {
+            // Opened straight from a link, the page may not know the season yet:
+            // ask pitcher_scores for its newest one rather than sending season=null
+            let season = CUR_SEASON;
+            if (!season) {
+                const q = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=season&season=neq.career&order=season.desc&limit=1`, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+                season = parseInt((await q.json())?.[0]?.season, 10) || null;
+            }
+            if (!season) throw new Error('no season');
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip&season=eq.${season}`,
+                { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+            const rows = await r.json();
+            _pitcherIdx = Array.isArray(rows) ? rows : [];
+        } catch (e) { console.warn('[pitcher index]', e); _pitcherIdxPromise = null; return []; }
+        return _pitcherIdx;
+    })();
+    return _pitcherIdxPromise;
+}
+// A starter's edge is measured against other starters (100+ IP), not all pitchers
+function starterScale() {
+    if (starterScale._v) return starterScale._v;
+    const v = (_pitcherIdx || []).filter(p => +p.ip >= 100 && p.composite_score != null).map(p => +p.composite_score).sort((a, b) => a - b);
+    if (v.length < 20) return { mid: 50, sd: 25 };
+    const mid = v[Math.floor(v.length / 2)];
+    const sd = Math.sqrt(v.reduce((a, x) => a + (x - mid) ** 2, 0) / v.length) || 25;
+    return (starterScale._v = { mid, sd });
+}
+function findPitcherScore(name, team) {
+    if (!_pitcherIdx || !name) return null;
+    const full = normalizeName(name);
+    const last = full.split(' ').slice(-1)[0], fi = full[0];
+    const same = p => normalizeName(p.name);
+    return _pitcherIdx.find(p => same(p) === full && p.team === team)
+        || _pitcherIdx.find(p => same(p) === full)
+        || _pitcherIdx.find(p => same(p).split(' ').slice(-1)[0] === last && same(p)[0] === fi && p.team === team)
+        || null;
+}
+const mSpPill = (name, abbr) => {
+    const ps = findPitcherScore(name, abbr);
+    return ps && ps.composite_score != null ? `<span class="tier-pill tier-${String(ps.tier || '').toLowerCase()} m-sp-pill">${Math.round(ps.composite_score)}</span>` : '';
+};
+const mWrcChip = v => v
+    ? `<span class="m-wrc-chip t-${getTier(WRC_META, v.wrc)}${v.fallback ? ' fb' : ''}">${Math.round(v.wrc)}</span>`
+    : `<span class="m-wrc-chip na">—</span>`;
+function offenseEdge(bats, offAbbr, defRec, defAbbr) {
+    const hand = defRec?.pitcher_hand;
+    const lv = lineupVsHand(bats, offAbbr, hand);
+    if (!lv) return null;
+    const ps = findPitcherScore(defRec?.pitcher_name, defAbbr);
+    const sc = starterScale();
+    const z = (lv.wrc - 100) / 12 + (ps && ps.composite_score != null ? (sc.mid - ps.composite_score) / sc.sd : 0);
+    const spLast = lastName(defRec?.pitcher_name) || 'starter';
+    const label = z >= 1.0 ? `Strong edge: ${offAbbr} bats` : z >= 0.4 ? `Lean: ${offAbbr} bats`
+        : z <= -1.0 ? `Strong edge: ${spLast}` : z <= -0.4 ? `Lean: ${spLast}` : 'Even';
+    return { off: offAbbr, hand, lv, ps, sp: defRec?.pitcher_name || 'TBD', z, label };
+}
+
 function renderLineupsMobile() {
     lineupLoaded = true;
     const container = document.getElementById('m-lineup-container');
@@ -2435,8 +2542,8 @@ function renderLineupsMobile() {
         ? `<span class="m-status-confirmed">✓</span>`
         : `<span class="m-status-projected">~</span>`;
     const pitHand = h => h ? `<span class="m-tc-pos">(${h})</span>` : '';
-    const awayBatCell = p => p ? `<span class="m-tc-name">${correctPlayerName(p.name)}</span><span class="m-tc-pos">${p.position||''}</span>${batBadge(p.bat_side)}` : '';
-    const homeBatCell = p => p ? `${batBadge(p.bat_side)}<span class="m-tc-pos">${p.position||''}</span><span class="m-tc-name">${correctPlayerName(p.name)}</span>` : '';
+    const awayBatCell = (p, hand, abbr) => p ? `${mWrcChip(batterVsHand(p, abbr, hand))}<span class="m-tc-name">${correctPlayerName(p.name)}</span><span class="m-tc-pos">${p.position||''}</span>${batBadge(p.bat_side)}` : '';
+    const homeBatCell = (p, hand, abbr) => p ? `${batBadge(p.bat_side)}<span class="m-tc-pos">${p.position||''}</span><span class="m-tc-name">${correctPlayerName(p.name)}</span>${mWrcChip(batterVsHand(p, abbr, hand))}` : '';
 
     const pairs = pairLineupGames(lineupGames);
     container.innerHTML = pairs.map(({ away, home }) => {
@@ -2455,6 +2562,8 @@ function renderLineupsMobile() {
             return `<b class="${tc('wrcPlus', lw.wrc)}" style="font-family:var(--mono);font-size:0.95rem;">${lw.wrc}</b> ${dh}`;
         };
         const awayLW = mLineupWrc(away, awayAbbr), homeLW = mLineupWrc(home, homeAbbr);
+        // Lineup vs the opposing starter's hand (each split blended with the overall line)
+        const vsCell = lv => lv ? `<b class="t-${getTier(WRC_META, lv.wrc)}" style="font-family:var(--mono);font-size:0.95rem;">${lv.wrc}</b>` : '<span class="m-tc-pos">—</span>';
 
         // Top of the T: team row + pitcher matchup; stem = the center order column
         let rows = `
@@ -2464,20 +2573,25 @@ function renderLineupsMobile() {
                 <div class="m-tc-home">${logoImg(homeAbbr,20)}<span class="m-tc-abbr" style="color:${teamColor(homeAbbr)};">${homeAbbr}</span>${statusBadge(home?.lineup_status||'')}</div>
             </div>
             <div class="m-tc-row m-tc-pitrow">
-                <div class="m-tc-away"><span class="m-tc-name">${away?.pitcher_name||'TBD'}</span>${pitHand(away?.pitcher_hand)}</div>
+                <div class="m-tc-away"><span class="m-tc-name">${away?.pitcher_name||'TBD'}</span>${pitHand(away?.pitcher_hand)}${mSpPill(away?.pitcher_name, awayAbbr)}</div>
                 <div class="m-tc-num"><span class="m-tc-num-lbl">SP</span></div>
-                <div class="m-tc-home">${pitHand(home?.pitcher_hand)}<span class="m-tc-name">${home?.pitcher_name||'TBD'}</span></div>
+                <div class="m-tc-home">${mSpPill(home?.pitcher_name, homeAbbr)}${pitHand(home?.pitcher_hand)}<span class="m-tc-name">${home?.pitcher_name||'TBD'}</span></div>
             </div>
             <div class="m-tc-row m-tc-lwrow">
                 <div class="m-tc-away">${lwCell(awayLW, teamWrc(awayAbbr))}</div>
                 <div class="m-tc-num"><span class="m-tc-num-lbl">wRC+</span></div>
                 <div class="m-tc-home">${lwCell(homeLW, teamWrc(homeAbbr))}</div>
+            </div>
+            <div class="m-tc-row m-tc-lwrow m-tc-vsrow">
+                <div class="m-tc-away">${vsCell(lineupVsHand(awayBat, awayAbbr, home?.pitcher_hand))}</div>
+                <div class="m-tc-num"><span class="m-tc-num-lbl">${home?.pitcher_hand || away?.pitcher_hand ? 'vs SP' : '—'}</span></div>
+                <div class="m-tc-home">${vsCell(lineupVsHand(homeBat, homeAbbr, away?.pitcher_hand))}</div>
             </div>`;
         for (let i = 0; i < n; i++) {
             rows += `<div class="m-tc-row">
-                <div class="m-tc-away">${awayBatCell(awayBat[i])}</div>
+                <div class="m-tc-away">${awayBatCell(awayBat[i], home?.pitcher_hand, awayAbbr)}</div>
                 <div class="m-tc-num">${i+1}</div>
-                <div class="m-tc-home">${homeBatCell(homeBat[i])}</div>
+                <div class="m-tc-home">${homeBatCell(homeBat[i], away?.pitcher_hand, homeAbbr)}</div>
             </div>`;
         }
         return `<div class="m-game-card">
@@ -3065,6 +3179,7 @@ const sRow = (abbr, name, val, cls = '') =>
 async function renderToday() {
     const s = await loadSlate();
     const title = document.getElementById('today-title'); if (title) title.textContent = s.games.length ? s.label : 'Today';
+    renderTodayEdges();
     const ge = document.getElementById('today-games');
     if (ge) ge.innerHTML = s.games.length ? s.games.map(g => `<div class="m-tg">
             <div class="m-tg-time">${esc(gameTime(g))}</div>
@@ -3095,6 +3210,29 @@ async function renderToday() {
         ? sub('🔥 Hottest') + delta.slice(0, 3).map(t => sRow(t.tm, t.tm, `${Math.round(t.v)} <small>${fd(t.d)}</small>`, 'pos')).join('') +
           sub('🧊 Coldest') + delta.slice(-3).reverse().map(t => sRow(t.tm, t.tm, `${Math.round(t.v)} <small>${fd(t.d)}</small>`, 'neg')).join('')
         : '<div class="m-sb-empty">No last-7-days data</div>';
+}
+async function renderTodayEdges() {
+    const el = document.getElementById('today-edges');
+    if (!el) return;
+    try { await Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex()]); }
+    catch (e) { el.innerHTML = '<div class="m-sb-empty">Lineups unavailable right now</div>'; return; }
+    const dates = [...new Set(lineupGames.map(r => r.game_date).filter(Boolean))].sort();
+    const head = document.getElementById('today-edges-date');
+    if (head) head.textContent = dates.length ? (dates.length === 1 && dates[0] === localDateStr() ? 'today' : dates.map(fmtDay).join(' / ')) : '';
+    const bats = rec => { const bo = rec?.batting_order; return Array.isArray(bo) ? bo : (() => { try { return bo ? JSON.parse(bo) : []; } catch (e) { return []; } })(); };
+    const games = pairLineupGames(lineupGames).map(({ away, home }) => {
+        const a = offenseEdge(bats(away), away?.team, home, home?.team), h = offenseEdge(bats(home), home?.team, away, away?.team);
+        return { a, h, size: Math.max(Math.abs(a?.z || 0), Math.abs(h?.z || 0)) };
+    }).filter(g => g.a || g.h).sort((x, y) => y.size - x.size);
+    if (!games.length) { el.innerHTML = '<div class="m-sb-empty">No lineups posted yet</div>'; return; }
+    const side = e => !e ? '' : `<div class="m-edge-side">${shellLogo(e.off, 18)}<b style="color:${teamColor(e.off)}">${esc(e.off)}</b>
+            <span class="m-edge-part">${handLabel(e.hand)} <b class="t-${getTier(WRC_META, e.lv.wrc)}">${e.lv.wrc}</b> · ${esc(lastName(e.sp))}</span>
+            ${e.ps && e.ps.composite_score != null ? `<span class="tier-pill ${tierCls(e.ps.tier)}">${esc(e.ps.tier)} ${Math.round(e.ps.composite_score)}</span>` : '<span class="m-edge-na">no score</span>'}
+        </div>`;
+    const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => Math.abs(y.z) - Math.abs(x.z))[0];
+    el.innerHTML = games.map(g => { const t = top(g); return `<div class="m-edge" onclick="switchPanel('lineups')">
+            <div class="m-edge-label ${Math.abs(t.z) >= 1 ? 'strong' : Math.abs(t.z) >= 0.4 ? 'lean' : ''}">${esc(t.label)}</div>${side(g.a)}${side(g.h)}</div>`; }).join('')
+        + `<div class="m-edge-note">Lineup = wRC+ vs the starter's hand (100 = average); starter = pitcher score. A summary, not a prediction.</div>`;
 }
 function renderShell() {
     renderScoreboard();
