@@ -5,6 +5,10 @@ name: Player Multi-Year History Backfill
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false   # a second run waits for the first instead of overlapping
+
 jobs:
   backfill:
     runs-on: ubuntu-latest
@@ -21,7 +25,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install pandas requests
+        run: pip install pandas==3.1.1 requests==2.34.2
 
       - name: Run multi-year player scraper
         env:

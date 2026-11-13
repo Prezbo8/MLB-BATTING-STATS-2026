@@ -1,7 +1,9 @@
-pandas
-requests
-supabase
-lxml
-beautifulsoup4
-pytz
-playwright
+# Versions the GitHub workflows install (keep in sync with .github/workflows/*.yml)
+pandas==3.1.1
+numpy==2.4.6
+requests==2.34.2
+lxml==6.1.3
+beautifulsoup4==4.15.0
+pytz==2026.4
+playwright==1.63.0
+supabase==2.31.0

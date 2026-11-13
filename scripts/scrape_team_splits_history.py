@@ -29,6 +29,7 @@ import pandas as pd
 from datetime import date
 
 from season import SEASON, today as season_today
+from sb_replace import replace_rows
 
 # ── Secrets (from environment) ────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
@@ -156,7 +157,7 @@ def scrape_table(split_arr, start_date, end_date, name):
 
 # ── Supabase: delete just this run's months, then insert ──────────────────────
 def push_to_supabase(csv_path, month_keys):
-    print("\n📤 Pushing to Supabase history (delete this run's months → insert)...")
+    print("\n📤 Pushing to Supabase history (atomic swap per month)...")
     if not SUPABASE_KEY:
         print("   ⏭️  Skipped (no SUPABASE_KEY)")
         return False
@@ -187,47 +188,14 @@ def push_to_supabase(csv_path, month_keys):
         for row in records
     ]
 
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-    }
-
-    # ── Step 1: Delete only the months this run is refreshing ─────────────────
-    months_list = ",".join(month_keys)
-    print(f"   🗑️  Deleting existing rows for months: {months_list}")
-    r = requests.delete(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?date_range=in.({months_list})",
-        headers=headers,
-        timeout=30
-    )
-    if r.status_code in (200, 204):
-        print("   ✅ Old rows for these months cleared")
-    else:
-        print(f"   ❌ Delete failed: {r.status_code} {r.text[:200]}")
-        return False
-
-    # ── Step 2: Insert fresh rows in batches ──────────────────────────────────
-    batch_size = 500
-    total      = len(records)
-    pushed     = 0
-    for i in range(0, total, batch_size):
-        batch = records[i:i + batch_size]
-        r = requests.post(
-            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
-            headers=headers,
-            json=batch,
-            timeout=30
-        )
-        if r.status_code in (200, 201):
-            pushed += len(batch)
-            print(f"   ✅ Batch {i // batch_size + 1}: {len(batch)} rows inserted")
-        else:
-            print(f"   ❌ Batch {i // batch_size + 1} failed: {r.status_code} {r.text[:200]}")
-
-    print(f"   📊 Total inserted: {pushed}/{total} rows")
-    return pushed == total
+    # One transaction per month (sql/replace_rows.sql): a failure leaves that
+    # month's old rows in place instead of a hole
+    ok = True
+    for month in month_keys:
+        rows = [r for r in records if r.get("date_range") == month]
+        ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, rows,
+                          where_col="date_range", where_val=month, label=month) and ok
+    return ok
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
