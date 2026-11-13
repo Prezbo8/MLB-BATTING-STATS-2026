@@ -2112,6 +2112,7 @@ function fillSparks(root, split, isCurrent, w, h) {
 // leans on 100 by LAST_SEASON_SHRINK_PA, and rookies with no history start at 100.
 // By May it is mostly this season's numbers; on Opening Day mostly last year's.
 const PRIOR_PA = 60, LAST_SEASON_SHRINK_PA = 100, EARLY_PA = 100;
+const STARTER_STRONG = 1.0, STARTER_LEAN = 0.4;   // edge labels, in starter spreads (EDGES.md)
 let _priorIdx = null, _priorP = null;
 function loadBatterPriors() {
     if (_priorIdx) return Promise.resolve(_priorIdx);
@@ -2271,17 +2272,19 @@ const lineupBar = (lv, hand) => {
         <span class="ls-val t-${tier}">${lv.wrc}</span></div>`;
 };
 
-// Edge for one offense = lineup vs the starter's hand + how weak that starter is
+// Edge for one offense: lineup vs the starter's hand (context) + the starter matchup (the label)
 function offenseEdge(offRec, offAbbr, defRec, defAbbr) {
     const hand = defRec?.pitcher_hand;
     const lv = lineupVsHand(offRec, offAbbr, hand);
     const ps = findPitcherScore(defRec?.pitcher_name, defAbbr);
     if (!lv) return null;
     const sc = starterScale();
-    const z = (lv.wrc - 100) / 12 + (ps && ps.composite_score != null ? (sc.mid - ps.composite_score) / sc.sd : 0);
+    // Label from the starter matchup only (Round G2). The 2026 backtest (EDGES.md) found
+    // the lineup part adds nothing to one game's runs, while offenses facing a much
+    // better starter scored 3.86 runs vs 4.66 against an average one.
+    const z = ps && ps.composite_score != null ? (sc.mid - ps.composite_score) / sc.sd : 0;   // < 0: tougher starter
     const spLast = lastName(defRec?.pitcher_name) || 'starter';
-    const label = z >= 1.0 ? `Strong edge: ${offAbbr} bats` : z >= 0.4 ? `Lean: ${offAbbr} bats`
-        : z <= -1.0 ? `Strong edge: ${spLast}` : z <= -0.4 ? `Lean: ${spLast}` : 'Even';
+    const label = z <= -STARTER_STRONG ? `Tough matchup: ${offAbbr} bats` : z <= -STARTER_LEAN ? `Slight edge: ${spLast}` : 'No clear edge';
     return { off: offAbbr, def: defAbbr, hand, lv, ps, sp: defRec?.pitcher_name || 'TBD', z, label };
 }
 
@@ -2296,7 +2299,7 @@ async function renderTodayEdges() {
     if (head) head.textContent = dates.length ? (dates.length === 1 && dates[0] === localDateStr() ? 'today' : dates.map(fmtDay).join(' / ')) : '';
     const games = pairs.map(({ away, home }) => {
         const a = offenseEdge(away, away?.team, home, home?.team), h = offenseEdge(home, home?.team, away, away?.team);
-        return { away, home, a, h, size: Math.max(Math.abs(a?.z || 0), Math.abs(h?.z || 0)) };
+        return { away, home, a, h, size: -Math.min(a?.z ?? 0, h?.z ?? 0) };   // toughest starter matchup first
     }).filter(g => g.a || g.h).sort((x, y) => y.size - x.size);
     if (!games.length) { el.innerHTML = '<div class="side-empty">No lineups posted yet</div>'; return; }
     const _cp = games.flatMap(g => [g.a, g.h]).filter(Boolean).flatMap(e => e.lv.curPas || []);
@@ -2306,13 +2309,13 @@ async function renderTodayEdges() {
             <span class="edge-part">bats ${handLabel(e.hand)} <b class="t-${getTier(STAT_GRADES.wrcPlus, e.lv.wrc)}">${e.lv.wrc}</b></span>
             <span class="edge-part">vs <span${pdAttr(e.sp, e.def)}>${esc(lastName(e.sp))}</span> ${e.ps && e.ps.composite_score != null ? `<span class="tier-pill ${ptTierCls(e.ps.tier)}">${esc(e.ps.tier)} ${Math.round(e.ps.composite_score)}</span>` : '<span class="edge-na">no score</span>'}</span>
         </div>`;
-    const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => Math.abs(y.z) - Math.abs(x.z))[0];
+    const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => x.z - y.z)[0];   // the side facing the tougher starter
     el.innerHTML = `<div class="edges-grid">${games.map(g => `<a class="edge-card" href="#tab=3" onclick="switchTab(3);return false;">
-            <div class="edge-label ${Math.abs(top(g).z) >= 1 ? 'strong' : Math.abs(top(g).z) >= 0.4 ? 'lean' : ''}">${esc(top(g).label)}</div>
+            <div class="edge-label ${top(g).z <= -STARTER_STRONG ? 'strong' : top(g).z <= -STARTER_LEAN ? 'lean' : ''}">${esc(top(g).label)}</div>
             ${side(g.a)}${side(g.h)}
         </a>`).join('')}</div>
         ${early ? `<div class="edge-early">Early season: most batters have under ${EARLY_PA} PA, so batter numbers still lean on last season's lines, and starters are measured against last season's 100+ IP starters.</div>` : ''}
-        <div class="edge-note">Lineup = wRC+ vs the starter's hand (100 = average; small splits blended with each batter's overall line); starter = pitcher score. A summary, not a prediction — one start is noisy.</div>`;
+        <div class="edge-note">Label = the starter matchup: how the starter's score compares with a typical starter. In 2026 offenses facing a much better starter scored 3.86 runs a game vs 4.66 against an average one; lineup wRC+ (shown for context) didn't predict single games. <a href="https://github.com/Prezbo8/MLB-BATTING-STATS-2026/blob/main/EDGES.md" target="_blank" rel="noopener">How this was tested →</a></div>`;
 }
 
 // Page adapters for the shared drawer code below
