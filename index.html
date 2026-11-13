@@ -420,10 +420,9 @@
         #panel-0 .table-card td:nth-child(3), #panel-0 .table-card th:nth-child(3) { left: 230px; }
         #panel-0 td.team-color-cell { padding: 2px 8px; }
         #panel-0 td.team-color-cell .team-logo { width: 38px; height: 38px; }
-        /* City over nickname, centered in the space beside the logo */
+        /* Nickname only, centered in the space beside the logo */
         .team-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1.05; }
-        .ts-city { font-family: var(--display); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; }
-        .ts-nick { font-family: var(--display); font-size: 1.14rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+        .ts-nick { font-family: var(--display); font-size: 1.2rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
         #panel-0 td.team-color-cell .team-abbr { font-size: 1.14rem; line-height: 1.05; white-space: nowrap; }
         .team-abbr { font-family: var(--display); font-size: 1.05rem; font-weight: 800; letter-spacing: 0.05em; }
         td.num { font-family: var(--mono); font-size: 0.88rem; font-weight: 400; text-align: right; color: var(--text2); }
@@ -5373,13 +5372,12 @@ const MLB_NAME_TO_ABBR = {
     'Washington Nationals':'WSN','Sacramento Athletics':'ATH',
 };
 
-// "Los Angeles Dodgers" -> city "Los Angeles" over nickname "Dodgers" (Team Rankings cells)
+// "Los Angeles Dodgers" -> nickname "Dodgers" (Team Rankings cells); full name on hover
 const TWO_WORD_NICKNAMES = ['Red Sox', 'White Sox', 'Blue Jays'];
 function teamNameStack(abbr, color) {
     const full = MLB_FULL_NAMES[abbr] || abbr;
     const nick = TWO_WORD_NICKNAMES.find(n => full.endsWith(' ' + n)) || full.split(' ').slice(-1)[0];
-    const city = full.slice(0, full.length - nick.length).trim();
-    return `<span class="team-stack" style="color:${color};" title="${full}">${city ? `<span class="ts-city">${city}</span>` : ''}<span class="ts-nick">${nick}</span></span>`;
+    return `<span class="team-stack" style="color:${color};" title="${full}"><span class="ts-nick">${nick}</span></span>`;
 }
 const MLB_FULL_NAMES = {
     'ARI':'Arizona Diamondbacks','ATL':'Atlanta Braves','BAL':'Baltimore Orioles',
