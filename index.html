@@ -114,7 +114,7 @@
             --orange:   #fb923c;
             --text:     #e8eaf0;
             --text2:    #9aa3b8;
-            --muted:    #5a6278;
+            --muted:    #7f889f;
             --mono:     'DM Mono', monospace;
             --display:  'Barlow Condensed', sans-serif;
             --body:     'DM Sans', sans-serif;
@@ -139,12 +139,12 @@
             --surface3: #e9edf4;
             --border:   #dde2eb;
             --border2:  #cdd3de;
-            --accent:   #d62839;
+            --accent:   #cb2636;
             --blue:     #2563eb;
             --orange:   #ea580c;
             --text:     #111827;
             --text2:    #475066;
-            --muted:    #6b7487;
+            --muted:    #626a7c;
             --elite: #15803d;
             --good:  #4d7c0f;
             --mid:   #a16207;
@@ -371,7 +371,7 @@
         /* FILTERS */
         .filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
         .filter-group { display: flex; flex-direction: column; gap: 3px; }
-        .filter-label { font-family: var(--display); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+        .filter-label { display: block; font-family: var(--display); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
         select, .team-filter-input { font-family: var(--body); font-size: 0.82rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 12px; cursor: pointer; transition: border-color 0.15s; }
         select { padding-right: 30px; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236b7280' d='M5 7L1 2h8z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
         select:focus, .team-filter-input:focus { outline: none; border-color: var(--accent); }
@@ -925,7 +925,7 @@
 
         /* ══ PITCHER DRAWER + TIER CARDS (Round F3) ══ */
         [data-pitcher] { cursor: pointer; text-decoration: underline dotted transparent; text-underline-offset: 3px; transition: text-decoration-color .15s; }
-        [data-pitcher]:hover, [data-pitcher]:focus-visible { text-decoration-color: currentColor; outline: none; }
+        [data-pitcher]:hover, [data-pitcher]:focus-visible { text-decoration-color: currentColor; }
         .tier-pill { cursor: help; }
         html.pd-lock { overflow: hidden; }
         #pd-scrim { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.5); opacity: 0; transition: opacity .18s; }
@@ -1004,6 +1004,26 @@
         .tk-at { font-family: var(--display); font-size: 0.8rem; color: var(--muted); }
         .tk-sps { font-family: var(--body); font-size: 0.8rem; color: var(--text2); display: inline-flex; align-items: center; gap: 4px; }
         .tk-sps .tier-pill { font-size: 0.5rem; padding: 1px 5px; }
+                /* ══ ACCESSIBILITY (Round G4) ══ */
+        :root { --focus: #60a5fa; }
+        [data-theme="light"] { --focus: #1d4ed8; }
+        .skip-link { position: absolute; left: 8px; top: -60px; z-index: 1000; padding: 8px 14px; border-radius: 8px;
+            background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; }
+        .skip-link:focus { top: 8px; }
+        :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+        th[tabindex]:focus-visible, tr[tabindex]:focus-visible, td[tabindex]:focus-visible { outline-offset: -2px; }
+        #main-content:focus { outline: none; }
+        /* "Reduce motion": calm the decorative effects (the ticker keeps scrolling by design) */
+        @media (prefers-reduced-motion: reduce) {
+            .spin, .upload-dot, #summary-bar:not(.visible), .animated, .anim, .m-tg, .edge-card { animation: none !important; }
+            .animated, .anim { opacity: 1 !important; transform: none !important; }
+            #pd-drawer, #pd-scrim, #tier-tip { transition: none !important; }
+        }
+        .ticker-pause { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; width: 28px; height: 28px;
+            border-radius: 50%; border: 1px solid var(--border2); background: var(--surface2); color: var(--text); font-size: 0.7rem;
+            line-height: 1; cursor: pointer; display: none; }
+        #summary-bar.visible .ticker-pause { display: block; }
+                
                 /* ══ MATCHUPS (Round F2) ══ */
         .wrc-chip { margin-left: 6px; min-width: 32px; padding: 1px 5px; border-radius: 6px; font-family: var(--mono); font-size: 0.72rem; font-weight: 700;
                     text-align: center; border: 1px solid currentColor; background: rgba(var(--tint),0.04); flex-shrink: 0; }
@@ -1253,6 +1273,7 @@
     </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 
 <header>
     <div class="header-inner">
@@ -1326,9 +1347,10 @@
 <div class="scoreboard" id="scoreboard" aria-label="Today's games"><div class="sb-track" id="sb-track"><div class="sb-empty">Loading today's games…</div></div></div>
 
 <div class="page">
-<main>
-    <div id="summary-bar">
+<main id="main-content" tabindex="-1">
+    <div id="summary-bar" role="region" aria-label="League leaders ticker">
         <div class="ticker-track" id="ticker-track"></div>
+        <button type="button" class="ticker-pause" id="ticker-pause" aria-label="Pause ticker" aria-pressed="false" onclick="toggleTicker()">❚❚</button>
     </div>
 
     <!-- PANEL 0: RANKINGS -->
@@ -1347,7 +1369,7 @@
             <div class="section-title">Team Rankings</div>
             <div class="filters-row">
                 <div class="filter-group">
-                    <div class="filter-label">Date Range</div>
+                    <label class="filter-label" for="date-range">Date Range</label>
                     <select id="date-range" onchange="onFilterChange()">
                         <option value="season">Full Season</option>
                         <option value="last_30">Last 30 Days</option>
@@ -1356,7 +1378,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="split-type">Split</label>
                     <select id="split-type" onchange="onFilterChange()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1370,7 +1392,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Search Team</div>
+                    <label class="filter-label" for="team-search-input">Search Team</label>
                     <input class="team-filter-input" id="team-search-input" type="text"
                            placeholder="e.g. LAD…" oninput="onFilterChange()" style="width:110px;">
                 </div>
@@ -1417,14 +1439,14 @@
         <div class="team-picker-row">
             <div class="team-picker-side">
                 <div class="team-picker-label away-label">✈️ Away</div>
-                <input id="away-input" list="team-list" class="team-search away-input" placeholder="LAD" oninput="handleTeamInput('away')">
+                <input id="away-input" aria-label="Away team" list="team-list" class="team-search away-input" placeholder="LAD" oninput="handleTeamInput('away')">
                 <datalist id="team-list"></datalist>
                 <div id="away-identity" class="team-identity-display"></div>
             </div>
             <div class="team-picker-vs">VS</div>
             <div class="team-picker-side">
                 <div class="team-picker-label home-label">🏠 Home</div>
-                <input id="home-input" list="team-list" class="team-search home-input" placeholder="HOU" oninput="handleTeamInput('home')">
+                <input id="home-input" aria-label="Home team" list="team-list" class="team-search home-input" placeholder="HOU" oninput="handleTeamInput('home')">
                 <div id="home-identity" class="team-identity-display"></div>
             </div>
         </div>
@@ -1442,7 +1464,7 @@
             <div class="section-title">Player Rankings</div>
             <div class="filters-row">
                 <div class="filter-group">
-                    <div class="filter-label">Date Range</div>
+                    <label class="filter-label" for="p-date-range">Date Range</label>
                     <select id="p-date-range" onchange="onPlayerFilterChange()">
                         <option value="season">Full Season</option>
                         <option value="last_30">Last 30 Days</option>
@@ -1451,7 +1473,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="p-split-type">Split</label>
                     <select id="p-split-type" onchange="onPlayerFilterChange()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1461,7 +1483,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Min PA</div>
+                    <label class="filter-label" for="p-min-pa">Min PA</label>
                     <select id="p-min-pa" onchange="onPlayerFilterChange()">
                         <option value="0">All</option>
                         <option value="25">25+</option>
@@ -1472,7 +1494,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Search Player</div>
+                    <label class="filter-label" for="player-search-input">Search Player</label>
                     <input class="team-filter-input" id="player-search-input" type="text"
                            placeholder="e.g. Soto…" oninput="onPlayerFilterChange()" style="width:130px;">
                 </div>
@@ -1530,7 +1552,7 @@
             <div class="section-title">Lineup Stats</div>
             <div class="lineup-controls">
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="lstats-split">Split</label>
                     <select id="lstats-split" onchange="renderLineupStats()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1540,7 +1562,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Games</div>
+                    <label class="filter-label" for="lstats-game">Games</label>
                     <select id="lstats-game" onchange="renderLineupStats()"></select>
                 </div>
                 <span class="lineup-live-badge" style="font-family:var(--mono);font-size:0.68rem;color:var(--text2);cursor:pointer;" onclick="refreshLineups()" title="Click to refresh now">⟳ —</span>
@@ -1558,11 +1580,11 @@
             <div class="section-title">📈 Lineup Trends</div>
             <div class="lineup-controls">
                 <div class="filter-group">
-                    <div class="filter-label">Game</div>
+                    <label class="filter-label" for="lt-game">Game</label>
                     <select id="lt-game" onchange="renderLineupTrends()"></select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="lt-split">Split</label>
                     <select id="lt-split" onchange="renderLineupTrends()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1572,7 +1594,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Range</div>
+                    <label class="filter-label" for="lt-range">Range</label>
                     <select id="lt-range" onchange="renderLineupTrends()">
                         <option value="monthly">Monthly</option>
                         <option value="yearly">Yearly</option>
@@ -1592,11 +1614,11 @@
             <div class="section-title">📅 Lineup History <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0;text-transform:none;">2021–<span class="season-cur"></span></span></div>
             <div class="lineup-controls">
                 <div class="filter-group">
-                    <div class="filter-label">Game</div>
+                    <label class="filter-label" for="lh-game">Game</label>
                     <select id="lh-game" onchange="renderLineupHistory()"></select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="lh-hand">Split</label>
                     <select id="lh-hand" onchange="renderLineupHistory()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1604,14 +1626,14 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Range</div>
+                    <label class="filter-label" for="lh-mode">Range</label>
                     <select id="lh-mode" onchange="onLhModeChange()">
                         <option value="season">Yearly (full season)</option>
                         <option value="month">By month</option>
                     </select>
                 </div>
                 <div class="filter-group" id="lh-month-group" style="display:none;">
-                    <div class="filter-label">Month</div>
+                    <label class="filter-label" for="lh-month">Month</label>
                     <select id="lh-month" onchange="renderLineupHistory()">
                         <option value="mar_apr">Mar/Apr</option>
                         <option value="may">May</option>
@@ -1640,7 +1662,7 @@
             <div class="section-title">🔥❄️ Hot vs Cold — Teams</div>
             <div class="hc-filters">
                 <div class="filter-group">
-                    <div class="filter-label">Based On</div>
+                    <label class="filter-label" for="hc-team-metric">Based On</label>
                     <select id="hc-team-metric" onchange="hcTeamSortStat=null;renderHotColdTeams()">
                         <option value="wrcPlus">wRC+</option>
                         <option value="ops">OPS</option>
@@ -1655,7 +1677,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Hot/Cold Window</div>
+                    <label class="filter-label" for="hc-team-window">Hot/Cold Window</label>
                     <select id="hc-team-window" onchange="hcTeamSortStat=null;renderHotColdTeams()">
                         <option value="last_7">Last 7 Days</option>
                         <option value="last_14">Last 14 Days</option>
@@ -1663,7 +1685,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="hc-team-split">Split</label>
                     <select id="hc-team-split" onchange="hcTeamSortStat=null;renderHotColdTeams()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1689,7 +1711,7 @@
             <div class="section-title">🔥❄️ Hot vs Cold — Players</div>
             <div class="hc-filters">
                 <div class="filter-group">
-                    <div class="filter-label">Based On</div>
+                    <label class="filter-label" for="hc-player-metric">Based On</label>
                     <select id="hc-player-metric" onchange="hcPlayerSortStat=null;renderHotColdPlayers()">
                         <option value="wrcPlus">wRC+</option>
                         <option value="ops">OPS</option>
@@ -1704,7 +1726,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Hot/Cold Window</div>
+                    <label class="filter-label" for="hc-player-window">Hot/Cold Window</label>
                     <select id="hc-player-window" onchange="hcPlayerSortStat=null;renderHotColdPlayers()">
                         <option value="last_7">Last 7 Days</option>
                         <option value="last_14">Last 14 Days</option>
@@ -1712,7 +1734,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="hc-player-split">Split</label>
                     <select id="hc-player-split" onchange="hcPlayerSortStat=null;renderHotColdPlayers()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1722,7 +1744,7 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <div class="filter-label">Min PA</div>
+                    <label class="filter-label" for="hc-player-minpa">Min PA</label>
                     <select id="hc-player-minpa" onchange="hcPlayerSortStat=null;renderHotColdPlayers()">
                         <option value="10">10+</option>
                         <option value="20" selected>20+</option>
@@ -1742,7 +1764,7 @@
             <div class="section-title">Runs Per Game</div>
             <div class="filters-row">
                 <div class="filter-group">
-                    <div class="filter-label">Search Team</div>
+                    <label class="filter-label" for="rpg-search-input">Search Team</label>
                     <input class="team-filter-input" id="rpg-search-input" type="text"
                            placeholder="e.g. LAD…" oninput="renderRpg()" style="width:110px;">
                 </div>
@@ -1776,18 +1798,18 @@
             <div class="section-title">Daily Report</div>
             <div class="filters-row">
                 <div class="filter-group">
-                    <div class="filter-label">Date</div>
+                    <label class="filter-label" for="mlbGameDropdown">Date</label>
                     
                 <select id="mlbGameDropdown" style="font-family:var(--body);font-size:0.82rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;cursor:pointer;" onchange="handleGameSelect(this.value)">
                     <option value="">Loading MLB Games...</option>
                 </select>
-                <input type="date" id="report-date" style="display:none;">
+                <input type="date" id="report-date" aria-label="Report date" style="display:none;">
 
                 </div>
                 <button onclick="loadDailyReport()" style="font-family:var(--display);font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:7px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer;align-self:flex-end;">📊 Stats Report</button>
                 <button class="export-png-btn" id="report-export-btn" onclick="reportExportPDF(this)" title="Save the entire report as a PDF" style="align-self:flex-end;">📄 Save as PDF</button>
                 <div class="filter-group">
-                    <div class="filter-label">Split</div>
+                    <label class="filter-label" for="report-split">Split</label>
                     <select id="report-split" onchange="loadDailyReport()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1818,24 +1840,24 @@
             </div>
         </div>
         <div id="pts-view-overall">
-            <div class="filters-row">                <div class="filter-group"><div class="filter-label">Season</div>
+            <div class="filters-row">                <div class="filter-group"><label class="filter-label" for="prk-season">Season</label>
                     <select id="prk-season" onchange="prkFilter()"></select></div>
-                <div class="filter-group"><div class="filter-label">Tier</div>
+                <div class="filter-group"><label class="filter-label" for="prk-tier">Tier</label>
                     <select id="prk-tier" onchange="prkFilter()">
                         <option value="">All Tiers</option><option value="Elite">Elite</option>
                         <option value="Good">Good</option><option value="Mid">Mid</option>
                         <option value="Bad">Bad</option><option value="Ass">Ass</option>
                     </select></div>
 
-                <div class="filter-group"><div class="filter-label">Min IP</div>
+                <div class="filter-group"><label class="filter-label" for="prk-minip">Min IP</label>
                     <select id="prk-minip" onchange="prkFilter()">
                         <option value="0">All</option><option value="10" selected>10+</option>
                         <option value="30">30+</option><option value="60">60+</option>
                         <option value="100">100+</option>
                     </select></div>
-                <div class="filter-group"><div class="filter-label">Team</div>
+                <div class="filter-group"><label class="filter-label" for="prk-team">Team</label>
                     <input class="team-filter-input" id="prk-team" type="text" placeholder="NYY…" oninput="prkFilter()" style="width:80px;"></div>
-                <div class="filter-group"><div class="filter-label">Search</div>
+                <div class="filter-group"><label class="filter-label" for="prk-name">Search</label>
                     <input class="team-filter-input" id="prk-name" type="text" placeholder="Skenes…" oninput="prkFilter()" style="width:130px;"></div>
                 <div class="tier-legend" style="margin-bottom:0;align-self:flex-end;">
                     <span class="tier-legend-label">Tier:</span>
@@ -1879,20 +1901,20 @@
         <div id="pts-view-splits" style="display:none;">
         <div class="section-header">
             <div class="filters-row">
-                <div class="filter-group"><div class="filter-label">Period</div>
+                <div class="filter-group"><label class="filter-label" for="ps-period">Period</label>
                     <select id="ps-period" onchange="psFilter()"></select></div>
-                <div class="filter-group"><div class="filter-label">Split</div>
+                <div class="filter-group"><label class="filter-label" for="ps-split">Split</label>
                     <select id="ps-split" onchange="psFilter()">
                         <option value="vsRHH">vs RHH</option><option value="vsLHH">vs LHH</option>
                         <option value="Home">Home</option><option value="Away">Away</option>
                     </select></div>
-                <div class="filter-group"><div class="filter-label">Tier</div>
+                <div class="filter-group"><label class="filter-label" for="ps-tier">Tier</label>
                     <select id="ps-tier" onchange="psFilter()">
                         <option value="">All Tiers</option><option value="Elite">Elite</option>
                         <option value="Good">Good</option><option value="Mid">Mid</option>
                         <option value="Bad">Bad</option><option value="Ass">Ass</option>
                     </select></div>
-                <div class="filter-group"><div class="filter-label">Min IP</div>
+                <div class="filter-group"><label class="filter-label" for="ps-minip">Min IP</label>
                     <select id="ps-minip" onchange="psFilter()">
                         <option value="0">All</option>
                         <option value="10">10+ IP</option>
@@ -1900,9 +1922,9 @@
                         <option value="30">30+ IP</option>
                         <option value="50">50+ IP</option>
                     </select></div>
-                <div class="filter-group"><div class="filter-label">Team</div>
+                <div class="filter-group"><label class="filter-label" for="ps-team">Team</label>
                     <input class="team-filter-input" id="ps-team" type="text" placeholder="NYY…" oninput="psFilter()" style="width:80px;"></div>
-                <div class="filter-group"><div class="filter-label">Search</div>
+                <div class="filter-group"><label class="filter-label" for="ps-name">Search</label>
                     <input class="team-filter-input" id="ps-name" type="text" placeholder="Skenes…" oninput="psFilter()" style="width:130px;"></div>
                 <div class="tier-legend" style="margin-bottom:0;align-self:flex-end;">
                     <span class="tier-legend-label">Tier:</span>
@@ -1975,7 +1997,7 @@
             <div class="pc-picker-side">
                 <div class="team-picker-label away-label">Pitcher A</div>
                 <div class="pc-input-wrap" style="width:220px;">
-                    <input id="pc-input-a" class="pc-pitcher-search" type="text" placeholder="Search pitcher…" oninput="pcSuggest('a')" autocomplete="off" style="width:220px;">
+                    <input id="pc-input-a" aria-label="First pitcher" class="pc-pitcher-search" type="text" placeholder="Search pitcher…" oninput="pcSuggest('a')" autocomplete="off" style="width:220px;">
                     <div id="pc-sug-a" class="pr-suggest" style="display:none;"></div>
                 </div>
                 <div id="pc-id-a" class="pc-identity" style="min-height:40px;">
@@ -1986,7 +2008,7 @@
             <div class="pc-picker-side">
                 <div class="team-picker-label home-label">Pitcher B</div>
                 <div class="pc-input-wrap" style="width:220px;">
-                    <input id="pc-input-b" class="pc-pitcher-search" type="text" placeholder="Search pitcher…" oninput="pcSuggest('b')" autocomplete="off" style="width:220px;">
+                    <input id="pc-input-b" aria-label="Second pitcher" class="pc-pitcher-search" type="text" placeholder="Search pitcher…" oninput="pcSuggest('b')" autocomplete="off" style="width:220px;">
                     <div id="pc-sug-b" class="pr-suggest" style="display:none;"></div>
                 </div>
                 <div id="pc-id-b" class="pc-identity" style="min-height:40px;">
@@ -2009,7 +2031,7 @@
 
 <footer>Live data via <code>Supabase</code> &nbsp;·&nbsp; MLB <span class="season-cur"></span> Offense Analyzer &nbsp;·&nbsp; <span id="last-updated-footer" style="color:var(--text2);"></span></footer>
 
-<script src="assets/js/shared.js?v=9511052a"></script>
+<script src="assets/js/shared.js?v=93be240f"></script>
 <script>
 // ── SUPABASE CONFIG ──────────────────────────────────────────────────────
 // 🔧 Replace these two values with your own Supabase project credentials
@@ -2527,7 +2549,15 @@ let _tickerBuilt = false;
 let _tickerBuilding = false;
 let _tickerRAF = null;
 let _tickerX = 0;
-let _tickerPaused = false;
+let _tickerPaused = false;      // mouse over the ticker
+let _tickerUserPaused = false;  // pause button (Round G4)
+let _tickerFocus = false;       // keyboard focus inside the moving strip
+function toggleTicker() {
+    _tickerUserPaused = !_tickerUserPaused;
+    const b = document.getElementById('ticker-pause');
+    if (b) { b.textContent = _tickerUserPaused ? '▶' : '❚❚'; b.setAttribute('aria-pressed', String(_tickerUserPaused));
+             b.setAttribute('aria-label', _tickerUserPaused ? 'Play ticker' : 'Pause ticker'); }
+}
 let _tickerSpeed = 25; // px/s — JS-driven so it never resets
 
 async function updateSummaryBar(activeTab) {
@@ -2623,7 +2653,7 @@ async function updateSummaryBar(activeTab) {
         let lastTs = null;
 
         function step(ts) {
-            if (lastTs !== null && !_tickerPaused) {
+            if (lastTs !== null && !_tickerPaused && !_tickerUserPaused && !_tickerFocus) {
                 const delta = (ts - lastTs) / 1000; // seconds
                 _tickerX -= _tickerSpeed * delta;
                 if (_tickerX <= -halfW) _tickerX += halfW; // seamless wrap
@@ -2637,6 +2667,8 @@ async function updateSummaryBar(activeTab) {
 
         track.addEventListener('mouseenter', () => { _tickerPaused = true; });
         track.addEventListener('mouseleave', () => { _tickerPaused = false; });
+        track.addEventListener('focusin',    () => { _tickerFocus = true; });
+        track.addEventListener('focusout',   () => { _tickerFocus = false; });
 
         _tickerBuilt = true;
         bar.classList.add('visible');
@@ -5270,7 +5302,7 @@ function buildMatchupReport(m, activeSplit) {
         let html = `
         <div>
             <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface2);border-bottom:2px solid ${tc.secondary};">
-                <img src="${teamLogos[abbr]||''}" style="width:44px;height:44px;object-fit:contain;" onerror="this.style.opacity='.1'">
+                <img src="${teamLogos[abbr]||''}" style="width:44px;height:44px;object-fit:contain;" onerror="this.style.opacity='.1'" alt="">
                 <div>
                     <div style="font-family:var(--display);font-size:1.35rem;font-weight:900;letter-spacing:0.04em;color:${tc.primary};-webkit-text-stroke:4px ${tc.secondary};paint-order:stroke fill;">${fullName.toUpperCase()}</div>
                     <div style="font-family:var(--display);font-size:0.58rem;font-weight:700;letter-spacing:0.2em;color:var(--muted);">${sideLabel}</div>
@@ -5357,12 +5389,12 @@ function buildMatchupReport(m, activeSplit) {
         <div style="background:var(--surface2);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
             <div style="display:flex;align-items:center;gap:14px;">
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <img src="${teamLogos[awayAbbr]||''}" style="width:32px;height:32px;object-fit:contain;" onerror="this.style.opacity='.1'">
+                    <img src="${teamLogos[awayAbbr]||''}" style="width:32px;height:32px;object-fit:contain;" onerror="this.style.opacity='.1'" alt="">
                     <span style="font-family:var(--display);font-size:1.2rem;font-weight:900;color:${(teamColors[awayAbbr]||{primary:'#60a5fa'}).primary};-webkit-text-stroke:4px ${(teamColors[awayAbbr]||{secondary:'#1e2333'}).secondary};paint-order:stroke fill;">${awayFull}</span>
                 </div>
                 <span style="font-family:var(--display);font-size:0.8rem;font-weight:700;color:var(--muted);">@</span>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <img src="${teamLogos[homeAbbr]||''}" style="width:32px;height:32px;object-fit:contain;" onerror="this.style.opacity='.1'">
+                    <img src="${teamLogos[homeAbbr]||''}" style="width:32px;height:32px;object-fit:contain;" onerror="this.style.opacity='.1'" alt="">
                     <span style="font-family:var(--display);font-size:1.2rem;font-weight:900;color:${(teamColors[homeAbbr]||{primary:'#fb923c'}).primary};-webkit-text-stroke:4px ${(teamColors[homeAbbr]||{secondary:'#1e2333'}).secondary};paint-order:stroke fill;">${homeFull}</span>
                 </div>
             </div>
@@ -5396,7 +5428,7 @@ function buildMatchupReport(m, activeSplit) {
 
 // ── FULL-REPORT SAVE-AS-PDF ──────────────────────────────────────────────────
 // Uses the browser print engine → true vector PDF: text stays razor-sharp at
-// any zoom (unlike html2canvas rasterizing), and <img> logos print without
+// any zoom (unlike html2canvas rasterizing), and <img alt=""> logos print without
 // the CORS restrictions canvas capture has.
 function reportExportPDF(btn) {
     var report = document.getElementById('report-container');
