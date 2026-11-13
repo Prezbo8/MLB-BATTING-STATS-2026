@@ -29,6 +29,7 @@ import pandas as pd
 from datetime import date
 
 from season import SEASON, today as season_today
+from sb_replace import replace_rows
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
@@ -182,7 +183,7 @@ def league_avg_rows(df):
 
 # ── Supabase: delete-all then insert ──────────────────────────────────────────
 def push_to_supabase(csv_path):
-    print("\n📤 Pushing player history to Supabase (delete all → insert)...")
+    print("\n📤 Pushing player history to Supabase (atomic swap per season)...")
     if not SUPABASE_KEY:
         print("   ⏭️  Skipped (no SUPABASE_KEY)")
         return False
@@ -211,30 +212,14 @@ def push_to_supabase(csv_path):
         for row in records
     ]
 
-    headers = {
-        "apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json", "Prefer": "return=minimal",
-    }
-    print("   🗑️  Deleting all existing rows...")
-    r = requests.delete(
-        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?updated_at=gte.2000-01-01",
-        headers=headers, timeout=60)
-    if r.status_code not in (200, 204):
-        print(f"   ❌ Delete failed: {r.status_code} {r.text[:200]}")
-        return False
-    print("   ✅ Table cleared")
-
-    batch_size, total, pushed = 500, len(records), 0
-    for i in range(0, total, batch_size):
-        batch = records[i:i + batch_size]
-        r = requests.post(f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
-                          headers=headers, json=batch, timeout=45)
-        if r.status_code in (200, 201):
-            pushed += len(batch)
-        else:
-            print(f"   ❌ Batch {i // batch_size + 1} failed: {r.status_code} {r.text[:200]}")
-    print(f"   📊 Total inserted: {pushed}/{total} rows")
-    return pushed == total
+    # One transaction per season (sql/replace_rows.sql): ~11k rows each, and a
+    # failure leaves that season's old rows in place instead of an empty table
+    ok = True
+    for season in sorted({r["season"] for r in records}):
+        rows = [r for r in records if r["season"] == season]
+        ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, rows,
+                          where_col="season", where_val=int(season), label=f"season {int(season)}") and ok
+    return ok
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():

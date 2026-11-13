@@ -27,7 +27,9 @@ as $$
 declare
     allowed text[] := array[
         'fangraphs_splits', 'fangraphs_player_splits', 'mlb_rpg',
-        'pitcher_scores', 'pitcher_split_scores'
+        'pitcher_scores', 'pitcher_split_scores',
+        'fangraphs_splits_history', 'fangraphs_player_splits_history',
+        'fangraphs_player_history'
     ];
     cols text;
     n    integer;

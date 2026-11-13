@@ -14,8 +14,9 @@ data/                                pipeline outputs and static inputs
   _ALL_SPLITS_COMBINED.csv           team batting splits (daily)
   _ALL_PLAYER_SPLITS_COMBINED.csv    player batting splits (daily)
   _RPG.csv                           runs per game (daily)
-  pitcher/                           pitcher stat CSVs: 2026 (daily) + career/ + historical/ (static 2021-25)
-  pitcher_splits_data/               static 2021-25 pitcher splits raws (merger inputs)
+  pitcher/                           pitcher stat CSVs: one set per season (current season rewritten daily) + career/ + historical/ (2021-25)
+  pitcher_splits_data/               pitcher splits raws, one file per season (merger inputs)
+  results/                           MLB final scores, results_<season>.csv
 .github/workflows/                   schedules below
 ```
 
@@ -36,3 +37,30 @@ blocks GitHub's servers for a few hours).
 All scrapers hit JSON APIs / plain HTML with `requests` (no browser), read secrets
 from repo Actions secrets, retry with escalating waits, and push nothing on failure
 (old data stays in place). Each run sends a Telegram notification.
+
+## Seasons, offseason pause and unpause
+
+**Season rule** (`scripts/season.py`): the current season is this year from the
+day *after* MLB's Opening Day (read from statsapi.mlb.com, fallback Mar 20),
+otherwise last year. Scrapers, merges and scorers use it; the site and the
+Telegram bot show the newest season found in the data. No year needs editing.
+Test any date with `MLB_TODAY=YYYY-MM-DD python scripts/...`.
+
+**Pause** (after the last regular-season game has been scraped): disable the
+scheduled workflows — `mlb_pitcher_pipeline`, `scrape_team_splits`,
+`scrape_player_splits`, `scrape_rpg`, `scrape_lineups`, `report_pdf`
+(`gh workflow disable <file>`). `scrape_results` can stay on; it commits nothing
+until scores change.
+
+**Unpause** on or after the day after Opening Day (2027: **Mar 26**) — earlier,
+the last-30/14/7-day windows have no games and the splits runs go red:
+`gh workflow enable <file>` for the six above, and re-enable `scrape_results`
+too if GitHub disabled it for inactivity (it does that after 60 days without
+repo activity).
+
+**One-time database setup** (already applied; re-run only on a new project):
+`sql/replace_rows.sql` (one-transaction table swaps used by every writer),
+`sql/public_read_only.sql` (public key read-only), `sql/rpg_rename_season_columns.sql`.
+Writers use the service-role key (`SUPABASE_KEY` secret); the site and bot only
+read with the public key.
+
