@@ -578,6 +578,71 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .tier-bad   { background: rgba(249,115,22,0.13); color: var(--bad);   border: 1px solid rgba(249,115,22,0.3); }
 .tier-ass   { background: rgba(239,68,68,0.13);  color: var(--ass);   border: 1px solid rgba(239,68,68,0.3); }
 
+/* ══ PITCHER DRAWER + TIER CARDS (Round F3) ══ */
+[data-pitcher] { cursor: pointer; text-decoration: underline dotted transparent; text-underline-offset: 3px; transition: text-decoration-color .15s; }
+[data-pitcher]:hover, [data-pitcher]:focus-visible { text-decoration-color: currentColor; outline: none; }
+.tier-pill { cursor: help; }
+html.pd-lock { overflow: hidden; }
+#pd-scrim { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.5); opacity: 0; transition: opacity .18s; }
+#pd-scrim.open { opacity: 1; }
+#pd-drawer { position: fixed; z-index: 401; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); overflow-y: auto; overscroll-behavior: contain;
+    background: var(--surface); border-left: 1px solid var(--border2); box-shadow: -12px 0 40px rgba(0,0,0,0.35);
+    transform: translateX(100%); transition: transform .18s ease-out; padding: 18px 18px 28px; color: var(--text); }
+#pd-drawer.open { transform: none; }
+@media (max-width: 700px) {
+    #pd-drawer { top: auto; left: 0; width: 100%; max-height: 88vh; border-left: 0; border-top: 1px solid var(--border2);
+        border-radius: 16px 16px 0 0; transform: translateY(100%); padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); }
+}
+.pd-close { position: sticky; top: 0; float: right; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-size: 1.2rem; line-height: 1; cursor: pointer; z-index: 1; }
+.pd-loading, .pd-empty { color: var(--muted); font-size: 0.82rem; padding: 6px 0; }
+.pd-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-right: 40px; }
+.pd-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pd-id img { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+.pd-name { font-family: var(--display); font-size: 1.35rem; font-weight: 900; letter-spacing: 0.02em; margin: 0; line-height: 1.1; }
+.pd-sub { font-family: var(--mono); font-size: 0.72rem; color: var(--text2); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.pd-sub img { width: 18px; height: 18px; object-fit: contain; }
+.pd-score { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; margin-right: -40px; padding-top: 38px; }
+.pd-score b { font-family: var(--mono); font-size: 1.9rem; line-height: 1; }
+.pd-facts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 14px 0 4px; }
+.pd-fact { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 4px; text-align: center; }
+.pd-fact b { display: block; font-family: var(--mono); font-size: 0.88rem; }
+.pd-fact span { font-family: var(--display); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); }
+.pd-sec { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.pd-sec h3 { font-family: var(--display); font-size: 0.78rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; }
+.pd-brow { display: grid; grid-template-columns: 58px 34px minmax(40px, 1fr) 40px 50px; align-items: center; gap: 8px; font-size: 0.78rem; padding: 3px 0; }
+.pd-bhead { font-family: var(--display); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.pd-blbl, .pd-slbl { font-family: var(--mono); font-size: 0.74rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-bip { font-family: var(--mono); color: var(--muted); text-align: right; }
+.pd-bval, .pd-sval { font-family: var(--mono); font-weight: 700; text-align: right; }
+.pd-bw { font-family: var(--mono); text-align: right; color: var(--text2); }
+.pd-bw i { font-style: normal; color: var(--muted); font-size: 0.66rem; }
+.pd-bbar { height: 6px; border-radius: 3px; background: rgba(var(--tint, 255,255,255), 0.08); overflow: hidden; }
+.pd-bbar > span { display: block; height: 100%; border-radius: 3px; background: var(--muted); }
+.b-elite { background: var(--elite) !important; } .b-good { background: var(--good) !important; } .b-mid { background: var(--mid) !important; }
+.b-bad { background: var(--bad) !important; } .b-ass { background: var(--ass) !important; }
+.pd-srow { display: grid; grid-template-columns: 82px 52px minmax(40px, 1fr) 40px; align-items: center; gap: 8px; font-size: 0.78rem; padding: 3px 0; }
+.pd-spct { font-family: var(--mono); font-weight: 700; text-align: right; font-size: 0.8rem; }
+.pd-spct small { font-size: 0.6rem; font-weight: 400; }
+.pd-prow { display: grid; grid-template-columns: 58px 1fr 1fr 1fr auto; align-items: center; gap: 6px; font-family: var(--mono); font-size: 0.76rem; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.pd-prow:last-of-type { border-bottom: 0; }
+.pd-prow small { color: var(--muted); font-size: 0.6rem; }
+.pd-note { margin: 8px 0 0; font-size: 0.7rem; color: var(--muted); line-height: 1.45; }
+.pd-note .tier-pill { font-size: 0.55rem; }
+.pd-next .pd-srow { grid-template-columns: auto 34px minmax(40px, 1fr) 40px; }
+.pd-edge { margin-top: 6px; font-family: var(--display); font-weight: 900; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+#tier-tip { position: fixed; z-index: 500; max-width: 280px; padding: 10px 12px; border-radius: 10px; background: var(--surface); color: var(--text);
+    border: 1px solid var(--border2); box-shadow: 0 10px 30px rgba(0,0,0,0.35); font-size: 0.74rem; line-height: 1.45; pointer-events: none;
+    opacity: 0; visibility: hidden; transition: opacity .12s; }
+#tier-tip.show { opacity: 1; visibility: visible; }
+#tier-tip .tt-h { font-family: var(--display); font-weight: 900; font-size: 0.86rem; letter-spacing: 0.1em; text-transform: uppercase; }
+#tier-tip.tt-elite .tt-h { color: var(--elite); } #tier-tip.tt-good .tt-h { color: var(--good); } #tier-tip.tt-mid .tt-h { color: var(--mid); }
+#tier-tip.tt-bad .tt-h { color: var(--bad); } #tier-tip.tt-ass .tt-h { color: var(--ass); }
+#tier-tip .tt-range { color: var(--text2); margin: 2px 0 6px; }
+#tier-tip .tt-bt { color: var(--text2); } #tier-tip .tt-bt b { color: var(--text); font-family: var(--mono); }
+#tier-tip .tt-warn { margin-top: 6px; color: var(--muted); font-size: 0.68rem; }
+#pd-drawer .t-elite { color: var(--elite); } #pd-drawer .t-good { color: var(--good); } #pd-drawer .t-mid { color: var(--mid); } #pd-drawer .t-bad { color: var(--bad); } #pd-drawer .t-ass { color: var(--ass); }
+
 /* ══ MATCHUPS (Round F2) ══ */
 .m-wrc-chip { flex-shrink: 0; min-width: 26px; padding: 0 3px; border-radius: 5px; border: 1px solid currentColor; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; text-align: center; line-height: 1.45; }
 .m-wrc-chip.na { color: var(--muted); border-color: var(--border2); }
@@ -2527,7 +2592,7 @@ function offenseEdge(bats, offAbbr, defRec, defAbbr) {
     const spLast = lastName(defRec?.pitcher_name) || 'starter';
     const label = z >= 1.0 ? `Strong edge: ${offAbbr} bats` : z >= 0.4 ? `Lean: ${offAbbr} bats`
         : z <= -1.0 ? `Strong edge: ${spLast}` : z <= -0.4 ? `Lean: ${spLast}` : 'Even';
-    return { off: offAbbr, hand, lv, ps, sp: defRec?.pitcher_name || 'TBD', z, label };
+    return { off: offAbbr, def: defAbbr, hand, lv, ps, sp: defRec?.pitcher_name || 'TBD', z, label };
 }
 
 function renderLineupsMobile() {
@@ -2573,9 +2638,9 @@ function renderLineupsMobile() {
                 <div class="m-tc-home">${logoImg(homeAbbr,20)}<span class="m-tc-abbr" style="color:${teamColor(homeAbbr)};">${homeAbbr}</span>${statusBadge(home?.lineup_status||'')}</div>
             </div>
             <div class="m-tc-row m-tc-pitrow">
-                <div class="m-tc-away"><span class="m-tc-name">${away?.pitcher_name||'TBD'}</span>${pitHand(away?.pitcher_hand)}${mSpPill(away?.pitcher_name, awayAbbr)}</div>
+                <div class="m-tc-away"><span class="m-tc-name"${pdAttr(away?.pitcher_name, awayAbbr)}>${away?.pitcher_name||'TBD'}</span>${pitHand(away?.pitcher_hand)}${mSpPill(away?.pitcher_name, awayAbbr)}</div>
                 <div class="m-tc-num"><span class="m-tc-num-lbl">SP</span></div>
-                <div class="m-tc-home">${mSpPill(home?.pitcher_name, homeAbbr)}${pitHand(home?.pitcher_hand)}<span class="m-tc-name">${home?.pitcher_name||'TBD'}</span></div>
+                <div class="m-tc-home">${mSpPill(home?.pitcher_name, homeAbbr)}${pitHand(home?.pitcher_hand)}<span class="m-tc-name"${pdAttr(home?.pitcher_name, homeAbbr)}>${home?.pitcher_name||'TBD'}</span></div>
             </div>
             <div class="m-tc-row m-tc-lwrow">
                 <div class="m-tc-away">${lwCell(awayLW, teamWrc(awayAbbr))}</div>
@@ -2981,7 +3046,7 @@ function pitPaint(cfg) {
             `<td class="num ${cfg.clsFn(k, row[k])}">${cfg.fmtFn(k, row[k])}</td>`).join('');
         return `<tr class="anim" style="animation-delay:${Math.min(i*8,200)}ms">
             <td class="rank-cell">${rankHtml}</td>
-            <td><div class="m-pl-cell">${logoImg(row.team,18)}<span class="m-pl-name">${row.name}</span></div></td>
+            <td><div class="m-pl-cell">${logoImg(row.team,18)}<span class="m-pl-name"${pdAttr(row.name, row.team)}>${row.name}</span></div></td>
             ${cells}
         </tr>`;
     }).join('');
@@ -3173,8 +3238,8 @@ async function loadPitcherLeaders() {
     } catch (e) { _pitchLeaders = { score: [], era: [] }; }
     return _pitchLeaders;
 }
-const sRow = (abbr, name, val, cls = '') =>
-    `<div class="m-side-row">${shellLogo(abbr, 18)}<span class="m-side-name">${esc(name)}</span><span class="m-side-val ${cls}">${val}</span></div>`;
+const sRow = (abbr, name, val, cls = '', attrs = '') =>
+    `<div class="m-side-row">${shellLogo(abbr, 18)}<span class="m-side-name"${attrs}>${esc(name)}</span><span class="m-side-val ${cls}">${val}</span></div>`;
 
 async function renderToday() {
     const s = await loadSlate();
@@ -3193,14 +3258,14 @@ async function renderToday() {
     const pl = await loadPitcherLeaders();
     const pit = document.getElementById('today-pitchers');
     if (pit && pl) pit.innerHTML = pl.score.length ? pl.score.map((p, i) =>
-        sRow(p.team, `${i + 1}. ${p.name}`, `<span class="tier-pill ${tierCls(p.tier)}">${esc(p.tier || '')}</span> ${(+p.composite_score).toFixed(1)}`)).join('')
+        sRow(p.team, `${i + 1}. ${p.name}`, `<span class="tier-pill ${tierCls(p.tier)}">${esc(p.tier || '')}</span> ${(+p.composite_score).toFixed(1)}`, '', pdAttr(p.name, p.team))).join('')
         : '<div class="m-sb-empty">No pitcher scores yet</div>';
     const lead = document.getElementById('side-leaders');
     const top = (k, n = 3) => [...season].sort((a, b) => b[k] - a[k]).slice(0, n);
     const sub = t => `<div class="m-side-sub">${t}</div>`;
     if (lead && season.length) lead.innerHTML =
         sub('OPS') + top('ops').map(t => sRow(t.tm, t.tm, t.ops.toFixed(3).replace(/^0/, ''))).join('') +
-        (pl && pl.era.length ? sub('ERA · 100+ IP') + pl.era.map(p => sRow(p.team, p.name, (+p.era).toFixed(2))).join('') : '');
+        (pl && pl.era.length ? sub('ERA · 100+ IP') + pl.era.map(p => sRow(p.team, p.name, (+p.era).toFixed(2), '', pdAttr(p.name, p.team))).join('') : '');
     const hot = document.getElementById('side-hot');
     const l7 = allData['no_split-last_7'] || [];
     const bySeason = Object.fromEntries(season.map(t => [t.tm, t.wrcPlus]));
@@ -3211,6 +3276,261 @@ async function renderToday() {
           sub('🧊 Coldest') + delta.slice(-3).reverse().map(t => sRow(t.tm, t.tm, `${Math.round(t.v)} <small>${fd(t.d)}</small>`, 'neg')).join('')
         : '<div class="m-sb-empty">No last-7-days data</div>';
 }
+// Page adapters for the shared drawer code below
+const PD_LOGO = abbr => teamLogo(abbr) ? `<img src="${teamLogo(abbr)}" alt="" onerror="this.style.opacity='.15'">` : '';
+const PD_COLOR = abbr => teamColor(abbr);
+const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex()]);
+const PD_EDGE = (offRec, offAbbr, defRec, defAbbr) => {
+    const bo = offRec?.batting_order;
+    const bats = Array.isArray(bo) ? bo : (() => { try { return bo ? JSON.parse(bo) : []; } catch (e) { return []; } })();
+    return offenseEdge(bats, offAbbr, defRec, defAbbr);
+};
+// ── PITCHER DRAWER + TIER CARDS (Round F3) ──────────────────────────────
+// Click any pitcher name (an element with data-pitcher) to open his drawer;
+// hover or tap any tier pill for what that tier means, with backtest numbers
+// read from backtest_results.json (rerunning the backtest updates them).
+// Same code on both pages; PD_* adapters above it supply page-specific bits.
+const PD_SEASON_WEIGHTS = [0.32, 0.20, 0.12, 0.08, 0.05, 0.03];   // newest season first
+const PD_CAREER_WEIGHT = 0.20, PD_FULL_IP = 60, PD_PRIOR = 0.10, PD_MIN_IP = 20;  // scripts/score_pitcher_overall.py
+// The 8 heaviest stats in the score (STAT_WEIGHTS); dir 1 = higher is better
+const PD_STATS = [
+    { col: 'pitching_plus', label: 'Pitching+', dir: 1,  fmt: v => Math.round(v) },
+    { col: 'siera',         label: 'SIERA',     dir: -1, fmt: v => (+v).toFixed(2) },
+    { col: 'k_bb_pct',      label: 'K-BB%',     dir: 1,  fmt: v => (v * 100).toFixed(1) + '%' },
+    { col: 'stuff_plus',    label: 'Stuff+',    dir: 1,  fmt: v => Math.round(v) },
+    { col: 'xera',          label: 'xERA',      dir: -1, fmt: v => (+v).toFixed(2) },
+    { col: 'csw_pct',       label: 'CSW%',      dir: 1,  fmt: v => (v * 100).toFixed(1) + '%' },
+    { col: 'swstr_pct',     label: 'SwStr%',    dir: 1,  fmt: v => (v * 100).toFixed(1) + '%' },
+    { col: 'location_plus', label: 'Location+', dir: 1,  fmt: v => Math.round(v) },
+];
+const PD_SPLITS = [['vsLHH', 'vs LHH'], ['vsRHH', 'vs RHH'], ['Home', 'Home'], ['Away', 'Away']];
+const pdTier = s => s == null ? '' : s >= 90 ? 'Elite' : s >= 75 ? 'Good' : s >= 50 ? 'Mid' : s >= 25 ? 'Bad' : 'Ass';
+const pdPill = (tier, txt) => tier ? `<span class="tier-pill tier-${tier.toLowerCase()}">${esc(txt ?? tier)}</span>` : '';
+const pdPct = v => v == null || isNaN(v) ? '—' : ((+v > 1 ? +v : +v * 100).toFixed(1) + '%');
+const pdAttr = (name, team) => name && name !== 'TBD' ? ` data-pitcher="${esc(name)}" data-pteam="${esc(team || '')}" tabindex="0" role="button"` : '';
+
+function pdGet(path) {
+    return fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } })
+        .then(r => r.json()).then(d => Array.isArray(d) ? d : []);
+}
+let _pdNewest = null;
+async function pdNewestSeason() {
+    if (!_pdNewest) _pdNewest = pdGet('pitcher_scores?select=season&season=neq.career&order=season.desc&limit=1')
+        .then(d => parseInt(d[0]?.season, 10) || CUR_SEASON);
+    return _pdNewest;
+}
+const _pdPools = {};
+function pdPool(season) {     // every 20+ IP pitcher of a season, for percentiles
+    if (!_pdPools[season]) _pdPools[season] = pdGet(`pitcher_scores?select=${PD_STATS.map(s => s.col).join(',')}&season=eq.${season}&ip=gte.${PD_MIN_IP}`);
+    return _pdPools[season];
+}
+
+function pdEnsureDom() {
+    if (document.getElementById('pd-drawer')) return;
+    document.body.insertAdjacentHTML('beforeend', `<div id="pd-scrim" hidden></div>
+        <aside id="pd-drawer" role="dialog" aria-modal="true" aria-labelledby="pd-name" hidden>
+            <button class="pd-close" type="button" aria-label="Close">×</button><div id="pd-body"></div></aside>`);
+    document.getElementById('pd-scrim').addEventListener('click', closePitcherDrawer);
+    document.querySelector('#pd-drawer .pd-close').addEventListener('click', closePitcherDrawer);
+}
+let _pdOpener = null;
+function closePitcherDrawer() {
+    const d = document.getElementById('pd-drawer');
+    if (!d || d.hidden) return;
+    d.classList.remove('open'); document.getElementById('pd-scrim').classList.remove('open');
+    setTimeout(() => { d.hidden = true; document.getElementById('pd-scrim').hidden = true; }, 180);
+    document.documentElement.classList.remove('pd-lock');
+    if (_pdOpener && _pdOpener.focus) _pdOpener.focus();
+}
+
+async function openPitcherDrawer(name, team, opener) {
+    pdEnsureDom();
+    _pdOpener = opener || null;
+    const d = document.getElementById('pd-drawer'), scrim = document.getElementById('pd-scrim'), body = document.getElementById('pd-body');
+    body.innerHTML = `<div class="pd-loading">Loading ${esc(name)}…</div>`;
+    d.hidden = scrim.hidden = false;
+    requestAnimationFrame(() => { d.classList.add('open'); scrim.classList.add('open'); });
+    document.documentElement.classList.add('pd-lock');
+    d.querySelector('.pd-close').focus();
+    const token = (openPitcherDrawer._t = (openPitcherDrawer._t || 0) + 1);
+    try {
+        await loadPitcherIndex();
+        const hit = findPitcherScore(name, team);
+        const canon = hit ? hit.name : name;
+        const cols = 'season,team,ip,g,gs,era,fip,k_pct,bb_pct,season_score,composite_score,tier,' + PD_STATS.map(s => s.col).join(',');
+        const [rows, newest] = await Promise.all([pdGet(`pitcher_scores?select=${cols}&name=eq.${encodeURIComponent(canon)}`), pdNewestSeason()]);
+        if (token !== openPitcherDrawer._t) return;
+        if (!rows.length) { body.innerHTML = `<h2 class="pd-name" id="pd-name">${esc(name)}</h2><div class="pd-empty">No pitcher score for ${esc(name)} yet.</div>`; return; }
+        const years = rows.map(r => parseInt(r.season, 10)).filter(y => y > 0);
+        const S = Math.max(...years);
+        const cur = rows.find(r => +r.season === S);
+        const [pool, splits] = await Promise.all([pdPool(S),
+            pdGet(`pitcher_split_scores?select=split,ip,tbf,woba,k_pct,bb_pct,composite_split_score,split_tier&name=eq.${encodeURIComponent(canon)}&period=eq.${S}`)]);
+        if (token !== openPitcherDrawer._t) return;
+        body.innerHTML = pdHeader(canon, cur, S) + pdBuilt(rows, newest) + pdStrengths(cur, pool, S) + pdSplitsHtml(splits, S)
+            + `<section class="pd-sec" id="pd-tonight"><h3>Next start</h3><div class="pd-empty">Checking lineups…</div></section>`;
+        const tn = await pdTonight(canon, name);
+        if (token !== openPitcherDrawer._t) return;
+        const el = document.getElementById('pd-tonight'); if (el) el.innerHTML = tn;
+    } catch (e) {
+        console.warn('[pitcher drawer]', e);
+        if (token === openPitcherDrawer._t) body.innerHTML = `<div class="pd-empty">Couldn't load ${esc(name)} right now.</div>`;
+    }
+}
+
+function pdHeader(name, r, S) {
+    const comp = r.composite_score != null ? +r.composite_score : null;
+    const fact = (v, l) => `<div class="pd-fact"><b>${v}</b><span>${l}</span></div>`;
+    return `<div class="pd-head">
+        <div class="pd-id">${PD_LOGO(r.team)}<div><h2 class="pd-name" id="pd-name">${esc(name)}</h2>
+            <div class="pd-sub"><b style="color:${PD_COLOR(r.team)}">${esc(r.team || '')}</b> · ${S} · ${r.gs > 0 ? `${Math.round(r.gs)} GS` : `${Math.round(r.g || 0)} G`}</div></div></div>
+        <div class="pd-score">${comp != null ? `<b class="t-${(r.tier || '').toLowerCase()}">${Math.round(comp)}</b>${pdPill(r.tier)}` : '<span class="pd-empty">unrated</span>'}</div>
+    </div>
+    <div class="pd-facts">${fact(r.ip != null ? (+r.ip).toFixed(1) : '—', 'IP')}${fact(r.era != null ? (+r.era).toFixed(2) : '—', 'ERA')}${fact(r.fip != null ? (+r.fip).toFixed(2) : '—', 'FIP')}${fact(pdPct(r.k_pct), 'K%')}${fact(pdPct(r.bb_pct), 'BB%')}</div>`;
+}
+
+// Mirrors compute_composite_scores: each season's score × its year weight × min(1, IP/60),
+// plus an "average pitcher" (50) worth 0.10; the blend is then ranked against active pitchers
+function pdBuilt(rows, newest) {
+    const wOf = r => {
+        const y = parseInt(r.season, 10);
+        const base = y > 0 ? (PD_SEASON_WEIGHTS[newest - y] ?? 0) : PD_CAREER_WEIGHT;
+        return base * Math.min(1, Math.max(0, +r.ip || 0) / PD_FULL_IP);
+    };
+    const list = rows.map(r => ({ r, y: parseInt(r.season, 10), s: r.season_score != null ? +r.season_score : null }))
+        .sort((a, b) => (b.y || 0) - (a.y || 0) || (a.y ? -1 : 1));
+    let sw = 0, num = 0;
+    list.forEach(o => { o.w = o.s != null ? wOf(o.r) : 0; sw += o.w; num += o.w * (o.s || 0); });
+    const total = sw + PD_PRIOR;
+    const raw = sw > 0 ? (num + 50 * PD_PRIOR) / total : null;
+    const comp = rows[0]?.composite_score;
+    const row = (lbl, ip, s, w, note) => `<div class="pd-brow">
+        <span class="pd-blbl">${lbl}</span><span class="pd-bip">${ip}</span>
+        <span class="pd-bbar"><span style="width:${s != null ? Math.max(2, Math.min(100, s)) : 0}%" class="b-${pdTier(s).toLowerCase()}"></span></span>
+        <span class="pd-bval">${s != null ? s.toFixed(1) : '—'}</span><span class="pd-bw">${note || (Math.round(w / total * 100) + '%')}</span></div>`;
+    return `<section class="pd-sec"><h3>How the score is built</h3>
+        <div class="pd-brow pd-bhead"><span>Season</span><span>IP</span><span>Season score</span><span></span><span>Counts</span></div>
+        ${list.map(o => row(o.y ? o.y : 'Career', o.r.ip != null ? Math.round(+o.r.ip) : '—', o.s, o.w,
+            o.s == null ? `<i>&lt;${PD_MIN_IP} IP</i>` : o.w === 0 ? '<i>too old</i>' : '')).join('')}
+        ${row('Average', '', 50, PD_PRIOR)}
+        <p class="pd-note">${raw != null ? `Weighted blend <b>${raw.toFixed(1)}</b> → ranks <b>${comp != null ? Math.round(comp) : '—'}</b> among active pitchers → ${pdPill(pdTier(comp))}. ` : ''}
+        A season counts fully from ${PD_FULL_IP} IP; the "Average" row pulls thin records toward 50.</p></section>`;
+}
+
+function pdStrengths(r, pool, S) {
+    const items = PD_STATS.map(st => {
+        const v = r[st.col];
+        if (v == null || isNaN(+v)) return null;
+        const vals = pool.map(p => p[st.col]).filter(x => x != null && !isNaN(+x)).map(Number);
+        if (vals.length < 20) return null;
+        const below = vals.filter(x => st.dir > 0 ? x < +v : x > +v).length, ties = vals.filter(x => x === +v).length;
+        return { st, v: +v, pct: Math.max(1, Math.min(99, Math.round((below + ties / 2) / vals.length * 100))), n: vals.length };
+    }).filter(Boolean);
+    if (!items.length) return '';
+    return `<section class="pd-sec"><h3>Strengths &amp; weaknesses</h3>
+        ${items.map(o => `<div class="pd-srow"><span class="pd-slbl">${o.st.label}</span><span class="pd-sval">${o.st.fmt(o.v)}</span>
+            <span class="pd-bbar"><span style="width:${Math.max(2, o.pct)}%" class="b-${pdTier(o.pct).toLowerCase()}"></span></span>
+            <span class="pd-spct t-${pdTier(o.pct).toLowerCase()}">${o.pct}<small>th</small></span></div>`).join('')}
+        <p class="pd-note">Percentile among the ${items[0].n} pitchers with ${PD_MIN_IP}+ IP in ${S} (higher = better, so a low ERA-type stat scores high). These are the 8 stats that weigh most in the score.</p></section>`;
+}
+
+function pdSplitsHtml(splits, S) {
+    const by = Object.fromEntries(splits.map(s => [s.split, s]));
+    const rows = PD_SPLITS.filter(([k]) => by[k]).map(([k, lbl]) => {
+        const s = by[k];
+        const sc = s.composite_split_score != null ? +s.composite_split_score : null;
+        return `<div class="pd-prow"><span class="pd-slbl">${lbl}</span><span>${s.ip != null ? (+s.ip).toFixed(1) : '—'} <small>IP</small></span>
+            <span>${s.woba != null ? (+s.woba).toFixed(3).replace(/^0/, '') : '—'} <small>wOBA</small></span><span>${pdPct(s.k_pct)} <small>K</small></span>
+            <span class="pd-pp">${sc != null ? pdPill(s.split_tier || pdTier(sc), `${s.split_tier || pdTier(sc)} ${Math.round(sc)}`) : '—'}</span></div>`;
+    });
+    return `<section class="pd-sec"><h3>Splits · ${S}</h3>${rows.length ? rows.join('') : '<div class="pd-empty">No split data</div>'}
+        <p class="pd-note">wOBA allowed (lower is better). Split scores rank him among pitchers in the same split.</p></section>`;
+}
+
+async function pdTonight(canon, shown) {
+    try { await PD_ENSURE_MATCHUPS(); } catch (e) { return '<div class="pd-empty">Lineups unavailable right now</div>'; }
+    const same = n => n && (normalizeName(n) === normalizeName(canon) || normalizeName(n) === normalizeName(shown));
+    for (const { away, home } of pairLineupGames(lineupGames)) {
+        const mine = same(away?.pitcher_name) ? away : same(home?.pitcher_name) ? home : null;
+        if (!mine) continue;
+        const opp = mine === away ? home : away;
+        if (!opp) break;
+        const e = PD_EDGE(opp, opp.team, mine, mine.team);
+        const d = mine.game_date || opp.game_date;
+        const when = d === localDateStr() ? 'Today' : (d ? fmtDay(d) : '');
+        const lv = e && e.lv;
+        return `<div class="pd-next"><div class="pd-sub">${esc(when)}${mine.game_time ? ' · ' + esc(mine.game_time) : ''} · ${mine === away ? '@' : 'vs'}
+                ${PD_LOGO(opp.team)}<b style="color:${PD_COLOR(opp.team)}">${esc(opp.team)}</b></div>
+            ${lv ? `<div class="pd-srow"><span class="pd-slbl">${esc(opp.team)} lineup ${mine.pitcher_hand === 'L' ? 'vs LHP' : mine.pitcher_hand === 'R' ? 'vs RHP' : ''}</span>
+                <span class="pd-sval">${lv.wrc}</span><span class="pd-bbar"><span style="width:${Math.max(4, Math.min(100, (lv.wrc - 60) / 0.9))}%" class="b-${getWrcTier(lv.wrc)}"></span></span>
+                <span class="pd-spct">wRC+</span></div>` : ''}
+            ${e ? `<div class="pd-edge">${esc(e.label)}</div>` : ''}
+            <p class="pd-note">From the latest posted lineups. Lineup = wRC+ vs his hand (100 = average).</p></div>`;
+    }
+    return '<div class="pd-empty">Not in the latest posted lineups.</div>';
+}
+const getWrcTier = v => v >= 120 ? 'elite' : v >= 110 ? 'good' : v >= 100 ? 'mid' : v >= 90 ? 'bad' : 'ass';
+
+// ── Tier cards ──
+let _btPromise = null;
+const loadBacktest = () => _btPromise || (_btPromise = fetch('backtest_results.json').then(r => r.ok ? r.json() : null).catch(() => null));
+const PD_TIER_RANGE = { Elite: '90–100 · top 10%', Good: '75–89 · next 15%', Mid: '50–74 · middle 25%', Bad: '25–49 · next 25%', Ass: 'under 25 · bottom 25%' };
+function tierCardHtml(tier, bt) {
+    let out = `<b class="tt-h">${tier}</b><div class="tt-range">Pitcher score ${PD_TIER_RANGE[tier]} of active pitchers</div>`;
+    const s = bt?.season_test?.tiers_RA9 || [], g = bt?.game_test?.tiers || [];
+    const st = s.find(t => t.tier === tier), gt = g.find(t => t.tier === tier);
+    if (st) {
+        const ip = s.reduce((a, t) => a + t.ip, 0), avg = s.reduce((a, t) => a + t.ra9 * t.ip, 0) / ip;
+        out += `<div class="tt-bt">Backtest ${bt.seasons[0]}–${bt.seasons[bt.seasons.length - 1]}: preseason ${tier} pitchers allowed <b>${st.ra9.toFixed(2)}</b> runs per 9 (all tiers: ${avg.toFixed(2)})`
+            + (gt ? `; teams allowed <b>${gt.team_ra_per_game.toFixed(2)}</b> runs a game behind a ${tier} starter.` : '.') + '</div>';
+        const bad = s.find(t => t.tier === 'Bad'), ass = s.find(t => t.tier === 'Ass');
+        if ((tier === 'Bad' || tier === 'Ass') && bad && ass && ass.ra9 <= bad.ra9)
+            out += `<div class="tt-warn">The backtest doesn't separate Bad from Ass (${bad.ra9.toFixed(2)} vs ${ass.ra9.toFixed(2)}) — only the Ass pitchers teams keep using are in it.</div>`;
+    }
+    return out;
+}
+function pdShowTip(pill) {
+    const m = /tier-(elite|good|mid|bad|ass)/.exec(pill.className);
+    if (!m) return;
+    const tier = m[1][0].toUpperCase() + m[1].slice(1);
+    let tip = document.getElementById('tier-tip');
+    if (!tip) { tip = document.createElement('div'); tip.id = 'tier-tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+    tip._pill = pill;
+    loadBacktest().then(bt => {
+        if (tip._pill !== pill) return;
+        tip.innerHTML = tierCardHtml(tier, bt);
+        tip.className = 'show tt-' + m[1];
+        const r = pill.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+        const left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+        const top = r.bottom + 8 + h > innerHeight && r.top - 8 - h > 0 ? r.top - 8 - h : r.bottom + 8;
+        tip.style.left = left + 'px'; tip.style.top = top + 'px';
+    });
+}
+function pdHideTip() { const t = document.getElementById('tier-tip'); if (t) { t.className = ''; t._pill = null; } }
+const PD_TOUCH = matchMedia('(hover: none)').matches;
+document.addEventListener('mouseover', e => { if (PD_TOUCH) return; const p = e.target.closest('.tier-pill'); if (p) pdShowTip(p); });
+document.addEventListener('mouseout', e => { if (PD_TOUCH) return; const p = e.target.closest('.tier-pill'); if (p && !p.contains(e.relatedTarget)) pdHideTip(); });
+document.addEventListener('scroll', pdHideTip, true);
+// Capture phase: a pill or name inside a clickable card opens its own thing, not the card's
+document.addEventListener('click', e => {
+    const pill = e.target.closest('.tier-pill');
+    if (pill && PD_TOUCH) {
+        e.preventDefault(); e.stopPropagation();
+        const t = document.getElementById('tier-tip');
+        if (t && t._pill === pill && t.classList.contains('show')) pdHideTip(); else pdShowTip(pill);
+        return;
+    }
+    if (!pill) pdHideTip();
+    const who = e.target.closest('[data-pitcher]');
+    if (who) { e.preventDefault(); e.stopPropagation(); openPitcherDrawer(who.dataset.pitcher, who.dataset.pteam, who); }
+}, true);
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { pdHideTip(); closePitcherDrawer(); }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-pitcher]')) {
+        e.preventDefault(); openPitcherDrawer(e.target.dataset.pitcher, e.target.dataset.pteam, e.target);
+    }
+});
+
 async function renderTodayEdges() {
     const el = document.getElementById('today-edges');
     if (!el) return;
@@ -3226,7 +3546,7 @@ async function renderTodayEdges() {
     }).filter(g => g.a || g.h).sort((x, y) => y.size - x.size);
     if (!games.length) { el.innerHTML = '<div class="m-sb-empty">No lineups posted yet</div>'; return; }
     const side = e => !e ? '' : `<div class="m-edge-side">${shellLogo(e.off, 18)}<b style="color:${teamColor(e.off)}">${esc(e.off)}</b>
-            <span class="m-edge-part">${handLabel(e.hand)} <b class="t-${getTier(WRC_META, e.lv.wrc)}">${e.lv.wrc}</b> · ${esc(lastName(e.sp))}</span>
+            <span class="m-edge-part">${handLabel(e.hand)} <b class="t-${getTier(WRC_META, e.lv.wrc)}">${e.lv.wrc}</b> · <span${pdAttr(e.sp, e.def)}>${esc(lastName(e.sp))}</span></span>
             ${e.ps && e.ps.composite_score != null ? `<span class="tier-pill ${tierCls(e.ps.tier)}">${esc(e.ps.tier)} ${Math.round(e.ps.composite_score)}</span>` : '<span class="m-edge-na">no score</span>'}
         </div>`;
     const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => Math.abs(y.z) - Math.abs(x.z))[0];
