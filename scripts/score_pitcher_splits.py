@@ -71,6 +71,13 @@ MIN_TBF = 30
 # outweigh a whole previous season)
 FULL_WEIGHT_TBF = 150
 
+# Every composite is blended with an "average pitcher" (score 50) worth this
+# much weight (about half a season). Established pitchers barely move; a
+# pitcher whose only data is one tiny season is pulled toward average instead
+# of ranking like a full season (regression to the mean).
+PRIOR_WEIGHT = 0.10
+PRIOR_SCORE  = 50.0
+
 # Rolling, relative to the current season (scripts/season.py), newest first.
 # Seasons older than the window get weight 0 (still shown, not counted).
 YEAR_WEIGHTS = {str(SEASON - i): w
@@ -173,7 +180,8 @@ def compute_composite_scores(df):
             yw = YEAR_WEIGHTS.get(period, 0.0) * min(1.0, (tbf if tbf > 0 else 0) / FULL_WEIGHT_TBF)
             num += float(score) * yw
             denom += yw
-        composite_map[(key, split)] = round(num / denom, 2) if denom > 0 else np.nan
+        composite_map[(key, split)] = (round((num + PRIOR_SCORE * PRIOR_WEIGHT) / (denom + PRIOR_WEIGHT), 2)
+                                       if denom > 0 else np.nan)
 
     # Percentile rank per split group 0-100
     for split_name in df["split"].unique():

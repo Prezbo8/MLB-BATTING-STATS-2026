@@ -106,6 +106,13 @@ MIN_IP = 20
 # .32) outweighed a whole previous season (.20).
 FULL_WEIGHT_IP = 60
 
+# Every composite is blended with an "average pitcher" (score 50) worth this
+# much weight (about half a season). Established pitchers barely move; a
+# pitcher whose only data is one tiny season is pulled toward average instead
+# of ranking like a full season (regression to the mean).
+PRIOR_WEIGHT = 0.10
+PRIOR_SCORE  = 50.0
+
 # ─────────────────────────────────────────
 # COLUMN SANITIZER
 # ─────────────────────────────────────────
@@ -258,7 +265,8 @@ def compute_composite_scores(df, year_weights):
             yw     = year_weights.get(season_key, 0.0) * min(1.0, (ip if ip > 0 else 0) / FULL_WEIGHT_IP)
             num   += score * yw
             denom += yw
-        composite_map[key] = round(num / denom, 2) if denom > 0 else np.nan
+        composite_map[key] = (round((num + PRIOR_SCORE * PRIOR_WEIGHT) / (denom + PRIOR_WEIGHT), 2)
+                              if denom > 0 else np.nan)
 
     # Percentile rank 0-100 across all pitchers
     raw_scores = pd.Series(composite_map)
