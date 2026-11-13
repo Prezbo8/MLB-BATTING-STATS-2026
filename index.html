@@ -14,6 +14,14 @@
         })();
     </script>
     <title>MLB • Team Offense Analyzer</title>
+    <script>
+    // Theme before first paint: saved choice, else the device setting
+    (function () {
+        var t = localStorage.getItem('mlb-theme');
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
     <link rel="apple-touch-icon" sizes="180x180" href="/MLB-BATTING-STATS-2026/assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/MLB-BATTING-STATS-2026/assets/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/MLB-BATTING-STATS-2026/assets/favicon-16x16.png">
@@ -116,18 +124,51 @@
             --bad:   #f97316;
             --ass:   #ef4444;
             --radius: 14px;
+            --tint: 255,255,255;            /* see-through overlays: white on dark, ink on light */
+            --header-bg: linear-gradient(135deg, #0c1830 0%, #0f1520 55%, #180810 100%);
+            --header-solid: #0c1830;
+            --glow1: rgba(29,58,138,0.15);
+            --glow2: rgba(230,57,70,0.08);
+            --shadow: 0 1px 2px rgba(0,0,0,0.5);
+            color-scheme: dark;
+        }
+        [data-theme="light"] {
+            --bg:       #f2f4f8;
+            --surface:  #ffffff;
+            --surface2: #f5f7fb;
+            --surface3: #e9edf4;
+            --border:   #dde2eb;
+            --border2:  #cdd3de;
+            --accent:   #d62839;
+            --blue:     #2563eb;
+            --orange:   #ea580c;
+            --text:     #111827;
+            --text2:    #475066;
+            --muted:    #6b7487;
+            --elite: #15803d;
+            --good:  #4d7c0f;
+            --mid:   #a16207;
+            --bad:   #c2410c;
+            --ass:   #dc2626;
+            --tint: 15,23,42;
+            --header-bg: linear-gradient(135deg, #ffffff 0%, #f6f8fc 60%, #fdf2f3 100%);
+            --header-solid: #ffffff;
+            --glow1: rgba(37,99,235,0.06);
+            --glow2: rgba(214,40,57,0.04);
+            --shadow: 0 1px 3px rgba(15,23,42,0.08);
+            color-scheme: light;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: var(--bg); color: var(--text); font-family: var(--body); min-height: 100vh; overflow-x: hidden; }
         body::before {
             content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
             background:
-                radial-gradient(ellipse 70% 50% at 15% 0%, rgba(29,58,138,0.15) 0%, transparent 55%),
-                radial-gradient(ellipse 50% 40% at 85% 100%, rgba(230,57,70,0.08) 0%, transparent 55%);
+                radial-gradient(ellipse 70% 50% at 15% 0%, var(--glow1) 0%, transparent 55%),
+                radial-gradient(ellipse 50% 40% at 85% 100%, var(--glow2) 0%, transparent 55%);
         }
         header {
             position: relative; z-index: 10;
-            background: linear-gradient(135deg, #0c1830 0%, #0f1520 55%, #180810 100%);
+            background: var(--header-bg);
             border-bottom: 1px solid var(--border); padding: 0 2rem;
         }
         .header-inner { max-width: 1440px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; min-height: 68px; padding: 6px 0; gap: 1rem; }
@@ -146,17 +187,17 @@
         }
         .nav-scroll-wrap::before {
             left: 0;
-            background: linear-gradient(to right, #0c1830 0%, transparent 100%);
+            background: linear-gradient(to right, var(--header-solid) 0%, transparent 100%);
         }
         .nav-scroll-wrap::after {
             right: 0;
-            background: linear-gradient(to left, #0c1830 0%, transparent 100%);
+            background: linear-gradient(to left, var(--header-solid) 0%, transparent 100%);
         }
         .nav-scroll-wrap.at-start::before { opacity: 0; }
         .nav-scroll-wrap.at-end::after   { opacity: 0; }
         nav {
             display: flex; align-items: center; gap: 0;
-            background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 4px 6px;
+            background: rgba(var(--tint),0.04); border: 1px solid var(--border); border-radius: 10px; padding: 4px 6px;
             flex-wrap: wrap; row-gap: 4px;   /* wrap to a 2nd line instead of scrolling sideways */
             overflow-x: auto; scroll-snap-type: x proximity;
             scrollbar-width: none; -ms-overflow-style: none;
@@ -225,7 +266,7 @@
             cursor: pointer; transition: all 0.18s; display: flex; align-items: center; gap: 5px;
             white-space: nowrap; flex-shrink: 0; scroll-snap-align: start;
         }
-        .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+        .tab-btn:hover { color: var(--text); background: rgba(var(--tint),0.05); }
         .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 14px rgba(230,57,70,0.4); }
 
         /* SUPABASE STATUS BUTTON */
@@ -310,7 +351,7 @@
             border-right: 1px solid rgba(30,35,51,0.7);
             cursor: default; transition: background 0.15s;
         }
-        .ticker-item:hover { background: rgba(255,255,255,0.03); }
+        .ticker-item:hover { background: rgba(var(--tint),0.03); }
         .ticker-item-logo { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
         .ticker-item-abbr { font-family: var(--display); font-size: 1.1rem; font-weight: 900; letter-spacing: 0.04em; flex-shrink: 0; }
         .ticker-item-stat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
@@ -372,13 +413,13 @@
         td.team-color-cell .team-abbr { font-size: 1.2rem; }
         /* Faint white outline around every team logo */
         .team-logo, .ticker-item-logo, td.team-color-cell img {
-            filter: drop-shadow(0 0 1px rgba(255,255,255,0.55)) drop-shadow(0 0 1px rgba(255,255,255,0.35));
+            filter: drop-shadow(0 0 1px rgba(255,255,255,0.55)) drop-shadow(0 0 1px rgba(255,255,255,0.35));   /* white in both themes (design) */
         }
         /* Team Rankings shows full team names — wider sticky Team column */
         #panel-0 .table-card td:nth-child(2), #panel-0 .table-card th:nth-child(2) { min-width: 166px; max-width: 166px; }
         #panel-0 .table-card td:nth-child(3), #panel-0 .table-card th:nth-child(3) { left: 212px; }
         #panel-0 td.team-color-cell { padding: 2px 8px; }
-        #panel-0 td.team-color-cell .team-abbr { font-size: 1.14rem; line-height: 1.05; }
+        #panel-0 td.team-color-cell .team-abbr { font-size: 1.14rem; line-height: 1.05; white-space: nowrap; }
         .team-abbr { font-family: var(--display); font-size: 1.05rem; font-weight: 800; letter-spacing: 0.05em; }
         td.num { font-family: var(--mono); font-size: 0.88rem; font-weight: 400; text-align: right; color: var(--text2); }
         td.wrc-cell { font-family: var(--mono); font-size: 1.08rem; font-weight: 500; text-align: right; }
@@ -767,7 +808,118 @@
 
 /* Plain browser print (Cmd/Ctrl+P). The Save-as-PDF button takes a different
    path — it injects its own stylesheet — so this block is the fallback. */
-@media print {
+        /* ══ LAYOUT SHELL (Round F1): top nav · scoreboard · main + sidebar ══ */
+        .header-inner { min-height: 60px; padding: 0; gap: 18px; justify-content: flex-start; }
+        .brand-icon { width: 34px; height: 34px; }
+        .brand-name { font-size: 1.5rem; }
+        .header-right { margin-left: auto; }
+        nav.topnav {
+            flex: 1; min-width: 0; flex-wrap: nowrap; overflow: visible; gap: 2px;
+            background: transparent; border: none; padding: 0; justify-content: flex-start;
+        }
+        .topnav .tab-btn.nav-home, .nav-dd-btn {
+            font-family: var(--display); font-size: 0.82rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+            padding: 20px 12px 18px; border: none; border-radius: 0; background: transparent; color: var(--text2);
+            cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; box-shadow: none;
+        }
+        .topnav .tab-btn.nav-home:hover, .nav-dd-btn:hover, .nav-dd.open .nav-dd-btn { color: var(--text); background: rgba(var(--tint),0.05); }
+        .topnav .tab-btn.nav-home.active, .nav-dd:has(.tab-btn.active) > .nav-dd-btn {
+            color: var(--text); background: transparent; box-shadow: inset 0 -3px 0 var(--accent);
+        }
+        .nav-caret { font-size: 0.6rem; opacity: 0.6; }
+        .nav-dd { position: relative; }
+        .nav-dd-menu {
+            position: absolute; top: 100%; left: 0; z-index: 60; min-width: 200px; display: none; flex-direction: column; gap: 2px;
+            background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; padding: 6px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+        }
+        .nav-dd.open .nav-dd-menu { display: flex; }
+        @media (hover: hover) { .nav-dd:hover .nav-dd-menu { display: flex; } }
+        .nav-dd-menu .tab-btn { width: 100%; justify-content: flex-start; color: var(--text2); padding: 9px 12px; font-size: 0.78rem; }
+        .nav-dd-menu .tab-btn.active { background: var(--accent); color: #fff; box-shadow: none; }
+        .theme-btn {
+            width: 36px; height: 34px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface2);
+            cursor: pointer; font-size: 1rem; line-height: 1; flex-shrink: 0;
+        }
+        .theme-btn:hover { border-color: var(--accent); }
+
+        .scoreboard { position: relative; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); }
+        .sb-track {
+            max-width: 1440px; margin: 0 auto; padding: 8px 2rem; display: flex; gap: 8px; align-items: stretch;
+            overflow-x: auto; scrollbar-width: thin; scroll-snap-type: x proximity;
+        }
+        .sb-label {
+            writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--display); font-weight: 800; font-size: 0.6rem;
+            letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); text-align: center; flex-shrink: 0;
+        }
+        .sb-game {
+            flex: 0 0 auto; min-width: 128px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface2); color: var(--text); text-decoration: none; scroll-snap-align: start;
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .sb-game:hover { border-color: var(--border2); background: rgba(var(--tint),0.04); }
+        .sb-time { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+        .sb-team { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-weight: 800; font-size: 0.9rem; }
+        .sb-team.win .sb-score { color: var(--text); }
+        .sb-logo { width: 18px; height: 18px; object-fit: contain; }
+        span.sb-logo, span.side-logo, span.tg-logo { display: inline-block; }
+        .sb-score { margin-left: auto; font-family: var(--mono); color: var(--text2); }
+        .sb-sp { font-family: var(--body); font-size: 0.66rem; color: var(--muted); white-space: nowrap; }
+        .sb-empty { padding: 6px 0; font-family: var(--display); font-size: 0.85rem; letter-spacing: 0.06em; color: var(--text2); }
+
+        .page {
+            position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 0 2rem;
+            display: grid; grid-template-columns: minmax(0, 1fr) 272px; gap: 20px; align-items: start;
+        }
+        .page main { max-width: none; margin: 0; padding: 1.5rem 0 3rem; min-width: 0; }
+        .page #panel-1 { margin: 0; padding: 0; }
+        .sidebar { padding: 1.5rem 0 3rem; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; }
+        @media (max-width: 1359px) {   /* below this the tables need the full width */
+            .page { grid-template-columns: minmax(0, 1fr); }
+            .sidebar { position: static; padding-top: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+        }
+        .side-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 14px 10px; box-shadow: var(--shadow); }
+        .side-title { font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+        .side-sub { font-family: var(--display); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 10px 0 2px; }
+        .side-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+        .side-row:last-child { border-bottom: none; }
+        .side-logo { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; }
+        .side-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .side-val { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+        .side-val small { color: var(--muted); font-size: 0.7rem; }
+        .side-val.pos small { color: var(--elite); } .side-val.neg small { color: var(--ass); }
+        .side-empty, .today-off { color: var(--muted); font-size: 0.85rem; padding: 6px 0; }
+        .today-off b { color: var(--text); }
+
+        .today-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .today-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; }
+        .today-games { grid-column: 1 / -1; }
+        @media (max-width: 760px) { .today-grid { grid-template-columns: minmax(0, 1fr); } }
+        .today-h { font-family: var(--display); font-size: 0.95rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: baseline; gap: 10px; }
+        .today-more { margin-left: auto; font-size: 0.7rem; letter-spacing: 0.06em; color: var(--blue); text-decoration: none; }
+        .today-games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+        .today-game { display: block; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); text-decoration: none; }
+        .today-game:hover { border-color: var(--border2); }
+        .tg-head { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); margin-bottom: 4px; }
+        .tg-team { display: grid; grid-template-columns: 22px 44px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 3px 0; }
+        .tg-logo { width: 22px; height: 22px; object-fit: contain; }
+        .tg-abbr { font-family: var(--display); font-weight: 900; font-size: 1rem; }
+        .tg-sp { font-size: 0.78rem; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tg-score { font-family: var(--mono); font-weight: 700; }
+        .today-table { width: 100%; border-collapse: collapse; }
+        .today-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        .today-table tr:last-child td { border-bottom: none; }
+        .today-table td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+        .tt-rank { width: 24px; color: var(--muted); font-family: var(--mono); font-size: 0.75rem; }
+        .tt-name { margin-left: 8px; font-weight: 700; }
+        .tt-muted { color: var(--text2); }
+        @media (max-width: 900px) {
+            header { padding: 0 1rem; } .sb-track, .page { padding-left: 1rem; padding-right: 1rem; }
+            .header-inner { flex-wrap: wrap; } nav.topnav { order: 3; flex-basis: 100%; overflow-x: auto; }
+            #scrape-date-badge { display: none !important; }
+        }
+
+        @media print {
     header, nav, footer, button, select, .filters-row,
     #summary-bar, .section-header, .section-title,
     .empty-state, .export-png-btn { display: none !important; }
@@ -810,7 +962,7 @@
             padding:0 16px; align-items:center; transition:background 0.1s;
         }
         .lstats-player-row:last-child { border-bottom:none; }
-        .lstats-player-row:hover { background:rgba(255,255,255,0.018); }
+        .lstats-player-row:hover { background:rgba(var(--tint),0.018); }
         .lstats-name-cell { display:flex; align-items:center; gap:6px; padding:6px 0; overflow:hidden; }
         .lstats-num  { font-family:var(--mono); font-size:0.62rem; color:var(--muted); width:16px; text-align:right; flex-shrink:0; }
         .lstats-name { font-family:var(--body); font-size:0.84rem; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -977,7 +1129,7 @@
         }
         .pts-pill:hover {
             color: var(--text);
-            background: rgba(255,255,255,0.06);
+            background: rgba(var(--tint),0.06);
         }
         .pts-pill.active {
             background: var(--accent);
@@ -1009,55 +1161,48 @@
                 <div class="brand-sub">Team Offense Analyzer</div>
             </div>
         </div>
-        <div class="header-right">
-            <div id="scrape-date-badge" style="display:none; font-family:var(--mono); font-size:0.7rem; background:var(--surface2); border:1px solid var(--border2); border-radius:7px; padding:5px 11px; white-space:nowrap; flex-shrink:0; cursor:default; transition:border-color 0.2s, background 0.2s, color 0.2s;">
-                <span style="font-size:0.6rem; font-family:var(--display); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:1px;">Data as of</span>
-                <span id="scrape-date-val">—</span>
-            </div>
-            <div class="nav-scroll-wrap at-start" id="nav-scroll-wrap">
-            <nav id="main-nav" role="tablist" aria-label="Dashboard sections">
-                <!-- BATTING GROUP -->
-                <div class="nav-group">
-                    <span class="nav-group-label" aria-hidden="true">⚾ Batting</span>
-                    <div class="nav-group-tabs">
-                        <button class="tab-btn active" id="tab-0" onclick="switchTab(0)" role="tab" aria-selected="true" aria-controls="panel-0" aria-label="Batting rankings" tabindex="0">📊 Rankings</button>
+            <nav id="main-nav" class="topnav" role="tablist" aria-label="Dashboard sections">
+                <button class="tab-btn nav-home active" id="tab-13" onclick="switchTab(13)" role="tab" aria-selected="true" aria-controls="panel-13" aria-label="Today" tabindex="0">Today</button>
+                <div class="nav-dd">
+                    <button type="button" class="nav-dd-btn" aria-haspopup="true" aria-expanded="false">⚾ Batting <span class="nav-caret" aria-hidden="true">▾</span></button>
+                    <div class="nav-dd-menu" role="group" aria-label="Batting">
+                        <button class="tab-btn" id="tab-0" onclick="switchTab(0)" role="tab" aria-selected="false" aria-controls="panel-0" aria-label="Batting rankings" tabindex="-1">📊 Rankings</button>
                         <button class="tab-btn" id="tab-1" onclick="switchTab(1)" role="tab" aria-selected="false" aria-controls="panel-1" aria-label="Batting team compare" tabindex="-1">⚔️ Compare</button>
                         <button class="tab-btn" id="tab-2" onclick="switchTab(2)" role="tab" aria-selected="false" aria-controls="panel-2" aria-label="Batting player rankings" tabindex="-1">🧑 Players</button>
                     </div>
                 </div>
-                <div class="nav-sep" aria-hidden="true"></div>
-                <!-- LINEUP GROUP -->
-                <div class="nav-group">
-                    <span class="nav-group-label" aria-hidden="true">📋 Lineup</span>
-                    <div class="nav-group-tabs">
+                <div class="nav-dd">
+                    <button type="button" class="nav-dd-btn" aria-haspopup="true" aria-expanded="false">📋 Lineups <span class="nav-caret" aria-hidden="true">▾</span></button>
+                    <div class="nav-dd-menu" role="group" aria-label="Lineups">
                         <button class="tab-btn" id="tab-3" onclick="switchTab(3)" role="tab" aria-selected="false" aria-controls="panel-3" aria-label="Lineup preview" tabindex="-1">Preview</button>
                         <button class="tab-btn" id="tab-4" onclick="switchTab(4)" role="tab" aria-selected="false" aria-controls="panel-4" aria-label="Lineup stats" tabindex="-1">Stats</button>
                         <button class="tab-btn" id="tab-9" onclick="switchTab(9)" role="tab" aria-selected="false" aria-controls="panel-9" aria-label="Lineup trends" tabindex="-1">📈 Trends</button>
                         <button class="tab-btn" id="tab-12" onclick="switchTab(12)" role="tab" aria-selected="false" aria-controls="panel-12" aria-label="Lineup history" tabindex="-1">📅 History</button>
                     </div>
                 </div>
-                <div class="nav-sep" aria-hidden="true"></div>
-                <!-- HOT/COLD GROUP -->
-                <div class="nav-group">
-                    <span class="nav-group-label" aria-hidden="true">🔥❄️ Hot/Cold</span>
-                    <div class="nav-group-tabs">
+                <div class="nav-dd">
+                    <button type="button" class="nav-dd-btn" aria-haspopup="true" aria-expanded="false">🔥 Hot/Cold <span class="nav-caret" aria-hidden="true">▾</span></button>
+                    <div class="nav-dd-menu" role="group" aria-label="Hot/Cold">
                         <button class="tab-btn" id="tab-5" onclick="switchTab(5)" role="tab" aria-selected="false" aria-controls="panel-5" aria-label="Hot and cold teams" tabindex="-1">Teams</button>
                         <button class="tab-btn" id="tab-6" onclick="switchTab(6)" role="tab" aria-selected="false" aria-controls="panel-6" aria-label="Hot and cold players" tabindex="-1">Players</button>
                         <button class="tab-btn" id="tab-7" onclick="switchTab(7)" role="tab" aria-selected="false" aria-controls="panel-7" aria-label="Runs per game" tabindex="-1">🏃 R/G</button>
                         <button class="tab-btn" id="tab-8" onclick="switchTab(8)" role="tab" aria-selected="false" aria-controls="panel-8" aria-label="Daily report" tabindex="-1">📰 Report</button>
                     </div>
                 </div>
-                <div class="nav-sep" aria-hidden="true"></div>
-                <!-- PITCHING GROUP -->
-                <div class="nav-group nav-group-pitching">
-                    <span class="nav-group-label" aria-hidden="true">⚡ Pitching</span>
-                    <div class="nav-group-tabs">
+                <div class="nav-dd">
+                    <button type="button" class="nav-dd-btn" aria-haspopup="true" aria-expanded="false">⚡ Pitching <span class="nav-caret" aria-hidden="true">▾</span></button>
+                    <div class="nav-dd-menu" role="group" aria-label="Pitching">
                         <button class="tab-btn" id="tab-10" onclick="switchTab(10)" role="tab" aria-selected="false" aria-controls="panel-10" aria-label="Pitching rankings" tabindex="-1">🏆 Rankings</button>
                         <button class="tab-btn" id="tab-11" onclick="switchTab(11)" role="tab" aria-selected="false" aria-controls="panel-11" aria-label="Pitching compare" tabindex="-1">⚔️ Compare</button>
                     </div>
                 </div>
             </nav>
+        <div class="header-right">
+            <div id="scrape-date-badge" style="display:none; font-family:var(--mono); font-size:0.7rem; background:var(--surface2); border:1px solid var(--border2); border-radius:7px; padding:5px 11px; white-space:nowrap; flex-shrink:0; cursor:default; transition:border-color 0.2s, background 0.2s, color 0.2s;">
+                <span style="font-size:0.6rem; font-family:var(--display); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:1px;">Data as of</span>
+                <span id="scrape-date-val">—</span>
             </div>
+            <button type="button" class="theme-btn" id="theme-btn" onclick="toggleTheme()" aria-label="Switch theme">☀️</button>
             <button class="upload-btn loading" id="upload-btn" onclick="fetchFromSupabase()" title="Refresh data from Supabase">
                 <span id="btn-icon" class="spin">↻</span>
                 <span id="btn-label">Connecting…</span>
@@ -1066,13 +1211,25 @@
     </div>
 </header>
 
+<div class="scoreboard" id="scoreboard" aria-label="Today's games"><div class="sb-track" id="sb-track"><div class="sb-empty">Loading today's games…</div></div></div>
+
+<div class="page">
 <main>
     <div id="summary-bar">
         <div class="ticker-track" id="ticker-track"></div>
     </div>
 
     <!-- PANEL 0: RANKINGS -->
-    <div id="panel-0" class="tab-panel" role="tabpanel" aria-labelledby="tab-0">
+    <div id="panel-13" class="tab-panel" role="tabpanel" aria-labelledby="tab-13">
+        <div class="section-header"><div class="section-title" id="today-title">Today</div></div>
+        <div class="today-grid">
+            <section class="today-card today-games"><h3 class="today-h">Games</h3><div id="today-games"><div class="side-empty">Loading…</div></div></section>
+            <section class="today-card"><h3 class="today-h">Top offenses · season wRC+ <a class="today-more" href="#tab=0" onclick="switchTab(0);return false;">Full rankings →</a></h3><div id="today-offense"><div class="side-empty">Loading…</div></div></section>
+            <section class="today-card"><h3 class="today-h">Top pitchers · score <a class="today-more" href="#tab=10" onclick="switchTab(10);return false;">All pitchers →</a></h3><div id="today-pitchers"><div class="side-empty">Loading…</div></div></section>
+        </div>
+    </div>
+
+    <div id="panel-0" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-0">
         <div class="section-header">
             <div class="section-title">Team Rankings</div>
             <div class="filters-row">
@@ -1730,6 +1887,11 @@
 
 
 </main>
+<aside class="sidebar" id="sidebar" aria-label="Leaders and hot teams">
+    <section class="side-card"><h3 class="side-title">Leaders</h3><div id="side-leaders" class="side-body"><div class="side-empty">Loading…</div></div></section>
+    <section class="side-card"><h3 class="side-title">Hot &amp; cold · last 7 days</h3><div id="side-hot" class="side-body"><div class="side-empty">Loading…</div></div></section>
+</aside>
+</div>
 
 <footer>Live data via <code>Supabase</code> &nbsp;·&nbsp; MLB <span class="season-cur"></span> Offense Analyzer &nbsp;·&nbsp; <span id="last-updated-footer" style="color:var(--text2);"></span></footer>
 
@@ -1782,6 +1944,241 @@ async function sbFetchAll(table, params) {
         pg++;
     }
     return all;
+}
+
+// ── LAYOUT SHELL: top nav menus, scoreboard, sidebar, Today ─────────────
+const HOME_TAB = 13;
+
+function openNavMenu(dd) {
+    closeNavMenus(dd);
+    dd.classList.add('open');
+    dd.querySelector('.nav-dd-btn').setAttribute('aria-expanded', 'true');
+}
+function closeNavMenus(except) {
+    document.querySelectorAll('.nav-dd.open').forEach(d => {
+        if (d === except) return;
+        d.classList.remove('open');
+        d.querySelector('.nav-dd-btn').setAttribute('aria-expanded', 'false');
+    });
+}
+document.addEventListener('click', e => {
+    const btn = e.target.closest('.nav-dd-btn');
+    if (btn) { const dd = btn.parentElement; dd.classList.contains('open') ? closeNavMenus() : openNavMenu(dd); return; }
+    if (e.target.closest('.nav-dd-menu .tab-btn') || !e.target.closest('.nav-dd')) closeNavMenus();
+});
+
+const _sbHeaders = () => ({ apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` });
+const teamText = abbr => (teamColorsPdf[abbr] || {}).primary || 'var(--text)';
+// Always returns an element so grid columns line up even without a logo ("2 Tms")
+const logoImg = (abbr, cls = 'sb-logo') =>
+    teamLogos[abbr] ? `<img class="${cls}" src="${teamLogos[abbr]}" alt="" onerror="this.style.opacity='.15'">`
+                    : `<span class="${cls}" aria-hidden="true"></span>`;
+const lastName = n => (n || '').split(' ').slice(-1)[0];
+const fmtDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+// Today's MLB games (or the next ones); cached per page load
+let _slate = null;
+async function loadSlate() {
+    if (_slate) return _slate;
+    const today = localDateStr();
+    const games = async q => {
+        const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&hydrate=team,probablePitcher&${q}`);
+        const j = await r.json();
+        return (j.dates || []).flatMap(d => (d.games || []).map(g => ({ ...g, _date: d.date })))
+            .filter(g => !['A', 'E', 'S'].includes(g.gameType));
+    };
+    try {
+        let list = await games(`date=${today}`), label = "Today's games";
+        if (!list.length) {
+            const end = localDateStr(new Date(Date.now() + 14 * 864e5));
+            const soon = await games(`startDate=${today}&endDate=${end}`);
+            if (soon.length) { const d = soon[0]._date; list = soon.filter(g => g._date === d); label = `Next games · ${fmtDay(d)}`; }
+        }
+        let opening = null;
+        if (!list.length) {
+            const y = +today.slice(0, 4);
+            for (const yr of [y, y + 1]) {
+                const r = await fetch(`https://statsapi.mlb.com/api/v1/seasons/${yr}?sportId=1`);
+                const sd = ((await r.json()).seasons || [])[0]?.regularSeasonStartDate;
+                if (sd && sd > today) { opening = sd; break; }
+            }
+        }
+        _slate = { label, opening, games: list.map(g => {
+            const side = t => ({ abbr: MLB_NAME_TO_ABBR[t.team?.name] || t.team?.abbreviation || '', score: t.score,
+                                 sp: t.probablePitcher?.fullName || '' });
+            return { pk: g.gamePk, time: g.gameDate, state: g.status?.abstractGameState, detail: g.status?.detailedState,
+                     away: side(g.teams.away), home: side(g.teams.home) };
+        }) };
+    } catch (e) {
+        console.warn('[slate]', e);
+        _slate = { label: "Today's games", opening: null, games: [], error: true };
+    }
+    return _slate;
+}
+const gameTime = g => g.state === 'Final' ? 'Final' : g.state === 'Live' ? (g.detail || 'Live')
+    : new Date(g.time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+
+async function renderScoreboard() {
+    const track = document.getElementById('sb-track');
+    if (!track) return;
+    const s = await loadSlate();
+    if (!s.games.length) {
+        track.innerHTML = `<div class="sb-empty">${s.error ? 'Schedule unavailable right now' : 'No games today'}${s.opening ? ` · <b>Opening Day ${fmtDay(s.opening)}</b>` : ''}</div>`;
+        return;
+    }
+    const row = (t, other) => `<div class="sb-team${g_win(t, other) ? ' win' : ''}">${logoImg(t.abbr)}<span class="sb-abbr" style="color:${teamText(t.abbr)}">${esc(t.abbr)}</span>${t.score != null ? `<span class="sb-score">${t.score}</span>` : ''}</div>`;
+    const g_win = (t, o) => t.score != null && o.score != null && t.score > o.score;
+    track.innerHTML = `<div class="sb-label">${esc(s.label)}</div>` + s.games.map(g => `
+        <a class="sb-game" href="#tab=3" onclick="switchTab(3);return false;" title="${esc(g.away.abbr)} @ ${esc(g.home.abbr)}">
+            <div class="sb-time">${esc(gameTime(g))}</div>
+            ${row(g.away, g.home)}${row(g.home, g.away)}
+            ${g.away.sp || g.home.sp ? `<div class="sb-sp">${esc(lastName(g.away.sp) || 'TBD')} · ${esc(lastName(g.home.sp) || 'TBD')}</div>` : ''}
+        </a>`).join('');
+}
+
+// Pitcher leaders: small dedicated queries (the full pitcher table loads only on its tab)
+let _pitchLeaders = null;
+async function loadPitcherLeaders() {
+    if (_pitchLeaders || !CUR_SEASON) return _pitchLeaders;
+    const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
+    try {
+        const [score, era] = await Promise.all([
+            fetch(`${base}&composite_score=not.is.null&ip=gte.20&order=composite_score.desc&limit=10`, { headers: _sbHeaders() }).then(r => r.json()),
+            fetch(`${base}&ip=gte.100&order=era.asc&limit=3`, { headers: _sbHeaders() }).then(r => r.json()),
+        ]);
+        _pitchLeaders = { score: Array.isArray(score) ? score : [], era: Array.isArray(era) ? era : [] };
+    } catch (e) { console.warn('[pitcher leaders]', e); _pitchLeaders = { score: [], era: [] }; }
+    return _pitchLeaders;
+}
+
+function sideRow(abbr, name, val, cls = '') {
+    return `<div class="side-row">${logoImg(abbr, 'side-logo')}<span class="side-name">${esc(name)}</span><span class="side-val ${cls}">${val}</span></div>`;
+}
+async function renderSidebar() {
+    const lead = document.getElementById('side-leaders'), hot = document.getElementById('side-hot');
+    if (!lead || !hot) return;
+    const season = allData['no_split-season'] || [];
+    if (!season.length) return;
+    const top = (arr, k, n = 3) => [...arr].sort((a, b) => b[k] - a[k]).slice(0, n);
+    const name = abbr => (typeof MLB_FULL_NAMES !== 'undefined' && MLB_FULL_NAMES[abbr]) || abbr;
+    const block = (title, rows) => `<div class="side-sub">${title}</div>${rows.join('')}`;
+    const pl = await loadPitcherLeaders() || { score: [], era: [] };
+    lead.innerHTML =
+        block('wRC+', top(season, 'wrcPlus').map(t => sideRow(t.tm, name(t.tm), Math.round(t.wrcPlus)))) +
+        block('OPS', top(season, 'ops').map(t => sideRow(t.tm, name(t.tm), t.ops.toFixed(3).replace(/^0/, '')))) +
+        (pl.score.length ? block('Pitcher score', pl.score.slice(0, 3).map(p =>
+            sideRow(p.team, p.name, `<span class="tier-pill ${ptTierCls(p.tier)}">${(+p.composite_score).toFixed(0)}</span>`))) : '') +
+        (pl.era.length ? block('ERA · 100+ IP', pl.era.map(p => sideRow(p.team, p.name, (+p.era).toFixed(2)))) : '');
+    const l7 = allData['no_split-last_7'] || [];
+    const bySeason = Object.fromEntries(season.map(t => [t.tm, t.wrcPlus]));
+    const delta = l7.filter(t => bySeason[t.tm] != null).map(t => ({ tm: t.tm, d: t.wrcPlus - bySeason[t.tm], v: t.wrcPlus }))
+        .sort((a, b) => b.d - a.d);
+    const fmtD = d => (d > 0 ? '+' : '') + Math.round(d);
+    hot.innerHTML = delta.length
+        ? block('🔥 Hottest', delta.slice(0, 3).map(t => sideRow(t.tm, name(t.tm), `${Math.round(t.v)} <small>${fmtD(t.d)}</small>`, 'pos'))) +
+          block('🧊 Coldest', delta.slice(-3).reverse().map(t => sideRow(t.tm, name(t.tm), `${Math.round(t.v)} <small>${fmtD(t.d)}</small>`, 'neg')))
+        : '<div class="side-empty">No last-7-days data</div>';
+}
+
+async function renderToday() {
+    const title = document.getElementById('today-title');
+    const s = await loadSlate();
+    if (title) title.textContent = s.games.length ? s.label : 'Today';
+    const gamesEl = document.getElementById('today-games');
+    if (gamesEl) gamesEl.innerHTML = s.games.length ? `<div class="today-games-grid">${s.games.map(g => `
+        <a class="today-game" href="#tab=3" onclick="switchTab(3);return false;">
+            <div class="tg-head"><span>${esc(gameTime(g))}</span></div>
+            ${[g.away, g.home].map(t => `<div class="tg-team">${logoImg(t.abbr, 'tg-logo')}<span class="tg-abbr" style="color:${teamText(t.abbr)}">${esc(t.abbr)}</span>
+                <span class="tg-sp">${esc(t.sp || 'TBD')}</span>${t.score != null ? `<span class="tg-score">${t.score}</span>` : ''}</div>`).join('')}
+        </a>`).join('')}</div>`
+        : `<div class="today-off">No games today.${s.opening ? ` Opening Day is <b>${fmtDay(s.opening)}</b>.` : ''} Season stats below are final.</div>`;
+    const off = document.getElementById('today-offense');
+    const season = allData['no_split-season'] || [];
+    if (off && season.length) {
+        off.innerHTML = `<table class="today-table"><tbody>${[...season].sort((a, b) => b.wrcPlus - a.wrcPlus).slice(0, 10).map((t, i) =>
+            `<tr><td class="tt-rank">${i + 1}</td><td>${logoImg(t.tm, 'side-logo')}<span class="tt-name" style="color:${teamText(t.tm)}">${esc(t.tm)}</span></td>
+             <td class="num">${Math.round(t.wrcPlus)}</td><td class="num tt-muted">${t.ops.toFixed(3).replace(/^0/, '')}</td></tr>`).join('')}</tbody></table>`;
+    }
+    const pit = document.getElementById('today-pitchers');
+    const pl = await loadPitcherLeaders();
+    if (pit && pl) {
+        pit.innerHTML = pl.score.length ? `<table class="today-table"><tbody>${pl.score.map((p, i) =>
+            `<tr><td class="tt-rank">${i + 1}</td><td>${logoImg(p.team, 'side-logo')}<span class="tt-name">${esc(p.name)}</span></td>
+             <td class="num"><span class="tier-pill ${ptTierCls(p.tier)}">${esc(p.tier || '')}</span></td><td class="num">${(+p.composite_score).toFixed(1)}</td></tr>`).join('')}</tbody></table>`
+            : '<div class="side-empty">No pitcher scores yet</div>';
+    }
+}
+
+// Everything around the tabs (called after batting data loads and on theme change)
+function renderShell() {
+    renderScoreboard();
+    renderSidebar();
+    const active = document.querySelector('.tab-btn.active');
+    if (active && active.id === 'tab-' + HOME_TAB) renderToday();
+}
+
+// ── THEME (dark / light) ─────────────────────────────────────────────────
+// First visit follows the device setting (set before paint in <head>); the
+// ☀/🌙 button saves a choice per device. Colors live in CSS variables; JS
+// that needs one at draw time reads it with cssVar().
+const THEME_KEY = 'mlb-theme';
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const currentTheme = () => document.documentElement.getAttribute('data-theme') || 'dark';
+
+// WCAG contrast of a hex color against white
+function _relLum(hex) {
+    const h = hex.replace('#', '');
+    const f = h.length === 3 ? h.split('').map(c => c + c).join('') : h.slice(0, 6);
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(f.slice(i, i + 2), 16) / 255)
+        .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const contrastOnWhite = hex => 1.05 / (_relLum(hex) + 0.05);
+// Same hue, darkened just enough to read on white (team names in team color)
+function readableOnLight(hex, min = 3.2) {
+    if (!/^#[0-9a-f]{3,6}$/i.test(hex || '')) return hex;
+    let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    let [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+    for (let k = 0; k < 20 && contrastOnWhite('#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')) < min; k++) {
+        r = Math.round(r * 0.88); g = Math.round(g * 0.88); b = Math.round(b * 0.88);
+    }
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+let _teamColorOriginals = null;
+function applyTeamTextColors() {
+    const maps = [teamColors, teamColorsPdf];
+    if (!_teamColorOriginals) _teamColorOriginals = maps.map(m => JSON.parse(JSON.stringify(m)));
+    const light = currentTheme() === 'light';
+    maps.forEach((m, i) => {
+        for (const k in m) {
+            const o = _teamColorOriginals[i][k];
+            m[k].primary = light ? readableOnLight(o.primary) : o.primary;
+        }
+    });
+}
+function updateThemeButton() {
+    const b = document.getElementById('theme-btn');
+    if (!b) return;
+    const light = currentTheme() === 'light';
+    b.textContent = light ? '🌙' : '☀️';
+    b.title = light ? 'Switch to dark mode' : 'Switch to light mode';
+    b.setAttribute('aria-label', b.title);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', light ? '#ffffff' : '#080a0f');
+}
+function toggleTheme() {
+    const t = currentTheme() === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+    applyTeamTextColors();
+    updateThemeButton();
+    // Redraw everything that baked colors into its HTML at render time
+    const active = document.querySelector('.tab-btn.active');
+    const n = active ? parseInt(active.id.replace('tab-', ''), 10) : HOME_TAB;
+    _applyingHash = true;
+    try { switchTab(n); } finally { _applyingHash = false; }
+    if (typeof updateSummaryBar === 'function') updateSummaryBar(n);
+    if (typeof renderShell === 'function') renderShell();
 }
 
 // ── CURRENT SEASON ──────────────────────────────────────────────────────
@@ -1841,6 +2238,9 @@ async function fetchFromSupabase() {
         if (!allRows.length) throw new Error('Table returned 0 rows');
         noteSeason(newestSeason(allRows.map(r => r.season)));
         loadFromRows(allRows);
+        applyTeamTextColors();
+        updateThemeButton();
+        renderShell();
 
         // Success state
         const now = new Date();
@@ -2390,7 +2790,7 @@ function miniYAxis(s, lg, mn, mx, yOf, pl, ptop, plotH, N = 5) {
         let ly = y;
         if (near.length) { const c = near.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a); ly = y <= c ? c - GAP : c + GAP; }
         ly = Math.max(ptop + 3, Math.min(ptop + plotH - 1, ly));
-        out += mark(y, ly, '#fff', s.fmt(lg));
+        out += mark(y, ly, 'var(--text)', s.fmt(lg));
     }
     return axis + out;
 }
@@ -3006,13 +3406,14 @@ function wireLhTips() {
 // ── PLAYER DETAIL CARD ────────────────────────────────────────────────────────
 let lhCardId = null, lhCardName = '';
 // Player card: one chart per stat with three handedness lines + the LG line.
-const CARD_SPLITS = [['no_split', 'Overall', '#e8eaf0'], ['vs_lhp', 'vs LHP', '#fbbf24'], ['vs_rhp', 'vs RHP', '#60a5fa']];
+// 'Overall' uses the theme's text color (read when the chart is drawn)
+const CARD_SPLITS = [['no_split', 'Overall', null], ['vs_lhp', 'vs LHP', '#fbbf24'], ['vs_rhp', 'vs RHP', '#60a5fa']];
 
 function buildPlayerCardChart(id, sk) {
     const meta = lsStatMeta[sk];
     const store = playerHist[id] || {};
     const series = CARD_SPLITS.map(([sp, lbl, color]) => ({
-        color,
+        color: color || cssVar('--text'),
         vals: LH_YEARS.map(yr => { const r = store[`${sp}-season-${yr}`]; return (r && _pn(r.pa) >= LH_MIN_PA) ? lhVal(r, sk) : null; }),
     }));
     const lgStore = playerHist['0'] || {};
@@ -3063,7 +3464,7 @@ function renderPlayerCard() {
     let tm = '';
     for (let y = CUR_SEASON; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
     const logo = teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : '';
-    const legend = CARD_SPLITS.map(([sp, lbl, col]) => `<div class="lh-card-leg"><span class="lh-card-sw" style="background:${col}"></span>${lbl}</div>`).join('') +
+    const legend = CARD_SPLITS.map(([sp, lbl, col]) => `<div class="lh-card-leg"><span class="lh-card-sw" style="background:${col || 'var(--text)'}"></span>${lbl}</div>`).join('') +
         `<div class="lh-card-leg"><span class="lh-card-sw dashed"></span>LG avg</div>`;
     const charts = LS_STATS.map((sk, i) =>
         `<div class="lh-card-stat"><div class="lh-card-statlbl">${LS_STAT_LABELS[i]}</div>${buildPlayerCardChart(id, sk)}</div>`).join('');
@@ -3857,7 +4258,6 @@ function switchTab(n) {
     activeBtn.classList.add('active');
     activeBtn.setAttribute('aria-selected','true');
     activeBtn.setAttribute('tabindex','0');
-    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
     document.getElementById('panel-'+n).classList.remove('hidden');
     updateSummaryBar(n);
@@ -3907,6 +4307,8 @@ function switchTab(n) {
         });
     }
     if (n===8) { initDailyReport(); }
+    if (n===HOME_TAB) renderToday();
+    closeNavMenus();
     syncHash(true);
 }
 
@@ -3916,17 +4318,34 @@ function switchTab(n) {
 (function() {
     const nav = document.getElementById('main-nav');
     if (!nav) return;
+    // Left/Right move across Today + the group buttons; Down opens a group's
+    // menu (or moves inside it), Up moves back; Escape closes.
     nav.addEventListener('keydown', function(e) {
+        const top = Array.from(nav.querySelectorAll('.nav-home, .nav-dd-btn'));
+        const inMenu = document.activeElement.closest('.nav-dd-menu');
+        if (e.key === 'Escape') { closeNavMenus(); const b = inMenu && inMenu.parentElement.querySelector('.nav-dd-btn'); if (b) b.focus(); return; }
+        if (inMenu && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            const items = Array.from(inMenu.querySelectorAll('.tab-btn'));
+            let i = items.indexOf(document.activeElement) + (e.key === 'ArrowDown' ? 1 : -1);
+            e.preventDefault();
+            if (i < 0) { closeNavMenus(); inMenu.parentElement.querySelector('.nav-dd-btn').focus(); return; }
+            items[Math.min(i, items.length - 1)].focus();
+            return;
+        }
+        if (e.key === 'ArrowDown' && document.activeElement.classList.contains('nav-dd-btn')) {
+            e.preventDefault(); openNavMenu(document.activeElement.parentElement);
+            document.activeElement.parentElement.querySelector('.tab-btn').focus();
+            return;
+        }
         if (!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
-        const tabs = Array.from(nav.querySelectorAll('.tab-btn'));
-        let i = tabs.indexOf(document.activeElement);
-        if (i === -1) i = tabs.findIndex(t => t.classList.contains('active'));
-        if (e.key === 'ArrowLeft')  i = (i - 1 + tabs.length) % tabs.length;
-        if (e.key === 'ArrowRight') i = (i + 1) % tabs.length;
+        const from = inMenu ? inMenu.parentElement.querySelector('.nav-dd-btn') : document.activeElement;
+        let i = top.indexOf(from);
+        if (i === -1) i = 0;
+        if (e.key === 'ArrowLeft')  i = (i - 1 + top.length) % top.length;
+        if (e.key === 'ArrowRight') i = (i + 1) % top.length;
         if (e.key === 'Home') i = 0;
-        if (e.key === 'End')  i = tabs.length - 1;
-        e.preventDefault();
-        tabs[i].focus();
+        if (e.key === 'End')  i = top.length - 1;
+        e.preventDefault(); closeNavMenus(); top[i].focus();
     });
 })();
 
@@ -3951,7 +4370,7 @@ function syncHash(isTabSwitch) {
     const params = new URLSearchParams();
     const active = document.querySelector('.tab-btn.active');
     const tab = active ? active.id.replace('tab-','') : '0';
-    if (tab !== '0') params.set('tab', tab);
+    if (tab !== String(HOME_TAB)) params.set('tab', tab);
     for (const [key, id, def] of HASH_FIELDS) {
         const el = document.getElementById(id);
         if (el && el.value.trim() !== def) params.set(key, el.value.trim());
@@ -3974,8 +4393,8 @@ function applyHash() {
         }
         if (params.get('away')) handleTeamInput('away');
         if (params.get('home')) handleTeamInput('home');
-        const tab = parseInt(params.get('tab') || '0', 10);
-        switchTab(document.getElementById('tab-'+tab) ? tab : 0);
+        const tab = parseInt(params.get('tab') || String(HOME_TAB), 10);
+        switchTab(document.getElementById('tab-'+tab) ? tab : HOME_TAB);
     } finally {
         _applyingHash = false;
     }
@@ -4875,6 +5294,8 @@ function reportExportPDF(btn) {
 
 
 window.onload = function() {
+    applyTeamTextColors();      // before anything draws team names in team colors
+    updateThemeButton();
     const dl = document.getElementById('team-list');
     allTeams.forEach(tm => { const o=document.createElement('option'); o.value=tm; dl.appendChild(o); });
     if (location.hash) applyHash();
