@@ -28,7 +28,7 @@ import requests
 import pandas as pd
 from datetime import date
 
-from season import SEASON, today as season_today
+from season import SEASON, regular_season_end, today as season_today
 from sb_replace import replace_rows
 
 # ── Secrets (from environment) ────────────────────────────────────────────────
@@ -69,8 +69,9 @@ SPLITS = [
 
 def get_month_windows():
     """(month_key, start_date, end_date) per calendar month that has started.
-    The current month is clipped to today (partial); future months are skipped."""
-    today = season_today()
+    Windows stop at today or at the last regular-season day, whichever is
+    first, so an offseason run never asks for an empty October."""
+    today = min(season_today(), regular_season_end(SEASON_YEAR))
     fmt = lambda d: f"{d.year}-{d.month}-{d.day}"
     windows = []
     for m in SEASON_MONTHS:
