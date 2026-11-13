@@ -216,7 +216,7 @@ def clean_records(df):
     return records
 
 def upsert_to_supabase(df):
-    """Replace each period's rows in one transaction (sql/replace_rows.sql).
+    """Replace each (period, split)'s rows in one transaction (sql/replace_rows.sql).
     A period whose swap fails keeps yesterday's rows; the run goes red."""
     if not SUPABASE_KEY:
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
@@ -235,10 +235,15 @@ def upsert_to_supabase(df):
         if df_p.empty:
             print(f"   ⏭️  period={period} — no data")
             continue
-        ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE,
-                          clean_records(df_p), where_col="period",
-                          where_val=period, label=f"splits_{period}")
-        all_ok = all_ok and ok
+        # One swap per (period, split): career with every pitcher is ~9.5k
+        # rows, and a single swap that size hit the statement timeout
+        for split in sorted(df_p["split"].unique()):
+            ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE,
+                              clean_records(df_p[df_p["split"] == split]),
+                              where_col="period", where_val=period,
+                              where_col2="split", where_val2=split,
+                              label=f"splits_{period}_{split}")
+            all_ok = all_ok and ok
     return all_ok
 
 # ─────────────────────────────────────────

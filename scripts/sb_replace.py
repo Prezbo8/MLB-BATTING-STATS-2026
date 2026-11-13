@@ -13,8 +13,9 @@ import requests
 
 
 def replace_rows(url, key, table, rows, where_col=None, where_val=None,
-                 label="", timeout=120):
-    """Replace `table` (or the rows where where_col = where_val) with `rows`.
+                 where_col2=None, where_val2=None, label="", timeout=120):
+    """Replace `table` (or the rows where where_col = where_val [and
+    where_col2 = where_val2]) with `rows`.
     Up to 3 attempts (5s/15s backoff). Returns True when the swap committed."""
     label = label or table
     if not rows:
@@ -31,6 +32,9 @@ def replace_rows(url, key, table, rows, where_col=None, where_val=None,
         "p_where_val": None if where_val is None else str(where_val),
         "p_rows":      rows,
     }
+    if where_col2 is not None:
+        body["p_where_col2"] = where_col2
+        body["p_where_val2"] = str(where_val2)
     for attempt in range(3):
         if attempt:
             wait = (5, 15)[attempt - 1]
