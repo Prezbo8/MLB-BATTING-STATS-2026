@@ -12,13 +12,21 @@
 --
 -- SECURITY INVOKER: runs with the caller's own rights, so it cannot do
 -- anything the caller's key could not already do with plain delete/insert.
--- Run once in the Supabase SQL editor.
+--   p_where_col2 / p_where_val2  optional second filter (AND), e.g. period +
+--               split, to swap a big period in smaller pieces (a 9.5k-row
+--               single swap hit the statement timeout)
+-- Run once in the Supabase SQL editor (drops the older 4-argument version).
+
+begin;
+drop function if exists public.replace_rows(text, text, text, jsonb);
 
 create or replace function public.replace_rows(
-    p_table     text,
-    p_where_col text,
-    p_where_val text,
-    p_rows      jsonb
+    p_table      text,
+    p_where_col  text,
+    p_where_val  text,
+    p_rows       jsonb,
+    p_where_col2 text default null,
+    p_where_val2 text default null
 ) returns integer
 language plpgsql
 security invoker
@@ -50,9 +58,12 @@ begin
 
     if p_where_col is null then
         execute format('delete from public.%I where true', p_table);
-    else
+    elsif p_where_col2 is null then
         execute format('delete from public.%I where %I::text = $1',
                        p_table, p_where_col) using p_where_val;
+    else
+        execute format('delete from public.%I where %I::text = $1 and %I::text = $2',
+                       p_table, p_where_col, p_where_col2) using p_where_val, p_where_val2;
     end if;
 
     execute format(
@@ -62,3 +73,4 @@ begin
     return n;
 end;
 $$;
+commit;

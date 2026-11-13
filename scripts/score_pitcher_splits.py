@@ -2,9 +2,10 @@
 Pitcher Splits — Scorer
 Reads master_splits.csv, scores all rows, uploads to Supabase.
 - season_score: percentile rank within (split + period), among pitchers
-  with at least MIN_TBF batters faced (rows below it stay unrated: no
-  season score, composite or tier)
-- composite_split_score: weighted avg across periods per (name, split)
+  with at least MIN_TBF batters faced (rows below it get no season score
+  but keep the composite + tier from the pitcher's other periods)
+- composite_split_score: weighted avg across periods per (name, split),
+  each period's weight scaled by batters faced (full at FULL_WEIGHT_TBF)
 - split_tier: Elite/Good/Mid/Bad/Ass
 
 Daily mode:
@@ -64,6 +65,18 @@ SPLIT_STAT_WEIGHTS = [
 # who faced 2 lefties can top the vs-LHH list and pushes real pitchers
 # down, so those rows are left out of the pool entirely.
 MIN_TBF = 30
+
+# A period's composite weight grows with batters faced: full weight at this
+# many, proportionally less below it (a few weeks of a new season shouldn't
+# outweigh a whole previous season)
+FULL_WEIGHT_TBF = 150
+
+# Every composite is blended with an "average pitcher" (score 50) worth this
+# much weight (about half a season). Established pitchers barely move; a
+# pitcher whose only data is one tiny season is pulled toward average instead
+# of ranking like a full season (regression to the mean).
+PRIOR_WEIGHT = 0.10
+PRIOR_SCORE  = 50.0
 
 # Rolling, relative to the current season (scripts/season.py), newest first.
 # Seasons older than the window get weight 0 (still shown, not counted).
@@ -163,10 +176,12 @@ def compute_composite_scores(df):
             period = str(row["period"])
             score  = row.get("season_score")
             if score is None or (isinstance(score, float) and math.isnan(score)): continue
-            yw = YEAR_WEIGHTS.get(period, 0.0)
+            tbf = pd.to_numeric(row["tbf"], errors="coerce")
+            yw = YEAR_WEIGHTS.get(period, 0.0) * min(1.0, (tbf if tbf > 0 else 0) / FULL_WEIGHT_TBF)
             num += float(score) * yw
             denom += yw
-        composite_map[(key, split)] = round(num / denom, 2) if denom > 0 else np.nan
+        composite_map[(key, split)] = (round((num + PRIOR_SCORE * PRIOR_WEIGHT) / (denom + PRIOR_WEIGHT), 2)
+                                       if denom > 0 else np.nan)
 
     # Percentile rank per split group 0-100
     for split_name in df["split"].unique():
@@ -178,9 +193,8 @@ def compute_composite_scores(df):
     df["composite_split_score"] = df.apply(
         lambda r: composite_map.get((r["player_key"], r["split"]), np.nan), axis=1
     )
-    # A row below MIN_TBF is unrated even if the pitcher has a composite
-    # from his other periods
-    df.loc[df["season_score"].isna(), "composite_split_score"] = np.nan
+    # Every row carries the pitcher's composite for that split — including a
+    # period below MIN_TBF (no season score), so early-season rows keep a tier
     df["split_tier"] = df["composite_split_score"].apply(get_tier)
     return df
 
@@ -202,7 +216,7 @@ def clean_records(df):
     return records
 
 def upsert_to_supabase(df):
-    """Replace each period's rows in one transaction (sql/replace_rows.sql).
+    """Replace each (period, split)'s rows in one transaction (sql/replace_rows.sql).
     A period whose swap fails keeps yesterday's rows; the run goes red."""
     if not SUPABASE_KEY:
         print("   ⏭️  Supabase skipped (no SUPABASE_KEY)")
@@ -221,10 +235,15 @@ def upsert_to_supabase(df):
         if df_p.empty:
             print(f"   ⏭️  period={period} — no data")
             continue
-        ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE,
-                          clean_records(df_p), where_col="period",
-                          where_val=period, label=f"splits_{period}")
-        all_ok = all_ok and ok
+        # One swap per (period, split): career with every pitcher is ~9.5k
+        # rows, and a single swap that size hit the statement timeout
+        for split in sorted(df_p["split"].unique()):
+            ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE,
+                              clean_records(df_p[df_p["split"] == split]),
+                              where_col="period", where_val=period,
+                              where_col2="split", where_val2=split,
+                              label=f"splits_{period}_{split}")
+            all_ok = all_ok and ok
     return all_ok
 
 # ─────────────────────────────────────────
