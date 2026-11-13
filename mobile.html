@@ -667,6 +667,7 @@ html.pd-lock { overflow: hidden; }
 .m-edge-part b { font-family: var(--mono); }
 .m-edge-na { color: var(--muted); font-size: 0.68rem; }
 .m-edge-note { margin-top: 6px; font-size: 0.66rem; color: var(--muted); }
+.m-edge-early { margin-top: 6px; padding: 5px 8px; border-radius: 8px; font-size: 0.68rem; color: var(--text2); background: rgba(var(--tint),0.05); border: 1px dashed var(--border2); }
 
 /* ══ SHELL (Round F1): theme button · scoreboard · Today ══ */
 .m-theme-btn { width: 34px; height: 30px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface2); font-size: 0.9rem; line-height: 1; flex-shrink: 0; margin-left: auto; }
@@ -1429,7 +1430,7 @@ function switchPanel(id) {
     if (id === 'pitchers') ensurePitchers();
     if (id === 'compare') { initComparePickers(); renderMobileCompare(); }
     if (id === 'hotcold') renderHCTeams();
-    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex()]).then(() => renderLineupsMobile());
+    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex(), loadBatterPriors()]).then(() => renderLineupsMobile());
     if (id === 'rpg') ensureRPG().then(() => renderRPG());
     if (id === 'report') initMobileReport();
     if (id === 'today') renderToday();
@@ -2563,6 +2564,45 @@ function fillSparks(root, split, isCurrent, w, h) {
     });
 }
 
+// ── EARLY-SEASON PRIORS (Round G1) ──────────────────────────────────────
+// In April a batter's line is a few days of games. His current-season line leans on
+// last season's line (worth PRIOR_PA plate appearances); last season's line itself
+// leans on 100 by LAST_SEASON_SHRINK_PA, and rookies with no history start at 100.
+// By May it is mostly this season's numbers; on Opening Day mostly last year's.
+const PRIOR_PA = 60, LAST_SEASON_SHRINK_PA = 100, EARLY_PA = 100;
+let _priorIdx = null, _priorP = null;
+function loadBatterPriors() {
+    if (_priorIdx) return Promise.resolve(_priorIdx);
+    if (!_priorP) _priorP = (async () => {
+        const S = await trendSeason();
+        if (!S) throw new Error('no season');
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/fangraphs_player_history?select=playerid,name,wrcplus,pa&season=eq.${S - 1}&split=eq.no_split&period=eq.season`, { headers: _trendHdr() });
+        const rows = await r.json();
+        if (!Array.isArray(rows)) throw new Error('bad response');
+        const byId = {}, byName = {};
+        rows.forEach(x => {
+            const v = parseFloat(x.wrcplus), pa = +x.pa || 0;
+            if (isNaN(v) || !pa) return;
+            const o = { wrc: v, pa };
+            if (x.playerid != null) byId[String(x.playerid)] = o;
+            const k = normalizeName(x.name || '');
+            (byName[k] = byName[k] || []).push(o);
+        });
+        return (_priorIdx = { byId, byName });
+    })().catch(e => { console.warn('[batter priors]', e); _priorP = null; return null; });
+    return _priorP;
+}
+function batterPrior(name, playerid) {
+    let last = null;
+    if (_priorIdx) {
+        last = (playerid && _priorIdx.byId[playerid]) || null;
+        if (!last) { const c = _priorIdx.byName[normalizeName(name)]; if (c && c.length === 1) last = c[0]; }  // same name twice: no guess
+    }
+    return last ? { wrc: (last.wrc * last.pa + 100 * LAST_SEASON_SHRINK_PA) / (last.pa + LAST_SEASON_SHRINK_PA), lastWrc: last.wrc, lastPa: last.pa }
+                : { wrc: 100, lastWrc: null, lastPa: 0 };
+}
+const pctOrdinal = n => { const t = n % 100; return (t >= 11 && t <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'); };
+
 // ── MATCHUPS (Round F2): batters vs the opposing starter's hand + edges ──
 // Same math as the desktop page: a vs-hand split is blended with the batter's
 // overall line counted as SPLIT_PRIOR_PA plate appearances (small splits are noise).
@@ -2576,23 +2616,30 @@ function batterVsHand(p, abbr, hand) {
     const split = sp ? findPlayerStats(name, abbr, `${sp}-season`) : null;
     const all = findPlayerStats(name, abbr, 'no_split-season');
     const ok = v => v && !isNaN(v.wrcPlus) && v.pa > 0;
-    if (ok(split) && ok(all)) return { wrc: (split.wrcPlus * split.pa + all.wrcPlus * SPLIT_PRIOR_PA) / (split.pa + SPLIT_PRIOR_PA), pa: split.pa, fallback: false };
-    if (ok(split)) return { wrc: split.wrcPlus, pa: split.pa, fallback: false };
-    if (ok(all)) return { wrc: all.wrcPlus, pa: all.pa, fallback: true };
+    const prior = batterPrior(name, (all && all.playerid) || (split && split.playerid));
+    // 1. His overall line: this season's PA, leaning on last season (Round G1)
+    const curPa = ok(all) ? all.pa : 0;
+    const overall = ((curPa ? all.wrcPlus * curPa : 0) + prior.wrc * PRIOR_PA) / (curPa + PRIOR_PA);
+    // 2. His vs-hand split, leaning on that overall line
+    if (ok(split)) {
+        const wrc = (split.wrcPlus * split.pa + overall * SPLIT_PRIOR_PA) / (split.pa + SPLIT_PRIOR_PA);
+        return { wrc, pa: split.pa, raw: split.wrcPlus, overall, curPa, prior, fallback: false };
+    }
+    if (curPa || prior.lastPa) return { wrc: overall, pa: curPa, overall, curPa, prior, fallback: true, splitPa: split ? split.pa : 0 };
     return null;
 }
 function lineupVsHand(bats, abbr, hand) {
     if (!bats.length) return null;
-    let w = 0, acc = 0, n = 0;
+    let w = 0, acc = 0, n = 0; const curPas = [];
     bats.forEach(p => {
         const v = batterVsHand(p, abbr, hand);
         if (!v) return;
         const wt = PA_BY_SLOT[(p.order || 0) - 1] ?? 4.2;
-        w += wt; acc += wt * v.wrc; n++;
+        w += wt; acc += wt * v.wrc; n++; curPas.push(v.curPa || 0);
     });
-    return n ? { wrc: Math.round(acc / w), n, total: bats.length } : null;
+    return n ? { wrc: Math.round(acc / w), n, total: bats.length, curPas } : null;
 }
-let _pitcherIdx = null, _pitcherIdxPromise = null;
+let _pitcherIdx = null, _pitcherIdxPromise = null, _pitcherPrev = null;
 function loadPitcherIndex() {
     if (_pitcherIdx) return Promise.resolve(_pitcherIdx);
     if (!_pitcherIdxPromise) _pitcherIdxPromise = (async () => {
@@ -2608,7 +2655,15 @@ function loadPitcherIndex() {
             const r = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip&season=eq.${season}`,
                 { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
             const rows = await r.json();
-            _pitcherIdx = Array.isArray(rows) ? rows : [];
+            const cur = Array.isArray(rows) ? rows : [];
+            // Early season (under 20 starters at 100 IP): also load last season's rows,
+            // for the starter yardstick and for starters who haven't pitched yet
+            if (cur.filter(p => +p.ip >= 100).length < 20) {
+                const q2 = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip&season=eq.${season - 1}`, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+                const prev = await q2.json();
+                _pitcherPrev = Array.isArray(prev) ? prev : null;
+            }
+            _pitcherIdx = cur;
         } catch (e) { console.warn('[pitcher index]', e); _pitcherIdxPromise = null; return []; }
         return _pitcherIdx;
     })();
@@ -2617,8 +2672,13 @@ function loadPitcherIndex() {
 // A starter's edge is measured against other starters (100+ IP), not all pitchers
 function starterScale() {
     if (starterScale._v) return starterScale._v;
-    const v = (_pitcherIdx || []).filter(p => +p.ip >= 100 && p.composite_score != null).map(p => +p.composite_score).sort((a, b) => a - b);
+    // Until 20 starters reach 100 IP this season (about June), use last season's
+    // 100+ IP starters — nearly the same group, scored with their history (Round G1)
+    const pool = rows => (rows || []).filter(p => +p.ip >= 100 && p.composite_score != null).map(p => +p.composite_score);
+    let v = pool(_pitcherIdx);
+    if (v.length < 20) v = pool(_pitcherPrev);
     if (v.length < 20) return { mid: 50, sd: 25 };
+    v.sort((a, b) => a - b);
     const mid = v[Math.floor(v.length / 2)];
     const sd = Math.sqrt(v.reduce((a, x) => a + (x - mid) ** 2, 0) / v.length) || 25;
     return (starterScale._v = { mid, sd });
@@ -2628,10 +2688,12 @@ function findPitcherScore(name, team) {
     const full = normalizeName(name);
     const last = full.split(' ').slice(-1)[0], fi = full[0];
     const same = p => normalizeName(p.name);
-    return _pitcherIdx.find(p => same(p) === full && p.team === team)
-        || _pitcherIdx.find(p => same(p) === full)
-        || _pitcherIdx.find(p => same(p).split(' ').slice(-1)[0] === last && same(p)[0] === fi && p.team === team)
-        || null;
+    const look = list => list.find(p => same(p) === full && p.team === team)
+        || list.find(p => same(p) === full)
+        || list.find(p => same(p).split(' ').slice(-1)[0] === last && same(p)[0] === fi && p.team === team);
+    // Early season: a starter who hasn't pitched yet is found in last season's rows
+    // (a pitcher's score is shared by all his rows, so it is his current score)
+    return look(_pitcherIdx) || (_pitcherPrev ? look(_pitcherPrev) : null) || null;
 }
 const mSpPill = (name, abbr) => {
     const ps = findPitcherScore(name, abbr);
@@ -3337,7 +3399,7 @@ async function renderToday() {
 // Page adapters for the shared drawer code below
 const PD_LOGO = abbr => teamLogo(abbr) ? `<img src="${teamLogo(abbr)}" alt="" onerror="this.style.opacity='.15'">` : '';
 const PD_COLOR = abbr => teamColor(abbr);
-const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex()]);
+const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex(), loadBatterPriors()]);
 const PD_EDGE = (offRec, offAbbr, defRec, defAbbr) => {
     const bo = offRec?.batting_order;
     const bats = Array.isArray(bo) ? bo : (() => { try { return bo ? JSON.parse(bo) : []; } catch (e) { return []; } })();
@@ -3488,7 +3550,7 @@ function pdStrengths(r, pool, S) {
     return `<section class="pd-sec"><h3>Strengths &amp; weaknesses</h3>
         ${items.map(o => `<div class="pd-srow"><span class="pd-slbl">${o.st.label}</span><span class="pd-sval">${o.st.fmt(o.v)}</span>
             <span class="pd-bbar"><span style="width:${Math.max(2, o.pct)}%" class="b-${pdTier(o.pct).toLowerCase()}"></span></span>
-            <span class="pd-spct t-${pdTier(o.pct).toLowerCase()}">${o.pct}<small>th</small></span></div>`).join('')}
+            <span class="pd-spct t-${pdTier(o.pct).toLowerCase()}">${o.pct}<small>${pctOrdinal(o.pct)}</small></span></div>`).join('')}
         <p class="pd-note">Percentile among the ${items[0].n} pitchers with ${PD_MIN_IP}+ IP in ${S} (higher = better, so a low ERA-type stat scores high). These are the 8 stats that weigh most in the score.</p></section>`;
 }
 
@@ -3592,7 +3654,7 @@ document.addEventListener('keydown', e => {
 async function renderTodayEdges() {
     const el = document.getElementById('today-edges');
     if (!el) return;
-    try { await Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex()]); }
+    try { await Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex(), loadBatterPriors()]); }
     catch (e) { el.innerHTML = '<div class="m-sb-empty">Lineups unavailable right now</div>'; return; }
     const dates = [...new Set(lineupGames.map(r => r.game_date).filter(Boolean))].sort();
     const head = document.getElementById('today-edges-date');
@@ -3603,6 +3665,8 @@ async function renderTodayEdges() {
         return { a, h, size: Math.max(Math.abs(a?.z || 0), Math.abs(h?.z || 0)) };
     }).filter(g => g.a || g.h).sort((x, y) => y.size - x.size);
     if (!games.length) { el.innerHTML = '<div class="m-sb-empty">No lineups posted yet</div>'; return; }
+    const _cp = games.flatMap(g => [g.a, g.h]).filter(Boolean).flatMap(e => e.lv.curPas || []);
+    const early = _cp.length && _cp.filter(x => x < EARLY_PA).length / _cp.length > 0.5;
     const side = e => !e ? '' : `<div class="m-edge-side">${shellLogo(e.off, 18)}<b style="color:${teamColor(e.off)}">${esc(e.off)}</b>
             <span class="m-edge-part">${handLabel(e.hand)} <b class="t-${getTier(WRC_META, e.lv.wrc)}">${e.lv.wrc}</b> · <span${pdAttr(e.sp, e.def)}>${esc(lastName(e.sp))}</span></span>
             ${e.ps && e.ps.composite_score != null ? `<span class="tier-pill ${tierCls(e.ps.tier)}">${esc(e.ps.tier)} ${Math.round(e.ps.composite_score)}</span>` : '<span class="m-edge-na">no score</span>'}
@@ -3610,6 +3674,7 @@ async function renderTodayEdges() {
     const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => Math.abs(y.z) - Math.abs(x.z))[0];
     el.innerHTML = games.map(g => { const t = top(g); return `<div class="m-edge" onclick="switchPanel('lineups')">
             <div class="m-edge-label ${Math.abs(t.z) >= 1 ? 'strong' : Math.abs(t.z) >= 0.4 ? 'lean' : ''}">${esc(t.label)}</div>${side(g.a)}${side(g.h)}</div>`; }).join('')
+        + (early ? `<div class="m-edge-early">Early season: batter numbers still lean on last season's lines; starters are measured against last season's 100+ IP starters.</div>` : '')
         + `<div class="m-edge-note">Lineup = wRC+ vs the starter's hand (100 = average); starter = pitcher score. A summary, not a prediction.</div>`;
 }
 function renderShell() {
