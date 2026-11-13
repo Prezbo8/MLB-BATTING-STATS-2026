@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MLB • Mobile</title>
+<script>
+// Theme before first paint: saved choice, else the device setting
+(function () {
+    var t = localStorage.getItem('mlb-theme');
+    if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 <link rel="apple-touch-icon" sizes="180x180" href="/MLB-BATTING-STATS-2026/assets/apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="/MLB-BATTING-STATS-2026/assets/favicon.ico">
 <link rel="manifest" href="/MLB-BATTING-STATS-2026/manifest.json">
@@ -99,6 +107,30 @@
     --nav-h: 62px;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+:root { --tint: 255,255,255; --header-bg: linear-gradient(135deg, #0c1830 0%, #0f1520 55%, #180810 100%); --nav-bg: rgba(14,17,24,0.97); color-scheme: dark; }
+[data-theme="light"] {
+    --bg:       #f2f4f8;
+    --surface:  #ffffff;
+    --surface2: #f5f7fb;
+    --surface3: #e9edf4;
+    --border:   #dde2eb;
+    --border2:  #cdd3de;
+    --accent:   #d62839;
+    --blue:     #2563eb;
+    --orange:   #ea580c;
+    --text:     #111827;
+    --text2:    #475066;
+    --muted:    #6b7487;
+    --elite: #15803d;
+    --good:  #4d7c0f;
+    --mid:   #a16207;
+    --bad:   #c2410c;
+    --ass:   #dc2626;
+    --tint: 15,23,42;
+    --header-bg: linear-gradient(135deg, #ffffff 0%, #f6f8fc 60%, #fdf2f3 100%);
+    --nav-bg: rgba(255,255,255,0.97);
+    color-scheme: light;
+}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
 body {
@@ -116,7 +148,7 @@ body::before {
 /* ── TOP HEADER ──────────────────────────────────────────────────────────── */
 .m-header {
     position: relative; z-index: 100; flex-shrink: 0;
-    background: linear-gradient(135deg, #0c1830 0%, #0f1520 55%, #180810 100%);
+    background: var(--header-bg);
     border-bottom: 1px solid var(--border);
     padding: 0 16px;
     padding-top: env(safe-area-inset-top, 0px);
@@ -161,7 +193,7 @@ body::before {
 /* ── BOTTOM NAV ─────────────────────────────────────────────────────────── */
 .m-nav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-    background: rgba(14,17,24,0.97);
+    background: var(--nav-bg);
     border-top: 1px solid var(--border);
     backdrop-filter: blur(12px);
     display: flex; align-items: stretch;
@@ -545,6 +577,33 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 .tier-mid   { background: rgba(250,204,21,0.13); color: var(--mid);   border: 1px solid rgba(250,204,21,0.3); }
 .tier-bad   { background: rgba(249,115,22,0.13); color: var(--bad);   border: 1px solid rgba(249,115,22,0.3); }
 .tier-ass   { background: rgba(239,68,68,0.13);  color: var(--ass);   border: 1px solid rgba(239,68,68,0.3); }
+
+/* ══ SHELL (Round F1): theme button · scoreboard · Today ══ */
+.m-theme-btn { width: 34px; height: 30px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface2); font-size: 0.9rem; line-height: 1; flex-shrink: 0; margin-left: auto; }
+.m-scoreboard { flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border); position: relative; z-index: 5; }
+.m-sb-track { display: flex; gap: 6px; overflow-x: auto; padding: 6px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+.m-sb-track::-webkit-scrollbar { display: none; }
+.m-sb-game { flex: 0 0 auto; min-width: 92px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); text-align: left; scroll-snap-align: start; }
+.m-sb-time { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); }
+.m-sb-team { display: flex; align-items: center; gap: 5px; font-family: var(--display); font-weight: 800; font-size: 0.8rem; }
+.m-sb-score { margin-left: auto; font-family: var(--mono); color: var(--text2); }
+.m-sb-empty { font-family: var(--display); font-size: 0.8rem; letter-spacing: 0.04em; color: var(--text2); padding: 4px 0; }
+.m-sb-empty b { color: var(--text); }
+.m-today { display: flex; flex-direction: column; gap: 12px; }
+.m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.m-card-h { font-family: var(--display); font-size: 0.85rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+.m-side-sub { font-family: var(--display); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; }
+.m-side-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.m-side-row:last-child { border-bottom: none; }
+.m-side-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-side-val { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.m-side-val small { color: var(--muted); font-size: 0.68rem; }
+.m-side-val.pos small { color: var(--elite); } .m-side-val.neg small { color: var(--ass); }
+.m-tg { padding: 8px 0; border-bottom: 1px solid var(--border); } .m-tg:last-child { border-bottom: none; }
+.m-tg-time { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); margin-bottom: 2px; }
+.m-tg-team { display: grid; grid-template-columns: 20px 40px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 2px 0; font-size: 0.82rem; }
+.m-tg-sp { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-tg-score { font-family: var(--mono); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -573,17 +632,31 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
             <div class="m-brand-sub">Offense Analyzer</div>
         </div>
     </div>
+    <button type="button" class="m-theme-btn" id="theme-btn" onclick="toggleTheme()" aria-label="Switch theme">☀️</button>
     <button class="m-status-btn loading" id="m-sync-btn" onclick="fetchData()" title="Sync data">
         <span id="m-sync-icon" class="spin">↻</span>
         <span id="m-sync-label">Loading…</span>
     </button>
 </header>
 
+<div class="m-scoreboard" aria-label="Today's games"><div class="m-sb-track" id="sb-track"><div class="m-sb-empty">Loading today's games…</div></div></div>
+
 <!-- MAIN PANELS -->
 <main class="m-main">
 
+    <!-- PANEL: TODAY -->
+    <div id="mp-today" class="m-panel active">
+        <div class="m-today">
+            <section class="m-card"><h3 class="m-card-h" id="today-title">Today</h3><div id="today-games"><div class="m-sb-empty">Loading…</div></div></section>
+            <section class="m-card"><h3 class="m-card-h">Top offenses · season wRC+</h3><div id="today-offense"></div></section>
+            <section class="m-card"><h3 class="m-card-h">Top pitchers · score</h3><div id="today-pitchers"></div></section>
+            <section class="m-card"><h3 class="m-card-h">Leaders</h3><div id="side-leaders"></div></section>
+            <section class="m-card"><h3 class="m-card-h">Hot &amp; cold · last 7 days</h3><div id="side-hot"></div></section>
+        </div>
+    </div>
+
     <!-- PANEL: RANKINGS -->
-    <div id="mp-rankings" class="m-panel active">
+    <div id="mp-rankings" class="m-panel">
         <div class="m-section-title">Team Rankings</div>
         <div class="m-filters">
             <div class="m-filter-group">
@@ -1017,7 +1090,11 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 
 <!-- BOTTOM NAV -->
 <nav class="m-nav">
-    <button class="m-nav-btn active" id="nav-rankings" onclick="switchPanel('rankings')">
+    <button class="m-nav-btn active" id="nav-today" onclick="switchPanel('today')">
+        <span class="m-nav-icon">🏠</span>
+        <span class="m-nav-label">Today</span>
+    </button>
+    <button class="m-nav-btn" id="nav-rankings" onclick="switchPanel('rankings')">
         <span class="m-nav-icon">📊</span>
         <span class="m-nav-label">Teams</span>
     </button>
@@ -1220,7 +1297,8 @@ function fmtStat(key, val) {
     return m ? m.fmt(val) : val;
 }
 function teamColor(abbr) {
-    return (teamColorsPdf[abbr] || { primary: '#9aa3b8' }).primary;
+    const c = (teamColorsPdf[abbr] || { primary: '#9aa3b8' }).primary;
+    return currentTheme() === 'light' ? readableOnLight(c) : c;   // team names stay readable on white
 }
 function teamLogo(abbr) {
     return teamLogos[abbr] || '';
@@ -1263,6 +1341,7 @@ function switchPanel(id) {
     if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers()]).then(() => renderLineupsMobile());
     if (id === 'rpg') ensureRPG().then(() => renderRPG());
     if (id === 'report') initMobileReport();
+    if (id === 'today') renderToday();
 }
 
 // ── DATA FETCH ──────────────────────────────────────────────────────────────
@@ -1294,6 +1373,7 @@ async function fetchData() {
         if (!rows.length) throw new Error('0 rows');
         noteSeason(newestSeason(rows.map(r => r.season)));
         loadTeamRows(rows);
+        renderShell();
         const now = new Date();
         const ts = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
         btn.className = 'm-status-btn loaded';
@@ -2873,7 +2953,157 @@ function setPspStat(i, key) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+
+// ── THEME (dark / light) ────────────────────────────────────────────────────
+const THEME_KEY = 'mlb-theme';
+const currentTheme = () => document.documentElement.getAttribute('data-theme') || 'dark';
+function _relLum(hex) {
+    const h = hex.replace('#', '');
+    const f = h.length === 3 ? h.split('').map(c => c + c).join('') : h.slice(0, 6);
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(f.slice(i, i + 2), 16) / 255)
+        .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function readableOnLight(hex, min = 3.2) {
+    if (!/^#[0-9a-f]{3,6}$/i.test(hex || '')) return hex;
+    let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    let [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+    const hx = () => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+    for (let k = 0; k < 20 && 1.05 / (_relLum(hx()) + 0.05) < min; k++) { r = Math.round(r * 0.88); g = Math.round(g * 0.88); b = Math.round(b * 0.88); }
+    return hx();
+}
+function updateThemeButton() {
+    const b = document.getElementById('theme-btn'); if (!b) return;
+    const light = currentTheme() === 'light';
+    b.textContent = light ? '🌙' : '☀️';
+    b.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode');
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', light ? '#ffffff' : '#080a0f');
+}
+function toggleTheme() {
+    const t = currentTheme() === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+    updateThemeButton();
+    const active = document.querySelector('.m-nav-btn.active');
+    switchPanel(active ? active.id.replace('nav-', '') : 'today');   // redraw colors baked into HTML
+    renderShell();
+}
+
+// ── SHELL: scoreboard + Today (mirrors the desktop page) ─────────────────────
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const localDateStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fmtDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+const lastName = n => (n || '').split(' ').slice(-1)[0];
+const shellLogo = (abbr, size) => teamLogo(abbr) ? logoImg(abbr, size) : `<span style="display:inline-block;width:${size}px;height:${size}px"></span>`;
+const tierCls = t => t ? 'tier-' + String(t).toLowerCase() : '';
+
+let _slate = null;
+async function loadSlate() {
+    if (_slate) return _slate;
+    const today = localDateStr();
+    const games = async q => {
+        const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&hydrate=team,probablePitcher&${q}`);
+        const j = await r.json();
+        return (j.dates || []).flatMap(d => (d.games || []).map(g => ({ ...g, _date: d.date })))
+            .filter(g => !['A', 'E', 'S'].includes(g.gameType));
+    };
+    try {
+        let list = await games(`date=${today}`), label = "Today's games";
+        if (!list.length) {
+            const end = localDateStr(new Date(Date.now() + 14 * 864e5));
+            const soon = await games(`startDate=${today}&endDate=${end}`);
+            if (soon.length) { const d = soon[0]._date; list = soon.filter(g => g._date === d); label = `Next games · ${fmtDay(d)}`; }
+        }
+        let opening = null;
+        if (!list.length) {
+            const y = +today.slice(0, 4);
+            for (const yr of [y, y + 1]) {
+                const r = await fetch(`https://statsapi.mlb.com/api/v1/seasons/${yr}?sportId=1`);
+                const sd = ((await r.json()).seasons || [])[0]?.regularSeasonStartDate;
+                if (sd && sd > today) { opening = sd; break; }
+            }
+        }
+        _slate = { label, opening, games: list.map(g => {
+            const side = t => ({ abbr: MLB_NAME_TO_ABBR[t.team?.name] || t.team?.abbreviation || '', score: t.score, sp: t.probablePitcher?.fullName || '' });
+            return { time: g.gameDate, state: g.status?.abstractGameState, detail: g.status?.detailedState, away: side(g.teams.away), home: side(g.teams.home) };
+        }) };
+    } catch (e) { console.warn('[slate]', e); _slate = { label: "Today's games", opening: null, games: [], error: true }; }
+    return _slate;
+}
+const gameTime = g => g.state === 'Final' ? 'Final' : g.state === 'Live' ? (g.detail || 'Live')
+    : new Date(g.time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+
+async function renderScoreboard() {
+    const track = document.getElementById('sb-track'); if (!track) return;
+    const s = await loadSlate();
+    if (!s.games.length) {
+        track.innerHTML = `<div class="m-sb-empty">${s.error ? 'Schedule unavailable' : 'No games today'}${s.opening ? ` · <b>Opening Day ${fmtDay(s.opening)}</b>` : ''}</div>`;
+        return;
+    }
+    const row = t => `<div class="m-sb-team">${shellLogo(t.abbr, 16)}<span style="color:${teamColor(t.abbr)}">${esc(t.abbr)}</span>${t.score != null ? `<span class="m-sb-score">${t.score}</span>` : ''}</div>`;
+    track.innerHTML = s.games.map(g => `<button type="button" class="m-sb-game" onclick="switchPanel('lineups')">
+        <div class="m-sb-time">${esc(gameTime(g))}</div>${row(g.away)}${row(g.home)}</button>`).join('');
+}
+
+let _pitchLeaders = null;
+async function loadPitcherLeaders() {
+    if (_pitchLeaders || !CUR_SEASON) return _pitchLeaders;
+    const H = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+    const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
+    try {
+        const [score, era] = await Promise.all([
+            fetch(`${base}&composite_score=not.is.null&ip=gte.20&order=composite_score.desc&limit=10`, { headers: H }).then(r => r.json()),
+            fetch(`${base}&ip=gte.100&order=era.asc&limit=3`, { headers: H }).then(r => r.json()),
+        ]);
+        _pitchLeaders = { score: Array.isArray(score) ? score : [], era: Array.isArray(era) ? era : [] };
+    } catch (e) { _pitchLeaders = { score: [], era: [] }; }
+    return _pitchLeaders;
+}
+const sRow = (abbr, name, val, cls = '') =>
+    `<div class="m-side-row">${shellLogo(abbr, 18)}<span class="m-side-name">${esc(name)}</span><span class="m-side-val ${cls}">${val}</span></div>`;
+
+async function renderToday() {
+    const s = await loadSlate();
+    const title = document.getElementById('today-title'); if (title) title.textContent = s.games.length ? s.label : 'Today';
+    const ge = document.getElementById('today-games');
+    if (ge) ge.innerHTML = s.games.length ? s.games.map(g => `<div class="m-tg">
+            <div class="m-tg-time">${esc(gameTime(g))}</div>
+            ${[g.away, g.home].map(t => `<div class="m-tg-team">${shellLogo(t.abbr, 20)}<b style="color:${teamColor(t.abbr)}">${esc(t.abbr)}</b><span class="m-tg-sp">${esc(t.sp || 'TBD')}</span>${t.score != null ? `<span class="m-tg-score">${t.score}</span>` : ''}</div>`).join('')}
+        </div>`).join('')
+        : `<div class="m-sb-empty">No games today.${s.opening ? ` Opening Day is <b>${fmtDay(s.opening)}</b>.` : ''} Season stats below are final.</div>`;
+    const season = allData['no_split-season'] || [];
+    const off = document.getElementById('today-offense');
+    if (off && season.length) off.innerHTML = [...season].sort((a, b) => b.wrcPlus - a.wrcPlus).slice(0, 10)
+        .map((t, i) => sRow(t.tm, `${i + 1}. ${t.tm}`, `${Math.round(t.wrcPlus)} <small>${t.ops.toFixed(3).replace(/^0/, '')}</small>`)).join('');
+    const pl = await loadPitcherLeaders();
+    const pit = document.getElementById('today-pitchers');
+    if (pit && pl) pit.innerHTML = pl.score.length ? pl.score.map((p, i) =>
+        sRow(p.team, `${i + 1}. ${p.name}`, `<span class="tier-pill ${tierCls(p.tier)}">${esc(p.tier || '')}</span> ${(+p.composite_score).toFixed(1)}`)).join('')
+        : '<div class="m-sb-empty">No pitcher scores yet</div>';
+    const lead = document.getElementById('side-leaders');
+    const top = (k, n = 3) => [...season].sort((a, b) => b[k] - a[k]).slice(0, n);
+    const sub = t => `<div class="m-side-sub">${t}</div>`;
+    if (lead && season.length) lead.innerHTML =
+        sub('OPS') + top('ops').map(t => sRow(t.tm, t.tm, t.ops.toFixed(3).replace(/^0/, ''))).join('') +
+        (pl && pl.era.length ? sub('ERA · 100+ IP') + pl.era.map(p => sRow(p.team, p.name, (+p.era).toFixed(2))).join('') : '');
+    const hot = document.getElementById('side-hot');
+    const l7 = allData['no_split-last_7'] || [];
+    const bySeason = Object.fromEntries(season.map(t => [t.tm, t.wrcPlus]));
+    const delta = l7.filter(t => bySeason[t.tm] != null).map(t => ({ tm: t.tm, d: t.wrcPlus - bySeason[t.tm], v: t.wrcPlus })).sort((a, b) => b.d - a.d);
+    const fd = d => (d > 0 ? '+' : '') + Math.round(d);
+    if (hot) hot.innerHTML = delta.length
+        ? sub('🔥 Hottest') + delta.slice(0, 3).map(t => sRow(t.tm, t.tm, `${Math.round(t.v)} <small>${fd(t.d)}</small>`, 'pos')).join('') +
+          sub('🧊 Coldest') + delta.slice(-3).reverse().map(t => sRow(t.tm, t.tm, `${Math.round(t.v)} <small>${fd(t.d)}</small>`, 'neg')).join('')
+        : '<div class="m-sb-empty">No last-7-days data</div>';
+}
+function renderShell() {
+    renderScoreboard();
+    const active = document.querySelector('.m-nav-btn.active');
+    if (!active || active.id === 'nav-today') renderToday();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    updateThemeButton();
     initRStatPickers();
     initPStatPickers();
     fetchData();
