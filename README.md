@@ -64,3 +64,19 @@ repo activity).
 Writers use the service-role key (`SUPABASE_KEY` secret); the site and bot only
 read with the public key.
 
+## Tests
+
+`tests/` is an offline test suite (`python -m pytest -q tests`, ~6 s): the
+season rule, history month windows, the one-season guard, scoring on a small
+fixed sample (with saved expected scores), a dry run of every scraper's
+`main()` and of both pitcher chains, Supabase swap sizes (≤ 3,000 rows each),
+page JavaScript syntax and workflow files. Every HTTP call is answered from
+`tests/fixtures/` (trimmed real responses) — no secrets, no network, no live
+data. `tests.yml` runs it on every push and PR; merging into `main` requires it
+to pass.
+
+- Changed scoring on purpose? `UPDATE_SNAPSHOTS=1 python -m pytest tests/test_scoring.py`
+  and review the `tests/fixtures/scoring/expected_*.csv` diff.
+- A site changed its response format? Re-record with `python tests/record_fixtures.py`
+  (from a machine FanGraphs doesn't block).
+
