@@ -80,3 +80,12 @@ to pass.
 - A site changed its response format? Re-record with `python tests/record_fixtures.py`
   (from a machine FanGraphs doesn't block).
 
+## Backtest
+
+`BACKTEST.md` answers "does the pitcher score predict anything?": each season
+2022–2026 is scored as of Opening Day from earlier data only (no look-ahead),
+then compared with runs allowed that season and in every start, against SIERA,
+xFIP, K-BB%, Pitching+ and ERA, with 95% ranges. Rerun with
+`python scripts/backtest.py` (downloads cached in `backtest_cache/`, not committed;
+read-only — changes no scores).
+
