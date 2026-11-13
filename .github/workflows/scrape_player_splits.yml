@@ -7,6 +7,11 @@ on:
     # Retry 15:00 UTC — runs only if the first run failed (see job 'check')
     - cron: '0 15 * * *'
   workflow_dispatch:
+    inputs:
+      pretend_date:
+        description: "Pretend today is YYYY-MM-DD (rehearsals; empty = really today)"
+        required: false
+        default: ""
 
 permissions:
   actions: read     # job 'check' looks up today's earlier runs
@@ -65,4 +70,5 @@ jobs:
           SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
           TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MLB_TODAY:        ${{ inputs.pretend_date }}   # empty on schedules = really today
         run: python scripts/scrape_player_splits.py

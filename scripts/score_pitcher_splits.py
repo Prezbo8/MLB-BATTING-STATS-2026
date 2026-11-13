@@ -183,12 +183,18 @@ def compute_composite_scores(df):
         composite_map[(key, split)] = (round((num + PRIOR_SCORE * PRIOR_WEIGHT) / (denom + PRIOR_WEIGHT), 2)
                                        if denom > 0 else np.nan)
 
-    # Percentile rank per split group 0-100
+    # Percentile 0-100 per split against ACTIVE pitchers (a row in the newest
+    # period of the data or the one before)
+    years  = [int(p) for p in df["period"].astype(str).unique() if p.isdigit()]
+    newest = max(years) if years else None
     for split_name in df["split"].unique():
         vals = pd.Series({k: v for k, v in composite_map.items()
                           if k[1] == split_name}).dropna()
         if vals.empty: continue
-        composite_map.update((vals.rank(pct=True) * 100).round(2).to_dict())
+        rows = df[(df["split"] == split_name) &
+                  df["period"].astype(str).isin([str(newest), str(newest - 1)])] if newest else df.iloc[0:0]
+        active = {(k, split_name) for k in rows["player_key"]}
+        composite_map.update(active_percentiles(vals, active).to_dict())
 
     df["composite_split_score"] = df.apply(
         lambda r: composite_map.get((r["player_key"], r["split"]), np.nan), axis=1
@@ -197,6 +203,28 @@ def compute_composite_scores(df):
     # period below MIN_TBF (no season score), so early-season rows keep a tier
     df["split_tier"] = df["composite_split_score"].apply(get_tier)
     return df
+
+
+# ─────────────────────────────────────────
+def active_percentiles(raw, active):
+    """0-100 percentile of each raw composite against ACTIVE pitchers only.
+
+    Tier cutoffs ("Elite = top 10%") should describe today's pitchers, not a
+    pool full of retired/minor-league arms. Active pitchers are ranked among
+    themselves; everyone else is placed on that same scale (share of active
+    pitchers at or below his raw composite), so nobody goes blank.
+    """
+    raw = raw.dropna()
+    act = raw[raw.index.isin(active)]
+    if act.empty:
+        return (raw.rank(pct=True) * 100).round(2)
+    out = (act.rank(pct=True) * 100)
+    rest = raw[~raw.index.isin(act.index)]
+    if len(rest):
+        srt = np.sort(act.values)
+        out = pd.concat([out, pd.Series(np.searchsorted(srt, rest.values, side="right")
+                                        / len(srt) * 100, index=rest.index)])
+    return out.round(2)
 
 
 # ─────────────────────────────────────────

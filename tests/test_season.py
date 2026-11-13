@@ -26,11 +26,12 @@ def test_international_opener_counts_as_opening_day(net):
     assert season.current_season(date(2025, 3, 19)) == 2025
 
 
-def test_mlb_api_down_falls_back_to_march_20(net):
+def test_mlb_api_down_keeps_last_season_until_april_10(net):
     net.mlb_down = True
-    assert season.opening_day(2029) == date(2029, 3, 20)
-    assert season.current_season(date(2029, 3, 20)) == 2028
-    assert season.current_season(date(2029, 3, 21)) == 2029
+    assert season.opening_day(2029) == date(2029, 3, 20)         # data window start
+    assert season.current_season(date(2029, 3, 21)) == 2028      # don't switch blind
+    assert season.current_season(date(2029, 4, 10)) == 2028
+    assert season.current_season(date(2029, 4, 11)) == 2029
     assert season.regular_season_end(2029) == date(2029, 10, 5)
 
 

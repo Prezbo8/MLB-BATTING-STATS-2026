@@ -37,16 +37,19 @@ import requests
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
-os.environ.setdefault("MLB_TODAY", "2026-11-13")       # backtest is about 2022-2026
 
 import merge_pitcher_overall as mpo        # noqa: E402
 import score_pitcher_overall as spo        # noqa: E402
 import scrape_pitcher_career as spc        # noqa: E402
 import scrape_pitcher_season as sps        # noqa: E402
 import scrape_results as sr                # noqa: E402
+import season                              # noqa: E402
 
 CACHE   = os.path.join(REPO, "backtest_cache")
-SEASONS = list(range(2022, 2027))          # seasons predicted
+# Seasons predicted: 2022 through the last COMPLETED regular season (needs no
+# yearly edit; mid-season the current year waits until it is over)
+LAST_DONE = season.SEASON if season.today() > season.regular_season_end(season.SEASON) else season.SEASON - 1
+SEASONS = list(range(2022, LAST_DONE + 1))
 FIRST   = 2021                             # earliest season file
 MIN_IP_OUTCOME = 60                        # season test population
 MIN_IP_PRIOR   = 40                        # "has a prior season" for baselines
@@ -390,7 +393,8 @@ def write_report(r):
           f"- **Tiers mean something:** preseason Elite pitchers allowed {t.get('Elite', float('nan')):.2f} runs per 9, "
           f"Good {t.get('Good', float('nan')):.2f}, Mid {t.get('Mid', float('nan')):.2f}, Bad {t.get('Bad', float('nan')):.2f}, "
           f"Ass {t.get('Ass', float('nan')):.2f}"
-          + (" — the bottom two tiers are not separated (few such pitchers keep a 60-IP role)."
+          + (" — the bottom two tiers are not separated: only Ass-tier pitchers whom teams keep"
+             " giving 60+ innings are in this test, i.e. the ones pitching better than their score."
              if t.get("Ass", 0) <= t.get("Bad", 0) else "."),
           f"- **In single games:** teams allowed {g.get('Elite', float('nan')):.2f} runs per game behind an Elite starter vs "
           f"{g.get('Mid', float('nan')):.2f} behind a Mid one. One start is noisy (correlation "

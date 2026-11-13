@@ -1,7 +1,9 @@
 name: Tests
 
 # Offline test suite (tests/): no secrets, no network — every HTTP call is
-# answered from tests/fixtures/. Required to pass before merging into main.
+# answered from tests/fixtures/. Advisory: GitHub can't require it here (a
+# personal-repo rule would also block the scrapers' data pushes to main), so a
+# red result means "don't merge" by convention.
 on:
   push:
   pull_request:
