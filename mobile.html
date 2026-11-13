@@ -95,7 +95,7 @@
     --orange:   #fb923c;
     --text:     #e8eaf0;
     --text2:    #9aa3b8;
-    --muted:    #5a6278;
+    --muted:    #7f889f;
     --mono:     'DM Mono', monospace;
     --display:  'Barlow Condensed', sans-serif;
     --body:     'DM Sans', sans-serif;
@@ -115,12 +115,12 @@
     --surface3: #e9edf4;
     --border:   #dde2eb;
     --border2:  #cdd3de;
-    --accent:   #d62839;
+    --accent:   #cb2636;
     --blue:     #2563eb;
     --orange:   #ea580c;
     --text:     #111827;
     --text2:    #475066;
-    --muted:    #6b7487;
+    --muted:    #626a7c;
     --elite: #15803d;
     --good:  #4d7c0f;
     --mid:   #a16207;
@@ -227,7 +227,7 @@ body::before {
     margin-bottom: 12px;
 }
 .m-filter-group { display: flex; flex-direction: column; gap: 3px; }
-.m-filter-label { font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.m-filter-label { display: block; font-family: var(--display); font-size: 0.52rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 select, .m-text-input {
     font-family: var(--body); font-size: 0.8rem;
     background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
@@ -580,7 +580,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
 
 /* ══ PITCHER DRAWER + TIER CARDS (Round F3) ══ */
 [data-pitcher] { cursor: pointer; text-decoration: underline dotted transparent; text-underline-offset: 3px; transition: text-decoration-color .15s; }
-[data-pitcher]:hover, [data-pitcher]:focus-visible { text-decoration-color: currentColor; outline: none; }
+[data-pitcher]:hover, [data-pitcher]:focus-visible { text-decoration-color: currentColor; }
 .tier-pill { cursor: help; }
 html.pd-lock { overflow: hidden; }
 #pd-scrim { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,0.5); opacity: 0; transition: opacity .18s; }
@@ -652,6 +652,22 @@ html.pd-lock { overflow: hidden; }
 .spark-na { color: var(--muted); font-family: var(--mono); font-size: 0.75rem; }
 .m-spark-cell { width: 52px; padding-left: 6px !important; padding-right: 6px !important; }
 
+/* ══ ACCESSIBILITY (Round G4) ══ */
+:root { --focus: #60a5fa; }
+[data-theme="light"] { --focus: #1d4ed8; }
+.skip-link { position: absolute; left: 8px; top: -60px; z-index: 1000; padding: 8px 14px; border-radius: 8px;
+    background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; }
+.skip-link:focus { top: 8px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+th[tabindex]:focus-visible, tr[tabindex]:focus-visible, td[tabindex]:focus-visible { outline-offset: -2px; }
+#main-content:focus { outline: none; }
+/* "Reduce motion": calm the decorative effects (the ticker keeps scrolling by design) */
+@media (prefers-reduced-motion: reduce) {
+    .spin, .upload-dot, #summary-bar:not(.visible), .animated, .anim, .m-tg, .edge-card { animation: none !important; }
+    .animated, .anim { opacity: 1 !important; transform: none !important; }
+    #pd-drawer, #pd-scrim, #tier-tip { transition: none !important; }
+}
+
 /* ══ MATCHUPS (Round F2) ══ */
 .m-wrc-chip { flex-shrink: 0; min-width: 26px; padding: 0 3px; border-radius: 5px; border: 1px solid currentColor; font-family: var(--mono); font-size: 0.62rem; font-weight: 700; text-align: center; line-height: 1.45; }
 .m-wrc-chip.na { color: var(--muted); border-color: var(--border2); }
@@ -698,6 +714,7 @@ html.pd-lock { overflow: hidden; }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 
 <!-- TOP HEADER -->
 <header class="m-header">
@@ -733,7 +750,7 @@ html.pd-lock { overflow: hidden; }
 <div class="m-scoreboard" aria-label="Today's games"><div class="m-sb-track" id="sb-track"><div class="m-sb-empty">Loading today's games…</div></div></div>
 
 <!-- MAIN PANELS -->
-<main class="m-main">
+<main class="m-main" id="main-content" tabindex="-1">
 
     <!-- PANEL: TODAY -->
     <div id="mp-today" class="m-panel active">
@@ -752,7 +769,7 @@ html.pd-lock { overflow: hidden; }
         <div class="m-section-title">Team Rankings</div>
         <div class="m-filters">
             <div class="m-filter-group">
-                <div class="m-filter-label">Range</div>
+                <label class="m-filter-label" for="r-range">Range</label>
                 <select id="r-range" onchange="loadRankings()">
                     <option value="season">Season</option>
                     <option value="last_30">L30</option>
@@ -761,7 +778,7 @@ html.pd-lock { overflow: hidden; }
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Split</div>
+                <label class="m-filter-label" for="r-split">Split</label>
                 <select id="r-split" onchange="loadRankings()">
                     <option value="no_split">Overall</option>
                     <option value="vs_lhp">vs LHP</option>
@@ -775,22 +792,22 @@ html.pd-lock { overflow: hidden; }
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Team</div>
+                <label class="m-filter-label" for="r-search">Team</label>
                 <input class="m-text-input" id="r-search" type="text" placeholder="LAD…" oninput="loadRankings()" style="width:70px;">
             </div>
             <div id="r-badge" class="m-data-badge" style="display:none;"></div>
         </div>
         <div class="m-stat-picker">
             <div class="m-filter-group">
-                <div class="m-filter-label">Col 1</div>
+                <label class="m-filter-label" for="r-stat0">Col 1</label>
                 <select id="r-stat0" onchange="setRStat(0, this.value)"></select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Col 2</div>
+                <label class="m-filter-label" for="r-stat1">Col 2</label>
                 <select id="r-stat1" onchange="setRStat(1, this.value)"></select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Col 3</div>
+                <label class="m-filter-label" for="r-stat2">Col 3</label>
                 <select id="r-stat2" onchange="setRStat(2, this.value)"></select>
             </div>
         </div>
@@ -809,7 +826,7 @@ html.pd-lock { overflow: hidden; }
         <div class="m-section-title">Player Rankings</div>
         <div class="m-filters">
             <div class="m-filter-group">
-                <div class="m-filter-label">Range</div>
+                <label class="m-filter-label" for="p-range">Range</label>
                 <select id="p-range" onchange="loadPlayers()">
                     <option value="season">Season</option>
                     <option value="last_30">L30</option>
@@ -818,7 +835,7 @@ html.pd-lock { overflow: hidden; }
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Split</div>
+                <label class="m-filter-label" for="p-split">Split</label>
                 <select id="p-split" onchange="loadPlayers()">
                     <option value="no_split">Overall</option>
                     <option value="vs_lhp">vs LHP</option>
@@ -828,7 +845,7 @@ html.pd-lock { overflow: hidden; }
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Min PA</div>
+                <label class="m-filter-label" for="p-minpa">Min PA</label>
                 <select id="p-minpa" onchange="loadPlayers()">
                     <option value="0">All</option>
                     <option value="25">25+</option>
@@ -838,14 +855,14 @@ html.pd-lock { overflow: hidden; }
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Search</div>
+                <label class="m-filter-label" for="p-search">Search</label>
                 <input class="m-text-input" id="p-search" type="text" placeholder="Soto…" oninput="loadPlayers()" style="width:80px;">
             </div>
         </div>
         <div class="m-stat-picker">
-            <div class="m-filter-group"><div class="m-filter-label">Col 1</div><select id="p-stat0" onchange="setPStat(0, this.value)"></select></div>
-            <div class="m-filter-group"><div class="m-filter-label">Col 2</div><select id="p-stat1" onchange="setPStat(1, this.value)"></select></div>
-            <div class="m-filter-group"><div class="m-filter-label">Col 3</div><select id="p-stat2" onchange="setPStat(2, this.value)"></select></div>
+            <div class="m-filter-group"><label class="m-filter-label" for="p-stat0">Col 1</label><select id="p-stat0" onchange="setPStat(0, this.value)"></select></div>
+            <div class="m-filter-group"><label class="m-filter-label" for="p-stat1">Col 2</label><select id="p-stat1" onchange="setPStat(1, this.value)"></select></div>
+            <div class="m-filter-group"><label class="m-filter-label" for="p-stat2">Col 3</label><select id="p-stat2" onchange="setPStat(2, this.value)"></select></div>
         </div>
         <div class="m-table-wrap m-table-fit">
             <table class="m-table">
@@ -869,11 +886,11 @@ html.pd-lock { overflow: hidden; }
         <div id="pit-overall-panel">
             <div class="m-filters">
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Season</div>
+                    <label class="m-filter-label" for="pit-season">Season</label>
                     <select id="pit-season" onchange="renderPitchers()"></select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Tier</div>
+                    <label class="m-filter-label" for="pit-tier">Tier</label>
                     <select id="pit-tier" onchange="renderPitchers()">
                         <option value="">All</option><option value="Elite">Elite</option>
                         <option value="Good">Good</option><option value="Mid">Mid</option>
@@ -881,7 +898,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Min IP</div>
+                    <label class="m-filter-label" for="pit-minip">Min IP</label>
                     <select id="pit-minip" onchange="renderPitchers()">
                         <option value="0">All</option><option value="10" selected>10+</option>
                         <option value="30">30+</option><option value="60">60+</option>
@@ -889,14 +906,14 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Search</div>
+                    <label class="m-filter-label" for="pit-search">Search</label>
                     <input class="m-text-input" id="pit-search" type="text" placeholder="Skenes / NYY…" oninput="renderPitchers()" style="width:100px;">
                 </div>
             </div>
             <div class="m-stat-picker">
-                <div class="m-filter-group"><div class="m-filter-label">Col 1</div><select id="pit-stat0" onchange="setPitStat(0, this.value)"></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Col 2</div><select id="pit-stat1" onchange="setPitStat(1, this.value)"></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Col 3</div><select id="pit-stat2" onchange="setPitStat(2, this.value)"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="pit-stat0">Col 1</label><select id="pit-stat0" onchange="setPitStat(0, this.value)"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="pit-stat1">Col 2</label><select id="pit-stat1" onchange="setPitStat(1, this.value)"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="pit-stat2">Col 3</label><select id="pit-stat2" onchange="setPitStat(2, this.value)"></select></div>
             </div>
             <div class="m-table-wrap m-table-fit">
                 <table class="m-table">
@@ -912,18 +929,18 @@ html.pd-lock { overflow: hidden; }
         <div id="pit-splits-panel" style="display:none;">
             <div class="m-filters">
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Period</div>
+                    <label class="m-filter-label" for="psp-period">Period</label>
                     <select id="psp-period" onchange="renderPitcherSplits()"></select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Split</div>
+                    <label class="m-filter-label" for="psp-split">Split</label>
                     <select id="psp-split" onchange="renderPitcherSplits()">
                         <option value="vsRHH">vs RHH</option><option value="vsLHH">vs LHH</option>
                         <option value="Home">Home</option><option value="Away">Away</option>
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Tier</div>
+                    <label class="m-filter-label" for="psp-tier">Tier</label>
                     <select id="psp-tier" onchange="renderPitcherSplits()">
                         <option value="">All</option><option value="Elite">Elite</option>
                         <option value="Good">Good</option><option value="Mid">Mid</option>
@@ -931,7 +948,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Min IP</div>
+                    <label class="m-filter-label" for="psp-minip">Min IP</label>
                     <select id="psp-minip" onchange="renderPitcherSplits()">
                         <option value="0">All</option><option value="10" selected>10+</option>
                         <option value="20">20+</option><option value="30">30+</option>
@@ -939,14 +956,14 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Search</div>
+                    <label class="m-filter-label" for="psp-search">Search</label>
                     <input class="m-text-input" id="psp-search" type="text" placeholder="Skenes / NYY…" oninput="renderPitcherSplits()" style="width:100px;">
                 </div>
             </div>
             <div class="m-stat-picker">
-                <div class="m-filter-group"><div class="m-filter-label">Col 1</div><select id="psp-stat0" onchange="setPspStat(0, this.value)"></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Col 2</div><select id="psp-stat1" onchange="setPspStat(1, this.value)"></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Col 3</div><select id="psp-stat2" onchange="setPspStat(2, this.value)"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="psp-stat0">Col 1</label><select id="psp-stat0" onchange="setPspStat(0, this.value)"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="psp-stat1">Col 2</label><select id="psp-stat1" onchange="setPspStat(1, this.value)"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="psp-stat2">Col 3</label><select id="psp-stat2" onchange="setPspStat(2, this.value)"></select></div>
             </div>
             <div class="m-table-wrap m-table-fit">
                 <table class="m-table">
@@ -963,8 +980,8 @@ html.pd-lock { overflow: hidden; }
     <div id="mp-compare" class="m-panel">
         <div class="m-section-title">Compare</div>
         <div class="m-stat-picker" style="grid-template-columns:1fr 1fr;">
-            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--blue);">✈️ Away</div><div class="m-cmp-pick"><img id="c-away-logo" class="m-cmp-logo" alt=""><select id="c-away" onchange="renderMobileCompare()"></select></div></div>
-            <div class="m-filter-group"><div class="m-filter-label" style="color:var(--orange);">🏠 Home</div><div class="m-cmp-pick"><img id="c-home-logo" class="m-cmp-logo" alt=""><select id="c-home" onchange="renderMobileCompare()"></select></div></div>
+            <div class="m-filter-group"><label class="m-filter-label" style="color:var(--blue);" for="c-away">✈️ Away</label><div class="m-cmp-pick"><img id="c-away-logo" class="m-cmp-logo" alt=""><select id="c-away" onchange="renderMobileCompare()"></select></div></div>
+            <div class="m-filter-group"><label class="m-filter-label" style="color:var(--orange);" for="c-home">🏠 Home</label><div class="m-cmp-pick"><img id="c-home-logo" class="m-cmp-logo" alt=""><select id="c-home" onchange="renderMobileCompare()"></select></div></div>
         </div>
         <div class="m-cmp-mode"><button id="m-vslg" class="m-cmp-mode-btn" onclick="toggleMVsLg()">⚖ vs LG Avg</button></div>
         <div id="m-compare-container">
@@ -986,7 +1003,7 @@ html.pd-lock { overflow: hidden; }
         <div id="hc-teams-panel">
             <div class="m-filters">
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Stat</div>
+                    <label class="m-filter-label" for="hct-metric">Stat</label>
                     <select id="hct-metric" onchange="hcTeamSortStat=null;renderHCTeams()">
                         <option value="wrcPlus">wRC+</option>
                         <option value="ops">OPS</option>
@@ -1001,7 +1018,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Window</div>
+                    <label class="m-filter-label" for="hct-window">Window</label>
                     <select id="hct-window" onchange="hcTeamSortStat=null;renderHCTeams()">
                         <option value="last_7">L7</option>
                         <option value="last_14">L14</option>
@@ -1009,7 +1026,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Split</div>
+                    <label class="m-filter-label" for="hct-split">Split</label>
                     <select id="hct-split" onchange="hcTeamSortStat=null;renderHCTeams()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1032,7 +1049,7 @@ html.pd-lock { overflow: hidden; }
         <div id="hc-players-panel" style="display:none;">
             <div class="m-filters">
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Stat</div>
+                    <label class="m-filter-label" for="hcp-metric">Stat</label>
                     <select id="hcp-metric" onchange="hcPlayerSortStat=null;renderHCPlayers()">
                         <option value="wrcPlus">wRC+</option>
                         <option value="ops">OPS</option>
@@ -1047,7 +1064,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Window</div>
+                    <label class="m-filter-label" for="hcp-window">Window</label>
                     <select id="hcp-window" onchange="hcPlayerSortStat=null;renderHCPlayers()">
                         <option value="last_7">L7</option>
                         <option value="last_14">L14</option>
@@ -1055,7 +1072,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Split</div>
+                    <label class="m-filter-label" for="hcp-split">Split</label>
                     <select id="hcp-split" onchange="hcPlayerSortStat=null;renderHCPlayers()">
                         <option value="no_split">Overall</option>
                         <option value="vs_lhp">vs LHP</option>
@@ -1065,7 +1082,7 @@ html.pd-lock { overflow: hidden; }
                     </select>
                 </div>
                 <div class="m-filter-group">
-                    <div class="m-filter-label">Min PA</div>
+                    <label class="m-filter-label" for="hcp-minpa">Min PA</label>
                     <select id="hcp-minpa" onchange="hcPlayerSortStat=null;renderHCPlayers()">
                         <option value="10">10+</option>
                         <option value="20" selected>20+</option>
@@ -1102,20 +1119,20 @@ html.pd-lock { overflow: hidden; }
         <!-- TRENDS -->
         <div id="lsub-trends-panel" style="display:none;">
             <div class="m-filters">
-                <div class="m-filter-group"><div class="m-filter-label">Game</div><select id="mlt-game" onchange="renderMLTrends()"></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Split</div><select id="mlt-split" onchange="renderMLTrends()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Range</div><select id="mlt-range" onchange="renderMLTrends()"><option value="yearly">Yearly</option><option value="monthly">Monthly</option></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlt-game">Game</label><select id="mlt-game" onchange="renderMLTrends()"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlt-split">Split</label><select id="mlt-split" onchange="renderMLTrends()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlt-range">Range</label><select id="mlt-range" onchange="renderMLTrends()"><option value="yearly">Yearly</option><option value="monthly">Monthly</option></select></div>
             </div>
             <div id="m-ltrends-container"></div>
         </div>
         <!-- HISTORY -->
         <div id="lsub-history-panel" style="display:none;">
             <div class="m-filters">
-                <div class="m-filter-group"><div class="m-filter-label">Game</div><select id="mlh-game" onchange="renderMLHistory()"></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Stat</div><select id="mlh-stat" onchange="renderMLHistory()"><option value="wrcPlus">wRC+</option><option value="woba">wOBA</option><option value="ops">OPS</option><option value="avg">AVG</option><option value="iso">ISO</option><option value="babip">BABIP</option><option value="kPct">K%</option><option value="bbPct">BB%</option></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Split</div><select id="mlh-hand" onchange="renderMLHistory()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
-                <div class="m-filter-group"><div class="m-filter-label">Range</div><select id="mlh-mode" onchange="onMlhModeChange()"><option value="season">Yearly</option><option value="month">By month</option></select></div>
-                <div class="m-filter-group" id="mlh-month-group" style="display:none;"><div class="m-filter-label">Month</div><select id="mlh-month" onchange="renderMLHistory()"><option value="mar_apr">Mar/Apr</option><option value="may">May</option><option value="jun">June</option><option value="jul">July</option><option value="aug">Aug</option><option value="sep_oct">Sep/Oct</option></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlh-game">Game</label><select id="mlh-game" onchange="renderMLHistory()"></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlh-stat">Stat</label><select id="mlh-stat" onchange="renderMLHistory()"><option value="wrcPlus">wRC+</option><option value="woba">wOBA</option><option value="ops">OPS</option><option value="avg">AVG</option><option value="iso">ISO</option><option value="babip">BABIP</option><option value="kPct">K%</option><option value="bbPct">BB%</option></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlh-hand">Split</label><select id="mlh-hand" onchange="renderMLHistory()"><option value="no_split">Overall</option><option value="vs_lhp">vs LHP</option><option value="vs_rhp">vs RHP</option></select></div>
+                <div class="m-filter-group"><label class="m-filter-label" for="mlh-mode">Range</label><select id="mlh-mode" onchange="onMlhModeChange()"><option value="season">Yearly</option><option value="month">By month</option></select></div>
+                <div class="m-filter-group" id="mlh-month-group" style="display:none;"><label class="m-filter-label" for="mlh-month">Month</label><select id="mlh-month" onchange="renderMLHistory()"><option value="mar_apr">Mar/Apr</option><option value="may">May</option><option value="jun">June</option><option value="jul">July</option><option value="aug">Aug</option><option value="sep_oct">Sep/Oct</option></select></div>
             </div>
             <div id="m-lhist-container"></div>
         </div>
@@ -1131,7 +1148,7 @@ html.pd-lock { overflow: hidden; }
         <div class="m-section-title">Runs Per Game</div>
         <div class="m-filters">
             <div class="m-filter-group">
-                <div class="m-filter-label">Sort</div>
+                <label class="m-filter-label" for="rpg-sort-sel">Sort</label>
                 <select id="rpg-sort-sel" onchange="renderRPG()">
                     <option value="szn_current">This season R/G</option>
                     <option value="last_3">Last 3</option>
@@ -1142,7 +1159,7 @@ html.pd-lock { overflow: hidden; }
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Search</div>
+                <label class="m-filter-label" for="rpg-search">Search</label>
                 <input class="m-text-input" id="rpg-search" type="text" placeholder="LAD…" oninput="renderRPG()" style="width:70px;">
             </div>
         </div>
@@ -1156,13 +1173,13 @@ html.pd-lock { overflow: hidden; }
         <div class="m-section-title">Daily Report</div>
         <div class="m-filters" style="margin-bottom:12px;">
             <div class="m-filter-group">
-                <div class="m-filter-label">Date</div>
+                <label class="m-filter-label" for="m-game-dropdown">Date</label>
                 <select id="m-game-dropdown" onchange="handleMobileGameSelect(this.value)" style="max-width:180px;">
                     <option value="">Loading games…</option>
                 </select>
             </div>
             <div class="m-filter-group">
-                <div class="m-filter-label">Split</div>
+                <label class="m-filter-label" for="m-report-split">Split</label>
                 <select id="m-report-split">
                     <option value="no_split">Overall</option>
                     <option value="vs_lhp">vs LHP</option>
@@ -1220,7 +1237,7 @@ html.pd-lock { overflow: hidden; }
     </button>
 </nav>
 
-<script src="assets/js/shared.js?v=9511052a"></script>
+<script src="assets/js/shared.js?v=93be240f"></script>
 <script>
 // ── SUPABASE CONFIG ─────────────────────────────────────────────────────────
 const SUPABASE_URL   = 'https://mfliuasrygxkembqmrkr.supabase.co';
@@ -2454,7 +2471,7 @@ function renderMLTrends() {
         const svg = mLineChart(series, lgVals, mMeta(sk), xkeys, 250, 96);
         return `<div class="m-lh-cell">${svg || '<div style="min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.6rem">no data</div>'}</div>`;
     };
-    const legend = (bs, tm, col) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'">` : ''}<span style="color:${col}">${tm}</span></div><div style="display:flex;flex-wrap:wrap;gap:3px 10px;margin-bottom:6px;font-family:var(--mono);font-size:0.62rem;">${bs.map(p => `<span data-pid="${p.id || ''}" data-pname="${(p.name || '').replace(/"/g, '')}" style="color:var(--text2);cursor:pointer"><span style="display:inline-block;width:9px;height:3px;border-radius:2px;background:${p.color};vertical-align:middle"></span> ${p.name}</span>`).join('')}</div>`;
+    const legend = (bs, tm, col) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'" alt="">` : ''}<span style="color:${col}">${tm}</span></div><div style="display:flex;flex-wrap:wrap;gap:3px 10px;margin-bottom:6px;font-family:var(--mono);font-size:0.62rem;">${bs.map(p => `<span data-pid="${p.id || ''}" data-pname="${(p.name || '').replace(/"/g, '')}" style="color:var(--text2);cursor:pointer"><span style="display:inline-block;width:9px;height:3px;border-radius:2px;background:${p.color};vertical-align:middle"></span> ${p.name}</span>`).join('')}</div>`;
     let html = `<div class="m-sbar-head">${awayTm} @ ${homeTm} · ${mSplitLbl(split)} · ${mode === 'yearly' ? `2021–${String(CUR_SEASON).slice(2)}` : `${CUR_SEASON} months`} · ╌ LG</div>`;
     html += legend(awayR, awayTm, colors.away) + legend(homeR, homeTm, colors.home);
     M_LH_STATS.map(sk => statMeta.find(s => s.key === sk)).forEach(s => {
@@ -2497,7 +2514,7 @@ function renderMLHistory() {
         }
         return `<div class="m-lh-row"><div class="m-lh-name" ${p.id ? `data-pid="${p.id}" data-pname="${(p.name || '').replace(/"/g, '')}"` : ''}><span class="ord">${p.order || i + 1}.</span> ${p.name}</div>${cell}</div>`;
     };
-    const section = (bs, tm, side, color) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'">` : ''}<span style="color:${color}">${tm}</span> <span style="font-size:0.58rem;color:var(--muted)">${side}</span></div>` + bs.map((p, i) => row(p, i, color)).join('');
+    const section = (bs, tm, side, color) => `<div class="m-lh-teamhead">${teamLogo(tm) ? `<img src="${teamLogo(tm)}" onerror="this.style.opacity='.15'" alt="">` : ''}<span style="color:${color}">${tm}</span> <span style="font-size:0.58rem;color:var(--muted)">${side}</span></div>` + bs.map((p, i) => row(p, i, color)).join('');
     const rangeLbl = mode === 'season' ? 'Yearly' : mMonLbl(period) + ' by yr';
     c.innerHTML = `<div class="m-sbar-head">${M_STATLBL[stat]} · ${awayTm} @ ${homeTm} · ${mSplitLbl(split)} · ${rangeLbl} · ╌ LG</div>` +
         section(awayR, awayTm, 'Away', colors.away) + section(homeR, homeTm, 'Home', colors.home);

@@ -478,3 +478,38 @@ document.addEventListener('keydown', e => {
         e.preventDefault(); openPitcherDrawer(e.target.dataset.pitcher, e.target.dataset.pteam, e.target);
     }
 });
+
+// ── KEYBOARD ACCESS (Round G4) ──────────────────────────────────────────
+// Older tables and cards are clicked through onclick on <th>/<div>/<span> (or a
+// delegated listener). This gives each such element a Tab stop and makes Enter /
+// Space click it, and lets sortable headers announce their sort order. It re-runs
+// whenever a table redraws, so new rows are covered without touching each table.
+const A11Y_CLICKABLE = [
+    '[onclick]:not(button):not(a):not(input):not(select):not(textarea):not(label):not(option)',
+    '[data-pid]:not([data-pid=""])',            // batter names → player card
+    '.pr-suggest-item',                          // pitcher-compare suggestions
+].join(', ');
+function a11yEnhance(root) {
+    root.querySelectorAll(A11Y_CLICKABLE).forEach(el => {
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+        if (el.tagName !== 'TH' && el.tagName !== 'TR' && !el.hasAttribute('role')) el.setAttribute('role', 'button');
+    });
+    root.querySelectorAll('th[onclick]').forEach(th => {
+        const t = th.textContent;
+        if (th.classList.contains('sort-active') && /[↓↑]/.test(t)) th.setAttribute('aria-sort', t.includes('↑') ? 'ascending' : 'descending');
+        else th.removeAttribute('aria-sort');
+    });
+}
+document.addEventListener('DOMContentLoaded', () => {
+    a11yEnhance(document);
+    // Observer callbacks already arrive batched; it only watches added/removed nodes,
+    // so the attributes set here don't re-trigger it
+    new MutationObserver(() => a11yEnhance(document)).observe(document.body, { childList: true, subtree: true });
+});
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const el = e.target;
+    if (!el || !el.matches || !el.matches(A11Y_CLICKABLE) || el.matches('[data-pitcher]')) return;   // the drawer has its own
+    e.preventDefault();
+    el.click();
+});
