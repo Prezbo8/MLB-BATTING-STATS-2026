@@ -36,6 +36,18 @@ def opening_day(year):
         return date(year, *FALLBACK_MONTH_DAY)
 
 
+def regular_season_end(year):
+    """Last regular-season game date of `year` (falls back to Oct 5)."""
+    try:
+        r = requests.get(f"https://statsapi.mlb.com/api/v1/seasons/{year}",
+                         params={"sportId": 1}, timeout=20)
+        r.raise_for_status()
+        return date.fromisoformat(r.json()["seasons"][0]["regularSeasonEndDate"])
+    except Exception as e:
+        print(f"   ⚠️  Season-end lookup for {year} failed ({e}) — using Oct 5")
+        return date(year, 10, 5)
+
+
 def current_season(on=None):
     on = on or today()
     return on.year if on > opening_day(on.year) else on.year - 1
