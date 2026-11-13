@@ -17,3 +17,4 @@ supabase/.temp/
 __pycache__/
 *.pyc
 .pytest_cache/
+backtest_cache/
