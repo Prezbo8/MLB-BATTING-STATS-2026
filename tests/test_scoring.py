@@ -112,3 +112,24 @@ def test_scores_match_snapshot(request, name, cols):
             assert ((a - b).abs().fillna(0) < 1e-6).all() and (a.isna() == b.isna()).all(), c
         else:
             assert (got[c].values == expected[c].values).all(), c
+
+
+def test_tiers_are_percentiles_of_active_pitchers(overall):
+    """Elite = top 10% of pitchers active this season or last, not of everyone since 2017."""
+    years = [s for s in overall["season"].unique() if isinstance(s, (int, np.integer))]
+    newest = max(years)
+    active = set(overall.loc[overall["season"].isin([newest, newest - 1]), "player_key"])
+    per = overall.drop_duplicates("player_key").set_index("player_key")["composite_score"]
+    act = per[per.index.isin(active)].dropna()
+    assert (act >= 90).mean() == pytest.approx(0.10, abs=0.03)
+    assert (act < 25).mean() == pytest.approx(0.25, abs=0.03)
+    rated = set(overall.loc[overall["season_score"].notna(), "player_key"])
+    inactive = per[~per.index.isin(active) & per.index.isin(rated)]
+    assert len(inactive) and inactive.notna().all()   # placed on the active scale, not blank
+
+
+def test_active_percentiles_places_others_on_the_active_scale():
+    raw = pd.Series({"a": 10.0, "b": 20.0, "c": 30.0, "d": 40.0, "old": 35.0, "older": 5.0})
+    pct = so.active_percentiles(raw, {"a", "b", "c", "d"})
+    assert pct["d"] == 100 and pct["a"] == 25
+    assert pct["old"] == 75 and pct["older"] == 0          # share of active at or below

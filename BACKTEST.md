@@ -13,8 +13,8 @@ relation), signed so that **higher = better at predicting fewer runs**; ranges a
 - **The score predicts.** Before a season it ranks pitchers by the runs they go on to allow with a correlation of 0.419 — the highest of the predictors tested.
 - **Clearly better than:** K-BB%, ERA (the whole 95% range of the difference is above 0).
 - **No clear difference from:** last season's score alone, SIERA, xFIP, Pitching+ — the score is about as good as the best single public stats, not measurably better.
-- **Tiers mean something:** preseason Elite pitchers allowed 3.80 runs per 9, Good 4.36, Mid 4.61, Bad 4.79, Ass 4.65 — the bottom two tiers are not separated (few such pitchers keep a 60-IP role).
-- **In single games:** teams allowed 3.94 runs per game behind an Elite starter vs 4.60 behind a Mid one. One start is noisy (correlation 0.103), so the edge shows over many games, not in any one.
+- **Tiers mean something:** preseason Elite pitchers allowed 3.68 runs per 9, Good 4.16, Mid 4.50, Bad 4.91, Ass 4.62 — the bottom two tiers are not separated: only Ass-tier pitchers whom teams keep giving 60+ innings are in this test, i.e. the ones pitching better than their score.
+- **In single games:** teams allowed 3.86 runs per game behind an Elite starter vs 4.51 behind a Mid one. One start is noisy (correlation 0.103), so the edge shows over many games, not in any one.
 
 ## 1. Season test
 
@@ -36,11 +36,11 @@ Including pitchers with no qualifying previous season (739 pitcher-seasons), the
 
 | Preseason tier | Pitcher-seasons | Innings | RA9 |
 |---|---|---|---|
-| Elite | 213 | 31398 | 3.80 |
-| Good | 180 | 24985 | 4.36 |
-| Mid | 188 | 24535 | 4.61 |
-| Bad | 72 | 9110 | 4.79 |
-| Ass | 57 | 6210 | 4.65 |
+| Elite | 149 | 22424 | 3.68 |
+| Good | 160 | 22762 | 4.16 |
+| Mid | 214 | 28771 | 4.50 |
+| Bad | 118 | 14491 | 4.91 |
+| Ass | 69 | 7789 | 4.62 |
 
 ## 2. Game test
 
@@ -48,11 +48,11 @@ Including pitchers with no qualifying previous season (739 pitcher-seasons), the
 
 | Starter's preseason tier | Starts | His RA9 in those starts | His team's runs allowed per game |
 |---|---|---|---|
-| Elite | 5707 | 3.83 | 3.94 |
-| Good | 4961 | 4.42 | 4.38 |
-| Mid | 5077 | 4.70 | 4.60 |
-| Bad | 2237 | 4.95 | 4.64 |
-| Ass | 1502 | 4.90 | 4.74 |
+| Elite | 4011 | 3.71 | 3.86 |
+| Good | 4393 | 4.21 | 4.23 |
+| Mid | 5876 | 4.57 | 4.51 |
+| Bad | 3302 | 5.01 | 4.73 |
+| Ass | 1902 | 4.90 | 4.71 |
 
 Rank correlation with the team's runs allowed in each start (higher = better):
 
