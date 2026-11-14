@@ -188,13 +188,13 @@ function loadPitcherIndex() {
                 season = parseInt((await q.json())?.[0]?.season, 10) || null;
             }
             if (!season) throw new Error('no season');
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip&season=eq.${season}`, { headers: _trendHdr() });
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,playerid&season=eq.${season}`, { headers: _trendHdr() });
             const rows = await r.json();
             const cur = Array.isArray(rows) ? rows : [];
             // Early season (under 20 starters at 100 IP): also load last season's rows,
             // for the starter yardstick and for starters who haven't pitched yet
             if (cur.filter(p => +p.ip >= 100).length < 20) {
-                const q2 = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip&season=eq.${season - 1}`, { headers: _trendHdr() });
+                const q2 = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,playerid&season=eq.${season - 1}`, { headers: _trendHdr() });
                 const prev = await q2.json();
                 _pitcherPrev = Array.isArray(prev) ? prev : null;
             }
@@ -265,6 +265,11 @@ const PD_SPLITS = [['vsLHH', 'vs LHH'], ['vsRHH', 'vs RHH'], ['Home', 'Home'], [
 const pdTier = s => s == null ? '' : s >= 90 ? 'Elite' : s >= 75 ? 'Good' : s >= 50 ? 'Mid' : s >= 25 ? 'Bad' : 'Ass';
 const pdPill = (tier, txt) => tier ? `<span class="tier-pill tier-${tier.toLowerCase()}">${esc(txt ?? tier)}</span>` : '';
 const pdPct = v => v == null || isNaN(v) ? '—' : ((+v > 1 ? +v : +v * 100).toFixed(1) + '%');
+const pdId = v => v == null || v === '' ? null : String(v).replace(/\.0$/, '');   // '31623.0' and '31623' are the same id
+// Rows fetched by name, minus any that carry a different player id (pure; tested)
+function pdOwnRows(rows, pid) {
+    return pid ? rows.filter(r => !pdId(r.playerid) || pdId(r.playerid) === pid) : rows;
+}
 const pdAttr = (name, team) => name && name !== 'TBD' ? ` data-pitcher="${esc(name)}" data-pteam="${esc(team || '')}" tabindex="0" role="button"` : '';
 
 function pdGet(path) {
@@ -315,15 +320,21 @@ async function openPitcherDrawer(name, team, opener) {
         await loadPitcherIndex();
         const hit = findPitcherScore(name, team);
         const canon = hit ? hit.name : name;
-        const cols = 'season,team,ip,g,gs,era,fip,k_pct,bb_pct,season_score,composite_score,tier,' + PD_STATS.map(s => s.col).join(',');
-        const [rows, newest] = await Promise.all([pdGet(`pitcher_scores?select=${cols}&name=eq.${encodeURIComponent(canon)}`), pdNewestSeason()]);
+        const cols = 'season,team,ip,g,gs,era,fip,k_pct,bb_pct,season_score,composite_score,tier,playerid,' + PD_STATS.map(s => s.col).join(',');
+        const [byName, newest] = await Promise.all([pdGet(`pitcher_scores?select=${cols}&name=eq.${encodeURIComponent(canon)}`), pdNewestSeason()]);
+        // Two pitchers can share a name (two Logan Allens). Keep only his rows: drop any
+        // row carrying a different player id. pitcher_scores stores the id only on the
+        // current-season and career rows, so older seasons (no id) can't be told apart
+        // and stay (Round G5).
+        const pid = pdId(hit && hit.playerid);
+        const rows = pdOwnRows(byName, pid);
         if (token !== openPitcherDrawer._t) return;
         if (!rows.length) { body.innerHTML = `<h2 class="pd-name" id="pd-name">${esc(name)}</h2><div class="pd-empty">No pitcher score for ${esc(name)} yet.</div>`; return; }
         const years = rows.map(r => parseInt(r.season, 10)).filter(y => y > 0);
         const S = Math.max(...years);
         const cur = rows.find(r => +r.season === S);
         const [pool, splits] = await Promise.all([pdPool(S),
-            pdGet(`pitcher_split_scores?select=split,ip,tbf,woba,k_pct,bb_pct,composite_split_score,split_tier&name=eq.${encodeURIComponent(canon)}&period=eq.${S}`)]);
+            pdGet(`pitcher_split_scores?select=split,ip,tbf,woba,k_pct,bb_pct,composite_split_score,split_tier&${pid ? `playerid=eq.${pid}` : `name=eq.${encodeURIComponent(canon)}`}&period=eq.${S}`)]);
         if (token !== openPitcherDrawer._t) return;
         body.innerHTML = pdHeader(canon, cur, S) + pdBuilt(rows, newest) + pdStrengths(cur, pool, S) + pdSplitsHtml(splits, S)
             + `<section class="pd-sec" id="pd-tonight"><h3>Next start</h3><div class="pd-empty">Checking lineups…</div></section>`;
