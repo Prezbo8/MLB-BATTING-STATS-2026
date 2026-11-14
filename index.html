@@ -2031,7 +2031,7 @@
 
 <footer>Live data via <code>Supabase</code> &nbsp;·&nbsp; MLB <span class="season-cur"></span> Offense Analyzer &nbsp;·&nbsp; <span id="last-updated-footer" style="color:var(--text2);"></span></footer>
 
-<script src="assets/js/shared.js?v=93be240f"></script>
+<script src="assets/js/shared.js?v=bfbe184c"></script>
 <script>
 // ── SUPABASE CONFIG ──────────────────────────────────────────────────────
 // 🔧 Replace these two values with your own Supabase project credentials
@@ -2113,7 +2113,7 @@ const lineupBar = (lv, hand) => {
 async function renderTodayEdges() {
     const el = document.getElementById('today-edges');
     if (!el) return;
-    try { await Promise.all([ensureLineups(), ensurePlayerData(), loadPitcherIndex(), loadBatterPriors()]); }
+    try { await Promise.all([ensureLineups(), ensurePlayerCore(), loadPitcherIndex(), loadBatterPriors()]); }
     catch (e) { el.innerHTML = '<div class="side-empty">Lineups unavailable right now</div>'; return; }
     const pairs = pairLineupGames(lineupGames);
     const dates = [...new Set(lineupGames.map(r => r.game_date).filter(Boolean))].sort();
@@ -2143,7 +2143,7 @@ async function renderTodayEdges() {
 // Page adapters for the drawer in assets/js/shared.js
 const PD_LOGO = abbr => teamLogos[abbr] ? `<img src="${teamLogos[abbr]}" alt="" onerror="this.style.opacity='.15'">` : '';
 const PD_COLOR = abbr => document.documentElement.getAttribute('data-theme') === 'light' ? readableOnLight(teamText(abbr)) : teamText(abbr);
-const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayerData(), loadPitcherIndex(), loadBatterPriors()]);
+const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayerCore(), loadPitcherIndex(), loadBatterPriors()]);
 // ── LAYOUT SHELL: top nav menus, scoreboard, sidebar, Today ─────────────
 const HOME_TAB = 13;
 
@@ -2176,7 +2176,9 @@ const fmtDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { week
 
 // Today's MLB games (or the next ones); cached per page load
 let _slate = null;
-async function loadSlate() {
+let _slateP = null;   // Round G5: one schedule download shared by scoreboard, Today and ticker
+function loadSlate() { return _slate ? Promise.resolve(_slate) : (_slateP = _slateP || loadSlateOnce()); }
+async function loadSlateOnce() {
     if (_slate) return _slate;
     const today = localDateStr();
     const games = async q => {
@@ -3751,6 +3753,8 @@ let lineupGames    = [];   // raw records from projected_lineups
 
 // ── FETCH LINEUPS FROM SUPABASE ───────────────────────────────────────────────
 let lineupLastFetched = null;   // Date of last successful fetch
+// Round G5: switching to a lineups tab re-downloads only a copy older than 5 minutes
+const lineupsStale = () => !lineupLastFetched || Date.now() - lineupLastFetched > 5 * 60e3;
 
 // ── GAME SCHEDULE (authoritative matchups) ────────────────────────────────────
 // projected_lineups holds one row per team with no opponent column, so the true
@@ -4315,10 +4319,26 @@ const SUPABASE_PLAYER_TABLE = 'fangraphs_player_splits';
 let playerData = {};
 let playerSortKey = 'wrcPlus', playerSortDir = 'desc';
 
+// Round G5: the home page needs only the season-long overall / vs LHP / vs RHP lines
+// (~1/10 of the batter table). ensurePlayerCore loads just those; ensurePlayerData /
+// ensurePlayers (Players, Lineup Stats, Hot & cold) loads the rest and merges.
+const PLAYER_ORDER = '&order=name.asc,tm.asc,split.asc,date_range.asc';
+const PLAYER_CORE = 'date_range=eq.season&split=in.(no_split,vs_lhp,vs_rhp)';
+let _playerCoreP = null, _playerCoreRows = null;
+function ensurePlayerCore() {
+    if (playerDataPromise) return playerDataPromise;            // the full load covers the core
+    if (!_playerCoreP) _playerCoreP = sbFetchAll(SUPABASE_PLAYER_TABLE, `select=*&${PLAYER_CORE}${PLAYER_ORDER}`)
+        .then(rows => { _playerCoreRows = rows; if (!playerDataPromise) loadPlayerRows(rows); })
+        .catch(err => { _playerCoreP = null; throw err; });
+    return _playerCoreP;
+}
 async function fetchPlayerData() {
-    const allRows = await sbFetchAll(SUPABASE_PLAYER_TABLE,
-        'select=*&order=name.asc,tm.asc,split.asc,date_range.asc');
-    loadPlayerRows(allRows);
+    let core = null;
+    if (_playerCoreP) { try { await _playerCoreP; core = _playerCoreRows; } catch (e) { /* load everything below */ } }
+    const rest = await sbFetchAll(SUPABASE_PLAYER_TABLE, core
+        ? `select=*&or=(date_range.neq.season,split.not.in.(no_split,vs_lhp,vs_rhp))${PLAYER_ORDER}`
+        : `select=*${PLAYER_ORDER}`);
+    loadPlayerRows(core ? core.concat(rest) : rest);
 }
 
 function loadPlayerRows(rows) {
@@ -4471,7 +4491,7 @@ function switchTab(n) {
         target.innerHTML = colspan ? `<tr><td colspan="${colspan}">${msg}</td></tr>` : msg;
     };
     if (n===10) { ptEnsure().then(function(){ prkFilter(); }).catch(err => pitcherErr(err, 'prk-body', 23)); }
-    if (n===11) { Promise.all([ptEnsure(), psEnsure()]).then(pcRenderCompare).catch(err => pitcherErr(err, 'pc-container')); }
+    if (n===11) { ptEnsure().then(pcRenderCompare).catch(err => pitcherErr(err, 'pc-container')); }
     document.querySelectorAll('.tab-btn').forEach(b=>{
         b.classList.remove('active');
         b.setAttribute('aria-selected','false');
@@ -4487,13 +4507,13 @@ function switchTab(n) {
     if (n===0) { loadRankings(); }
     if (n===1) renderAllSplits();
     if (n===2) { ensurePlayerData().then(() => loadPlayerRankings()); }
-    if (n===3) { lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData(), loadPitcherIndex(), loadBatterPriors()]).then(() => renderLineupPreview()); }
+    if (n===3) { if (lineupsStale()) lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData(), loadPitcherIndex(), loadBatterPriors()]).then(() => renderLineupPreview()); }
     if (n===4) {
         document.getElementById('lineup-stats-container').innerHTML =
             `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
         lstatsGamePick = '';   // the tab always opens showing every game
         const lgSel = document.getElementById('lstats-game'); if (lgSel) lgSel.value = '';
-        lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData(), loadPitcherIndex(), loadBatterPriors()])
+        if (lineupsStale()) lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData(), loadPitcherIndex(), loadBatterPriors()])
             .then(() => renderLineupStats())
             .catch(err => {
                 console.error('[LineupStats] fetch error:', err);
@@ -4504,7 +4524,7 @@ function switchTab(n) {
     if (n===9) {
         document.getElementById('lineup-trends-container').innerHTML =
             `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
-        lineupPromise = null; ensureLineups()
+        if (lineupsStale()) lineupPromise = null; ensureLineups()
             .then(() => { initLineupTrends(); renderLineupTrends(); })
             .catch(err => {
                 document.getElementById('lineup-trends-container').innerHTML =
@@ -4514,7 +4534,7 @@ function switchTab(n) {
     if (n===12) {
         document.getElementById('lineup-history-container').innerHTML =
             `<div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Loading…</div></div>`;
-        lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData()])
+        if (lineupsStale()) lineupPromise = null; Promise.all([ensureLineups(), ensurePlayerData()])
             .then(() => { initLineupHistory(); renderLineupHistory(); })
             .catch(err => {
                 document.getElementById('lineup-history-container').innerHTML =
@@ -5896,12 +5916,11 @@ function prkSort(col) {
 // ════════════════════════════════════════════════════════════════
 const PS_TABLE = 'pitcher_split_scores';
 
-let _psData    = [];
 let _psLoaded  = false;
 let _psPromise = null;
 
 const PS_SELECT =
-    'select=name,team,period,split,split_tier,season_score,composite_split_score,' +
+    'select=name,playerid,team,period,split,split_tier,season_score,composite_split_score,' +
     'g,tbf,ip,era,fip,xfip,k_pct,bb_pct,k_bb_pct,k_9,bb_9,hr_9,k_bb,' +
     'whip,babip,lob_pct,woba,avg,obp,slg,' +
     'gb_pct,fb_pct,ld_pct,hard_pct,soft_pct,med_pct,gb_fb,iffb_pct,' +
@@ -5909,19 +5928,33 @@ const PS_SELECT =
     'h,r,er,hr,bb,ibb,hbp,so,doubles,triples' +
     '&order=name.asc,period.asc,split.asc';
 
+// Round G5: the splits table used to download every season × split for every
+// pitcher (~20 MB). Now psEnsure only learns which seasons exist (and how many rated
+// rows each has, to pick the default), and psFilter loads the one season × split on
+// screen, plus last season's and career scores for that split, each once per visit.
 function psEnsure() {
     if (_psLoaded) return Promise.resolve();
     if (_psPromise) return _psPromise;
     _psPromise = (async () => {
-        _psData   = await sbFetchAll(PS_TABLE, PS_SELECT);
-        noteSeason(newestSeason(_psData.map(r => r.period)));
-        fillSeasonSelect('ps-period', _psData, 'period', true, 400);
+        const counts = await sbFetchAll(PS_TABLE, 'select=period&season_score=not.is.null');
+        const rows = counts.map(r => ({ period: r.period, season_score: 1 }));
+        noteSeason(newestSeason(rows.map(r => r.period)));
+        fillSeasonSelect('ps-period', rows, 'period', true, 400);
         _psLoaded = true; // only mark loaded on full success
     })().catch(err => {
         _psPromise = null; // allow the next tab click to retry instead of caching failure
         throw err;
     });
     return _psPromise;
+}
+// `${period}|${split}` → that table's rows; `prev|${split}` → last season's + career scores
+const _psSlices = {}, _psRows = {};
+function psSlice(key, params) {      // null when the rows are already here, else the pending download
+    if (_psRows[key]) return null;
+    if (!_psSlices[key]) _psSlices[key] = sbFetchAll(PS_TABLE, params)
+        .then(rows => { _psRows[key] = rows; return rows; })
+        .catch(err => { delete _psSlices[key]; throw err; });
+    return _psSlices[key];
 }
 
 // ── Shared helpers ──────────────────────────────────────────────
@@ -6030,6 +6063,21 @@ let psSortDir = -1;
 
 function psFilter() {
     if (!_psLoaded) return;
+    const _period = document.getElementById('ps-period').value, _split = document.getElementById('ps-split').value;
+    const kRows = `${_period}|${_split}`, kPrev = `prev|${_split}`;
+    const pending = [
+        psSlice(kRows, `${PS_SELECT}&period=eq.${encodeURIComponent(_period)}&split=eq.${encodeURIComponent(_split)}`),
+        psSlice(kPrev, `select=name,playerid,period,split,season_score&split=eq.${encodeURIComponent(_split)}&period=in.(${CUR_SEASON - 1},career)&order=name.asc,period.asc`),
+    ].filter(Boolean);
+    if (pending.length) {
+        const body = document.getElementById('ps-body');
+        if (body) body.innerHTML = '<tr><td colspan="40"><div class="empty-state"><div class="empty-state-text">Loading…</div></div></td></tr>';
+        Promise.all(pending).then(() => psFilter()).catch(err => {
+            if (body) body.innerHTML = `<tr><td colspan="40"><div class="empty-state"><div class="empty-state-text">Pitcher data error: ${esc(err.message)}</div></div></td></tr>`;
+        });
+        return;
+    }
+    const _psData = _psRows[kRows];   // just this season × split (the score columns read _psRows[kPrev])
     // Update season score column label
     var psSznEl = document.getElementById('ps-szn-label');
     var psPeriodEl = document.getElementById('ps-period');
@@ -6044,10 +6092,11 @@ function psFilter() {
     const prevSznMap    = {};
     const prevSzn       = String(CUR_SEASON - 1);
     const prevCareerMap = {};
-    _psData.forEach(function(r) {
+    _psRows[kPrev].forEach(function(r) {
         if (r.split !== split) return;
-        if (r.period === prevSzn)  prevSznMap[r.name]    = r.season_score;
-        if (r.period === 'career') prevCareerMap[r.name] = r.season_score;
+        // keyed by player id: two pitchers can share a name (two José Rodríguez) (Round G5)
+        if (r.period === prevSzn)  prevSznMap[r.playerid || r.name]    = r.season_score;
+        if (r.period === 'career') prevCareerMap[r.playerid || r.name] = r.season_score;
     });
 
     const minip = parseFloat(document.getElementById('ps-minip') ? document.getElementById('ps-minip').value : 0) || 0;
@@ -6059,8 +6108,8 @@ function psFilter() {
                (!name || (r.name||'').toLowerCase().indexOf(name) >= 0);
     }).map(function(r) {
         return Object.assign({}, r, {
-            prev_split_score:   prevSznMap[r.name]    != null ? +prevSznMap[r.name]    : null,
-            career_split_score: prevCareerMap[r.name] != null ? +prevCareerMap[r.name] : null,
+            prev_split_score:   prevSznMap[r.playerid || r.name]    != null ? +prevSznMap[r.playerid || r.name]    : null,
+            career_split_score: prevCareerMap[r.playerid || r.name] != null ? +prevCareerMap[r.playerid || r.name] : null,
         });
     });
 
@@ -6234,7 +6283,16 @@ function pcSelect(side, name) {
     pcRenderCompare();
 }
 
+// Round G5: split rows for just the pitchers being compared (a few KB), not the whole table
+const _pcSplitRows = {};
+function pcSplits(name) { return _pcSplitRows[name] || []; }
 function pcRenderCompare() {
+    const need = [pcA, pcB].filter(n => n && !_pcSplitRows[n]);
+    if (!need.length) return pcRenderCompareNow();
+    return Promise.all(need.map(n => sbFetchAll(PS_TABLE, `${PS_SELECT}&name=eq.${encodeURIComponent(n)}`)
+        .then(rows => { _pcSplitRows[n] = rows; }).catch(() => { _pcSplitRows[n] = []; }))).then(pcRenderCompareNow);
+}
+function pcRenderCompareNow() {
     var el = document.getElementById('pc-container');
     if (!pcA && !pcB) {
         el.innerHTML = '<div class="pc-empty">Search for two pitchers above to compare</div>';
@@ -6291,7 +6349,7 @@ function pcRenderCompare() {
             var row = _ptData.find(function(r) { return r.name === name && String(r.season) === period; });
             return row ? row.season_score : null;
         }
-        var row = _psData.find(function(r) { return r.name === name && r.split === splitKey && r.period === period; });
+        var row = pcSplits(name).find(function(r) { return r.name === name && r.split === splitKey && r.period === period; });
         return row ? row.season_score : null;
     }
 
@@ -6301,7 +6359,7 @@ function pcRenderCompare() {
             var row = _ptData.find(function(r) { return r.name === name && String(r.season) === period; });
             return row ? row.tier : null;
         }
-        var row = _psData.find(function(r) { return r.name === name && r.split === splitKey && r.period === period; });
+        var row = pcSplits(name).find(function(r) { return r.name === name && r.split === splitKey && r.period === period; });
         return row ? row.split_tier : null;
     }
 
@@ -6310,7 +6368,7 @@ function pcRenderCompare() {
         if (splitKey === 'overall') {
             row = _ptData.find(function(r) { return r.name === name && String(r.season) === String(CUR_SEASON); });
         } else {
-            row = _psData.find(function(r) { return r.name === name && r.split === splitKey && r.period === String(CUR_SEASON); });
+            row = pcSplits(name).find(function(r) { return r.name === name && r.split === splitKey && r.period === String(CUR_SEASON); });
         }
         if (!row || row[col] == null) return null;
         return +row[col];
@@ -6390,7 +6448,7 @@ function pcRenderCompare() {
             if (splitKey === 'overall') {
                 row = _ptData.find(function(r) { return r.name === name && String(r.season) === period; });
             } else {
-                row = _psData.find(function(r) { return r.name === name && r.split === splitKey && r.period === period; });
+                row = pcSplits(name).find(function(r) { return r.name === name && r.split === splitKey && r.period === period; });
             }
             return (row && row[col] != null) ? +row[col] : null;
         }

@@ -1237,7 +1237,7 @@ th[tabindex]:focus-visible, tr[tabindex]:focus-visible, td[tabindex]:focus-visib
     </button>
 </nav>
 
-<script src="assets/js/shared.js?v=93be240f"></script>
+<script src="assets/js/shared.js?v=bfbe184c"></script>
 <script>
 // ── SUPABASE CONFIG ─────────────────────────────────────────────────────────
 const SUPABASE_URL   = 'https://mfliuasrygxkembqmrkr.supabase.co';
@@ -1448,7 +1448,7 @@ function switchPanel(id) {
     if (id === 'pitchers') ensurePitchers();
     if (id === 'compare') { initComparePickers(); renderMobileCompare(); }
     if (id === 'hotcold') renderHCTeams();
-    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex(), loadBatterPriors()]).then(() => renderLineupsMobile());
+    if (id === 'lineups') Promise.all([ensureLineups(), ensurePlayerCore(), loadPitcherIndex(), loadBatterPriors()]).then(() => renderLineupsMobile());
     if (id === 'rpg') ensureRPG().then(() => renderRPG());
     if (id === 'report') initMobileReport();
     if (id === 'today') renderToday();
@@ -1531,30 +1531,48 @@ function loadTeamRows(rows) {
     if (document.getElementById('mp-compare')?.classList.contains('active')) renderMobileCompare();
 }
 
-function ensurePlayers() {
-    if (!playerPromise) {
-        playerPromise = sbFetch(SUPABASE_PLAYER_TABLE).then(rows => {
-            const parsePct = v => parseFloat(String(v||'').replace('%','')) || 0;
-            const parseNum = v => parseFloat(v) || 0;
-            playerData = {};
-            for (const r of rows) {
-                const split = (r.split||'').trim(), dr = (r.date_range||'').trim();
-                const name = correctPlayerName((r.name||'').trim());
-                if (!split || !dr || !name) continue;
-                const key = `${split}-${dr}`;
-                if (!playerData[key]) playerData[key] = [];
-                playerData[key].push({
-                    name, playerid: r.playerid != null ? String(r.playerid) : null, tm: (r.tm||'').trim(), split, dateRange: dr,
-                    startDate: (r.start_date||'').trim(), endDate: (r.end_date||'').trim(),
-                    pa: parseNum(r.pa), bbPct: parsePct(r.bb_pct), kPct: parsePct(r.k_pct),
-                    avg: parseNum(r.avg), obp: parseNum(r.obp), slg: parseNum(r.slg),
-                    ops: parseNum(r.ops), iso: parseNum(r.iso), babip: parseNum(r.babip),
-                    woba: parseNum(r.woba), wrcPlus: parseNum(r.wrcplus),
-                });
-            }
-            playerLoaded = true;
+// Round G5: the home page needs only the season-long overall / vs LHP / vs RHP lines
+// (~1/10 of the batter table). ensurePlayerCore loads just those; ensurePlayerData /
+// ensurePlayers (Players, Lineup Stats, Hot & cold) loads the rest and merges.
+// Sorted: paging through an unsorted table can repeat one row and skip another
+const PLAYER_ORDER = '&order=name.asc,tm.asc,split.asc,date_range.asc';
+const PLAYER_CORE = '&date_range=eq.season&split=in.(no_split,vs_lhp,vs_rhp)' + PLAYER_ORDER;
+let _playerCoreP = null, _playerCoreRows = null;
+function parsePlayerRows(rows) {
+    const parsePct = v => parseFloat(String(v||'').replace('%','')) || 0;
+    const parseNum = v => parseFloat(v) || 0;
+    playerData = {};
+    for (const r of rows) {
+        const split = (r.split||'').trim(), dr = (r.date_range||'').trim();
+        const name = correctPlayerName((r.name||'').trim());
+        if (!split || !dr || !name) continue;
+        const key = `${split}-${dr}`;
+        if (!playerData[key]) playerData[key] = [];
+        playerData[key].push({
+            name, playerid: r.playerid != null ? String(r.playerid) : null, tm: (r.tm||'').trim(), split, dateRange: dr,
+            startDate: (r.start_date||'').trim(), endDate: (r.end_date||'').trim(),
+            pa: parseNum(r.pa), bbPct: parsePct(r.bb_pct), kPct: parsePct(r.k_pct),
+            avg: parseNum(r.avg), obp: parseNum(r.obp), slg: parseNum(r.slg),
+            ops: parseNum(r.ops), iso: parseNum(r.iso), babip: parseNum(r.babip),
+            woba: parseNum(r.woba), wrcPlus: parseNum(r.wrcplus),
         });
     }
+}
+function ensurePlayerCore() {
+    if (playerPromise) return playerPromise;                     // the full load covers the core
+    if (!_playerCoreP) _playerCoreP = sbFetch(SUPABASE_PLAYER_TABLE, PLAYER_CORE)
+        .then(rows => { _playerCoreRows = rows; if (!playerLoaded) parsePlayerRows(rows); })
+        .catch(err => { _playerCoreP = null; throw err; });
+    return _playerCoreP;
+}
+function ensurePlayers() {
+    if (!playerPromise) playerPromise = (async () => {
+        let core = null;
+        if (_playerCoreP) { try { await _playerCoreP; core = _playerCoreRows; } catch (e) { /* load everything below */ } }
+        const rest = await sbFetch(SUPABASE_PLAYER_TABLE, (core ? '&or=(date_range.neq.season,split.not.in.(no_split,vs_lhp,vs_rhp))' : '') + PLAYER_ORDER);
+        parsePlayerRows(core ? core.concat(rest) : rest);
+        playerLoaded = true;
+    })().catch(err => { playerPromise = null; throw err; });
     return playerPromise;
 }
 
@@ -2822,7 +2840,8 @@ const PSPL_SELECT = '&select=name,team,period,split,split_tier,season_score,ip,t
                   + 'k_pct,bb_pct,k_bb_pct,k_9,bb_9,hr_9,woba,avg,obp,slg,gb_pct,hard_pct,soft_pct'
                   + '&order=name.asc,period.asc,split.asc';
 
-let pitData = [], pspData = [], pitLoaded = false, pitPromise = null;
+let pitData = [], pitLoaded = false, pitPromise = null;
+const _pspRows = {}, _pspPending = {};   // `${period}|${split}` → rows (Round G5)
 
 const PIT_STAT_OPTIONS = [
     {key:'season_score',   label:'Score'}, {key:'composite_score',label:'Comp'},
@@ -2854,11 +2873,14 @@ let pspStats = ['season_score','era','k_pct'], pspSortKey = 'season_score', pspS
 function ensurePitchers() {
     if (pitLoaded) { renderPitchers(); renderPitcherSplits(); return Promise.resolve(); }
     if (pitPromise) return pitPromise;
+    // Round G5: splits used to download every season × split (~11 MB). Up front we only
+    // learn which seasons exist (rated rows per season, to pick the default); the table
+    // loads the one season × split on screen, once per visit (renderPitcherSplits).
     pitPromise = Promise.all([
         sbFetchSel(PIT_TABLE,  PIT_SELECT),
-        sbFetchSel(PSPL_TABLE, PSPL_SELECT),
+        sbFetchSel(PSPL_TABLE, 'select=period&season_score=not.is.null').then(r => r.map(x => ({ period: x.period, season_score: 1 }))),
     ]).then(([a, b]) => {
-        pitData = a; pspData = b; pitLoaded = true;
+        pitData = a; pitLoaded = true;
         noteSeason(newestSeason([...a.map(r => r.season), ...b.map(r => r.period)]));
         fillSeasonSelect('pit-season', a, 'season', false, 100);
         fillSeasonSelect('psp-period', b, 'period', true, 400);
@@ -3040,7 +3062,17 @@ function renderPitcherSplits() {
     const tier   = document.getElementById('psp-tier').value;
     const minIp  = parseFloat(document.getElementById('psp-minip').value) || 0;
     const q      = (document.getElementById('psp-search').value || '').trim().toLowerCase();
-    const rows = pspData.filter(r =>
+    const key = `${period}|${split}`;
+    if (!_pspRows[key]) {
+        if (!period) return;
+        document.getElementById('psp-body').innerHTML = `<tr><td colspan="5"><div class="m-empty"><div class="m-empty-text">Loading…</div></div></td></tr>`;
+        if (!_pspPending[key]) _pspPending[key] = sbFetchSel(PSPL_TABLE, `${PSPL_SELECT}&period=eq.${encodeURIComponent(period)}&split=eq.${encodeURIComponent(split)}`)
+            .then(rows => { _pspRows[key] = rows; renderPitcherSplits(); })
+            .catch(err => { delete _pspPending[key];
+                document.getElementById('psp-body').innerHTML = `<tr><td colspan="5"><div class="m-empty"><div class="m-empty-text">${err.message}</div></div></td></tr>`; });
+        return;
+    }
+    const rows = _pspRows[key].filter(r =>
         String(r.period) === period && r.split === split &&
         (!tier || r.split_tier === tier) &&
         (+r.ip || 0) >= minIp &&
@@ -3128,8 +3160,9 @@ const lastName = n => (n || '').split(' ').slice(-1)[0];
 const shellLogo = (abbr, size) => teamLogo(abbr) ? logoImg(abbr, size) : `<span style="display:inline-block;width:${size}px;height:${size}px"></span>`;
 const tierCls = t => t ? 'tier-' + String(t).toLowerCase() : '';
 
-let _slate = null;
-async function loadSlate() {
+let _slate = null, _slateP = null;   // Round G5: one schedule download shared by the strip and Today
+function loadSlate() { return _slate ? Promise.resolve(_slate) : (_slateP = _slateP || loadSlateOnce()); }
+async function loadSlateOnce() {
     if (_slate) return _slate;
     const today = localDateStr();
     const games = async q => {
@@ -3231,11 +3264,11 @@ async function renderToday() {
 // Page adapters for the drawer in assets/js/shared.js
 const PD_LOGO = abbr => teamLogo(abbr) ? `<img src="${teamLogo(abbr)}" alt="" onerror="this.style.opacity='.15'">` : '';
 const PD_COLOR = abbr => teamColor(abbr);
-const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex(), loadBatterPriors()]);
+const PD_ENSURE_MATCHUPS = () => Promise.all([ensureLineups(), ensurePlayerCore(), loadPitcherIndex(), loadBatterPriors()]);
 async function renderTodayEdges() {
     const el = document.getElementById('today-edges');
     if (!el) return;
-    try { await Promise.all([ensureLineups(), ensurePlayers(), loadPitcherIndex(), loadBatterPriors()]); }
+    try { await Promise.all([ensureLineups(), ensurePlayerCore(), loadPitcherIndex(), loadBatterPriors()]); }
     catch (e) { el.innerHTML = '<div class="m-sb-empty">Lineups unavailable right now</div>'; return; }
     const dates = [...new Set(lineupGames.map(r => r.game_date).filter(Boolean))].sort();
     const head = document.getElementById('today-edges-date');

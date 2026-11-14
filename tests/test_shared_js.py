@@ -117,3 +117,14 @@ def test_drawer_constants_match_the_scoring_script():
     assert got["c"] == spo.WEIGHTS_WITH_CURRENT["career"]
     assert (got["ip"], got["p"], got["m"]) == (spo.FULL_WEIGHT_IP, spo.PRIOR_WEIGHT, spo.MIN_IP)
     assert spo.PRIOR_SCORE == 50
+
+
+@needs_node
+def test_drawer_keeps_only_this_pitchers_rows():
+    """Two Logan Allens: name lookup returns both careers; the drawer keeps his own
+    (rows without an id — older seasons — can't be told apart and stay)."""
+    rows = [{"season": "2025", "playerid": None}, {"season": "2026", "playerid": "27589.0"},
+            {"season": "career", "playerid": "27589.0"}, {"season": "career", "playerid": "18555.0"}]
+    got = js("pdOwnRows", [[rows, "27589"], [rows, None]])
+    assert [r["season"] for r in got[0]] == ["2025", "2026", "career"]
+    assert len(got[1]) == 4
