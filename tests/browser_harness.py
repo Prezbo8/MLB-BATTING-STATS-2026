@@ -165,6 +165,23 @@ def launch(p):
         return p.chromium.launch(channel="chrome")
 
 
+def _wait_for_note(page):
+    """The edges note gets its numbers once edges_results.json has loaded: wait for them."""
+    try:
+        page.wait_for_function("() => /runs a game/.test((document.querySelector('.edge-note-text') || {}).textContent || '')", timeout=5000)
+    except Exception:
+        pass                       # the test then reports the missing numbers
+
+
+def _wait_for_tip(page):
+    """The tier card appears once backtest_results.json has loaded: wait for it, not a fixed
+    time (a fixed 0.5 s was flaky on GitHub's slower runners)."""
+    try:
+        page.wait_for_selector("#tier-tip.show", timeout=5000)
+    except Exception:
+        pass                       # the test then reports the empty card
+
+
 def tour(browser, base, net, frozen_at):
     """Walk both pages; returns per-view results. Recorder and test run exactly this."""
     out = {"desktop": {}, "phone390": {}, "phone375": {}, "errors": []}
@@ -190,6 +207,7 @@ def tour(browser, base, net, frozen_at):
     net.phase = "desktop-home"
     page.goto(f"{base}/index.html")
     view(page, "desktop", "home")
+    _wait_for_note(page)
     out["desktop_edges"] = page.inner_text("#today-edges")
     for n in DESKTOP_TABS:
         net.phase = f"desktop-tab{n}"
@@ -214,7 +232,7 @@ def tour(browser, base, net, frozen_at):
     out["desktop_drawer"] = page.inner_text("#pd-body")[:600]
     page.keyboard.press("Escape")
     page.locator("#rankings-body .tier-pill, #today-pitchers .tier-pill").first.hover()
-    page.wait_for_timeout(500)
+    _wait_for_tip(page)
     out["desktop_tiertip"] = page.evaluate("(document.getElementById('tier-tip') || {}).innerText || ''")
     page.locator("#ticker-pause").click()
     out["desktop_ticker_paused"] = page.get_attribute("#ticker-pause", "aria-pressed")
@@ -225,6 +243,7 @@ def tour(browser, base, net, frozen_at):
     net.phase = "phone-home"
     page.goto(f"{base}/mobile.html")
     view(page, "phone390", "today")
+    _wait_for_note(page)
     out["phone_edges"] = page.inner_text("#today-edges")
     for panel in PHONE_PANELS:
         net.phase = f"phone-{panel}"
@@ -236,7 +255,7 @@ def tour(browser, base, net, frozen_at):
     out["phone_drawer"] = page.inner_text("#pd-body")[:600]
     page.keyboard.press("Escape")
     page.locator("#today-pitchers .tier-pill").first.tap()
-    page.wait_for_timeout(500)
+    _wait_for_tip(page)
     out["phone_tiertip"] = page.evaluate("(document.getElementById('tier-tip') || {}).innerText || ''")
     ctx.close()
 
