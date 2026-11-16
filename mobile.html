@@ -269,6 +269,7 @@ select:focus, .m-text-input:focus { outline: none; border-color: var(--accent); 
     padding: 9px 10px; white-space: nowrap; text-align: right; background: var(--surface2);
     cursor: pointer; user-select: none;
 }
+.m-table th:not([onclick]) { cursor: default; }   /* only sortable headers look clickable (Round H4) */
 .m-table th.left-align { text-align: left; }
 .m-table th.sort-active { color: var(--accent); }
 .m-table td { padding: 7px 10px; border-bottom: 1px solid rgba(30,35,51,0.6); vertical-align: middle; }
