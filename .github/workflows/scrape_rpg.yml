@@ -2,8 +2,8 @@ name: Scrape Runs Per Game (TeamRankings)
 
 on:
   schedule:
-    # Daily at 14:00 UTC (10 AM EDT)
-    - cron: '0 14 * * *'
+    # Backup only (Round H1): keeper starts it 7:30 AM ET; backup 8:43 AM EDT.
+    - cron: '43 12 * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,26 @@ concurrency:
   cancel-in-progress: false   # a second run waits for the first instead of overlapping
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read     # looks up this workflow's earlier runs
+      contents: read
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/backup_check.py --workflow scrape_rpg.yml --since today
+
   scrape:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

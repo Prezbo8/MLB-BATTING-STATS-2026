@@ -2,12 +2,9 @@ name: Scrape Lineups (RotoWire)
 
 on:
   schedule:
-    # Hourly, 15:00–02:00 UTC (covers 11 AM–9 PM ET year-round).
-    # Was every 30 min (22/day) — GitHub throttles high-frequency schedules on
-    # shared runners and was only delivering 2-5 of them. Offset to :17 because
-    # the top of the hour is peak queue load and gets delayed the most.
-    - cron: '17 15-23 * * *'
-    - cron: '17 0,1 * * *'
+    # Backup only (Round H1): keeper starts it every hour at :17, 11:17 AM-9:17 PM ET; backups at :47 skip if a run succeeded in the last 50 min.
+    - cron: '47 15-23 * * *'
+    - cron: '47 0,1 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -15,7 +12,26 @@ concurrency:
   cancel-in-progress: false   # a second run waits for the first instead of overlapping
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read     # looks up this workflow's earlier runs
+      contents: read
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/backup_check.py --workflow scrape_lineups.yml --since 50m
+
   scrape:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

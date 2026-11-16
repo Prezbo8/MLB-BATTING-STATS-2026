@@ -5,7 +5,8 @@ name: Daily Report Summary → Telegram
 # post). Run manually any time via "Run workflow".
 on:
   schedule:
-    - cron: '30 15 * * *'
+    # Backup only (Round H1): keeper starts it 11:00 AM ET; backup 12:13 PM EDT (skips if today's report already went out).
+    - cron: '13 16 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +14,26 @@ concurrency:
   cancel-in-progress: false   # a second run waits for the first instead of overlapping
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read     # looks up this workflow's earlier runs
+      contents: read
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/backup_check.py --workflow report_pdf.yml --since today
+
   report-summary:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

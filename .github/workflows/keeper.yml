@@ -1,0 +1,74 @@
+name: Keeper (starts the daily jobs on time)
+
+# GitHub's own scheduler started this repo's daily jobs a median 2-3 h late (4-5 h in September
+# 2026). This workflow stays running, sleeps until each time in .github/scripts/next_slot.py
+# (Eastern time) and starts that job itself, then hands off to a fresh keeper before GitHub's
+# 6-hour job limit. Same design as the NHL model's keeper.
+#
+#   5:30 AM final scores · 6:00 pitcher pipeline · 6:30 team splits · 7:00 player splits
+#   7:30 runs per game · 11:00 AM Telegram report · lineups every hour :17, 11:17 AM-9:17 PM
+#
+# Offseason: a disabled workflow is skipped, and when all of them are disabled the keeper stops
+# without handing off, so pausing / unpausing the six daily workflows is all it takes.
+# Each daily workflow keeps a GitHub schedule as a backup; it skips when the keeper's run already
+# succeeded (.github/scripts/backup_check.py).
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: print what would start at the next slot (in ~5 s), start nothing, then stop"
+        type: boolean
+        default: false
+  schedule:
+    - cron: '23 1,7,13,19 * * *'   # restarts the chain if it ever breaks (fires late, but fires)
+
+permissions:
+  actions: write    # start the daily workflows and the next keeper
+  contents: read
+
+concurrency:
+  group: keeper
+  cancel-in-progress: false   # one keeper at a time: a hand-off waits for this one to finish
+
+jobs:
+  keep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    env:
+      RUN_SUMMARY: /tmp/run_summary.txt
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github   # the default branch: each hand-off runs the newest timetable
+
+      - name: Start each job at its time, then hand off to a fresh keeper
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          MAX_SLOTS: ${{ inputs.dry_run && '1' || '' }}
+          FAKE_WAIT: ${{ inputs.dry_run && '5' || '' }}
+          AFTER_START: ${{ inputs.dry_run && '0' || '90' }}
+        run: bash .github/scripts/keeper.sh
+
+      - name: Restart the keeper if this one failed or was cancelled (the chain must not break)
+        if: ${{ (failure() || cancelled()) && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 20); do
+            gh workflow run keeper.yml -R "$GITHUB_REPOSITORY" && { echo "• This keeper stopped early: started a new one" >> "$RUN_SUMMARY"; exit 0; }
+            sleep 30
+          done
+          echo "✗ This keeper stopped early and a new one couldn't be started (the 6-hourly schedule restarts it)" >> "$RUN_SUMMARY"
+
+      - name: Summary (what this keeper started; also shown on the run's page)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          {
+            echo "### Keeper: starts the daily jobs on time"
+            echo
+            if [ -s "$RUN_SUMMARY" ]; then sed 's/^/- /' "$RUN_SUMMARY"; else echo "- (nothing started)"; fi
+            echo
+            echo "Result: ${{ job.status }}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
