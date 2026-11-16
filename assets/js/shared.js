@@ -359,7 +359,10 @@ function pdHeader(name, r, S) {
 // plus an "average pitcher" (50) worth 0.10; the blend is then ranked against active pitchers
 function pdBuilt(rows, newest) {
     const { items: list, total, raw } = drawerBlend(rows, newest);
-    const comp = rows[0]?.composite_score;
+    // the newest season's row: the same score the header shows (all of a pitcher's rows share
+    // it, but a row from another same-name pitcher must never decide it — Round H3)
+    const newestRow = rows.reduce((best, r) => (parseInt(r.season, 10) || 0) > (parseInt(best?.season, 10) || 0) ? r : best, rows[0]);
+    const comp = newestRow?.composite_score;
     const row = (lbl, ip, s, w, note) => `<div class="pd-brow">
         <span class="pd-blbl">${lbl}</span><span class="pd-bip">${ip}</span>
         <span class="pd-bbar"><span style="width:${s != null ? Math.max(2, Math.min(100, s)) : 0}%" class="b-${pdTier(s).toLowerCase()}"></span></span>

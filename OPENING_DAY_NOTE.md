@@ -8,3 +8,7 @@ Just a note for now — nothing has been decided about what to change.
 (`keeper.yml`) starts on its own within ~6 hours (or start it right away with
 `gh workflow run keeper.yml`). A week later, run `python3 scripts/schedule_report.py` to check the
 jobs start on time.
+
+**Pitcher scores:** the first pitcher pipeline run publishes the Round H3 fix — the 2021–25 files
+now carry player ids, so Cleveland's Logan Allen is scored with his full history (26.4 → 11.8)
+and the site's older `pitcher_scores` rows get ids too. Nothing else moves more than 0.25 points.
