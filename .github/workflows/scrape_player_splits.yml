@@ -2,10 +2,9 @@ name: Scrape FanGraphs Player Splits
 
 on:
   schedule:
-    # Daily at 11:00 UTC (7 AM EDT) — player splits run in the 7-9 AM ET window
-    - cron: '0 11 * * *'
-    # Retry 15:00 UTC — runs only if the first run failed (see job 'check')
-    - cron: '0 15 * * *'
+    # Backup only (Round H1): keeper starts it 7:00 AM ET; backups 8:13 / 11:13 AM EDT.
+    - cron: '13 12 * * *'
+    - cron: '13 15 * * *'
   workflow_dispatch:
     inputs:
       pretend_date:
@@ -27,22 +26,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      actions: read     # looks up this workflow's earlier runs
+      contents: read
     outputs:
       run: ${{ steps.c.outputs.run }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
       - id: c
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ github.event.schedule }}" = "0 15 * * *" ]; then
-            n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow scrape_player_splits.yml --status success \
-                  --created ">=$(date -u +%F)" --json databaseId --jq length)
-            if [ "$n" -gt 0 ]; then
-              echo "Today's first run already succeeded — skipping the retry"
-              echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
-            fi
-          fi
-          echo "run=true" >> "$GITHUB_OUTPUT"
+        run: python3 .github/scripts/backup_check.py --workflow scrape_player_splits.yml --since today
 
   scrape:
     needs: check

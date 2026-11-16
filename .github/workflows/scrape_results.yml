@@ -5,8 +5,8 @@ name: Scrape MLB Results (final scores)
 # score was added or changed, so offseason runs make no commits.
 on:
   schedule:
-    # Daily at 10:00 UTC (6 AM EDT), after every West Coast game is final
-    - cron: '0 10 * * *'
+    # Backup only (Round H1): keeper starts it 5:30 AM ET; backup 6:47 AM EDT.
+    - cron: '47 10 * * *'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +17,26 @@ concurrency:
   cancel-in-progress: false   # a second run waits for the first instead of overlapping
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read     # looks up this workflow's earlier runs
+      contents: read
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+      - id: c
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/backup_check.py --workflow scrape_results.yml --since today
+
   results:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

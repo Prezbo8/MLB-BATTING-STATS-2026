@@ -10,10 +10,9 @@ name: MLB Pitcher Pipeline
 
 on:
   schedule:
-    # Daily at 05:00 UTC (1 AM EDT) — pitcher chains run in the 1-3 AM ET window
-    - cron: '0 5 * * *'
-    # Retry 09:00 UTC — runs only if the first run failed (see job 'check')
-    - cron: '0 9 * * *'
+    # Backup only (Round H1): keeper starts it 6:00 AM ET; backups 7:13 / 10:13 AM EDT (FanGraphs sometimes blocks for a few hours).
+    - cron: '13 11 * * *'
+    - cron: '13 14 * * *'
   workflow_dispatch:
 
 permissions:
@@ -36,22 +35,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      actions: read     # looks up this workflow's earlier runs
+      contents: read
     outputs:
       run: ${{ steps.c.outputs.run }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
       - id: c
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ github.event.schedule }}" = "0 9 * * *" ]; then
-            n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow mlb_pitcher_pipeline.yml --status success \
-                  --created ">=$(date -u +%F)" --json databaseId --jq length)
-            if [ "$n" -gt 0 ]; then
-              echo "Today's first run already succeeded — skipping the retry"
-              echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
-            fi
-          fi
-          echo "run=true" >> "$GITHUB_OUTPUT"
+        run: python3 .github/scripts/backup_check.py --workflow mlb_pitcher_pipeline.yml --since today
 
   pipeline:
     needs: check

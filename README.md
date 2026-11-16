@@ -23,19 +23,28 @@ data/                                pipeline outputs and static inputs
 .github/workflows/                   schedules below
 ```
 
-## Daily schedule (UTC / ET during daylight time)
+## Daily schedule (Eastern time, in season)
 
-| UTC | ET | Workflow |
+GitHub's own scheduler started these jobs a median 2–3 hours late (4–5 h in September 2026),
+so `keeper.yml` (same design as the NHL model's) stays running, sleeps until each time below and
+starts the job itself, handing off to a fresh keeper before GitHub's 6-hour job limit. Times live
+in `.github/scripts/next_slot.py`.
+
+| ET | Workflow | Backup schedule (UTC = EDT + 4) |
 |---|---|---|
-| 05:00 (retry 09:00) | 1 AM (5 AM) | `mlb_pitcher_pipeline.yml` — pitcher overalls chain, then pitcher splits chain; one commit per run |
-| 08:00 (retry 12:00) | 4 AM (8 AM) | `scrape_team_splits.yml` — team batting splits |
-| 10:00 | 6 AM | `scrape_results.yml` — MLB final scores → `data/results/results_<season>.csv` |
-| 11:00 (retry 15:00) | 7 AM (11 AM) | `scrape_player_splits.yml` — player batting splits |
-| 14:00 | 10 AM | `scrape_rpg.yml` — runs per game |
-| 15:17–01:17, hourly | 11 AM–9 PM | `scrape_lineups.yml` — RotoWire lineups |
+| 5:30 AM | `scrape_results.yml` — MLB final scores → `data/results/results_<season>.csv` | 10:47 |
+| 6:00 AM | `mlb_pitcher_pipeline.yml` — pitcher overalls chain, then pitcher splits chain; one commit per run | 11:13, 14:13 |
+| 6:30 AM | `scrape_team_splits.yml` — team batting splits | 11:43, 14:43 |
+| 7:00 AM | `scrape_player_splits.yml` — player batting splits | 12:13, 15:13 |
+| 7:30 AM | `scrape_rpg.yml` — runs per game | 12:43 |
+| 11:00 AM | `report_pdf.yml` — daily report → Telegram | 16:13 |
+| every hour :17, 11:17 AM–9:17 PM | `scrape_lineups.yml` — RotoWire lineups | :47 hourly |
 
-The retry runs only do work when that day's first run failed (FanGraphs sometimes
-blocks GitHub's servers for a few hours).
+Each workflow keeps a GitHub schedule as a **backup**: its first job
+(`.github/scripts/backup_check.py`) skips when the workflow already succeeded today (lineups: in the
+last 50 minutes), so a backup only does work when the keeper's run didn't happen or failed — which
+also retries FanGraphs blocks later in the morning. Runs started by the keeper or by hand always run.
+Check timing any time with `python3 scripts/schedule_report.py` (read-only).
 
 All scrapers hit JSON APIs / plain HTML with `requests` (no browser), read secrets
 from repo Actions secrets, retry with escalating waits, and push nothing on failure
@@ -52,7 +61,8 @@ Test any date with `MLB_TODAY=YYYY-MM-DD python scripts/...`.
 **Pause** (after the last regular-season game has been scraped): disable the
 scheduled workflows — `mlb_pitcher_pipeline`, `scrape_team_splits`,
 `scrape_player_splits`, `scrape_rpg`, `scrape_lineups`, `report_pdf`
-(`gh workflow disable <file>`). `scrape_results` can stay on; it commits nothing
+(`gh workflow disable <file>`). The keeper pauses itself: it skips disabled workflows and stops
+when all of them are disabled, so it needs no separate step. `scrape_results` can stay on; it commits nothing
 until scores change.
 
 **Unpause** on or after the day after Opening Day (2027: **Mar 26**) — earlier,
