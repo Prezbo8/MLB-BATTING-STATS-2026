@@ -231,7 +231,11 @@ def tour(browser, base, net, frozen_at):
     view(page, "desktop", "drawer")
     out["desktop_drawer"] = page.inner_text("#pd-body")[:600]
     page.keyboard.press("Escape")
-    page.locator("#rankings-body .tier-pill, #today-pitchers .tier-pill").first.hover()
+    pill = page.locator("#rankings-body .tier-pill, #today-pitchers .tier-pill").first
+    out["desktop_hover"] = not page.evaluate("matchMedia('(hover: none)').matches")
+    # the site shows tier cards on hover where the device can hover, on tap where it can't;
+    # a headless Linux browser may report no hover, so do what a user there would do
+    (pill.hover if out["desktop_hover"] else pill.click)()
     _wait_for_tip(page)
     out["desktop_tiertip"] = page.evaluate("(document.getElementById('tier-tip') || {}).innerText || ''")
     page.locator("#ticker-pause").click()

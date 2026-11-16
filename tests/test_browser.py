@@ -89,9 +89,11 @@ def test_pitcher_drawer_opens(run):
         assert "HOW THE SCORE IS BUILT" in text.upper(), text[:200]
 
 
-def test_tier_cards_explain_the_tier(run):
-    for text in (run["desktop_tiertip"], run["phone_tiertip"]):
-        assert "Backtest" in text and "runs per 9" in text, text[:200]
+@pytest.mark.parametrize("side", ["desktop", "phone"])
+def test_tier_cards_explain_the_tier(run, side):
+    text = run[f"{side}_tiertip"]
+    how = ("hover" if run.get("desktop_hover") else "click") if side == "desktop" else "tap"
+    assert "Backtest" in text and "runs per 9" in text, f"{side} ({how}): {text[:200]!r}"
 
 
 def test_ticker_pause_button_works(run):
