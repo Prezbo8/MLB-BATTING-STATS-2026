@@ -96,8 +96,8 @@ def get_tier(score):
 # ─────────────────────────────────────────
 # PLAYER KEY
 # Composites must group the same human, and names collide (two different
-# Logan Allens are active). Raws from 2026 on carry a FanGraphs
-# playerid; the static 2021-2025 raws don't.
+# Logan Allens are active). Every raw file (2021 on) carries a FanGraphs
+# playerid, so the name fallback below is only a safety net.
 # ─────────────────────────────────────────
 def _norm_pid(v):
     """playerid may arrive as int, float (12345.0) or string."""
