@@ -131,3 +131,14 @@ def test_schedule_report_delay():
     slots = sr.slot_times("mlb_pitcher_pipeline.yml")
     assert sr.delay_minutes(et(2027, 4, 10, 6, 5), slots) == 5
     assert sr.delay_minutes(et(2027, 4, 11, 1, 0), slots) == 19 * 60       # before today's 6:00 -> yesterday's
+
+
+@pytest.mark.parametrize("path", sorted(glob.glob(os.path.join(REPO, ".github", "workflows", "*.yml"))), ids=os.path.basename)
+def test_jobs_installing_playwright_run_on_ubuntu_24_04(path):
+    """ubuntu-latest became Ubuntu 26.04 in Oct 2026, where Playwright can't install Chromium
+    (CI failed on it in Round H4). Any job that installs Playwright must pin ubuntu-24.04."""
+    w = yaml.safe_load(open(path))
+    for name, job in w.get("jobs", {}).items():
+        text = yaml.safe_dump(job)
+        if "playwright install" in text:
+            assert job.get("runs-on") == "ubuntu-24.04", f"{os.path.basename(path)} job {name}: runs-on {job.get('runs-on')}"
