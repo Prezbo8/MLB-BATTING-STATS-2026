@@ -54,16 +54,18 @@ def test_site_labels_come_from_the_starter_score():
          "No clear edge", "No clear edge", "No clear edge"]
 
 
-def test_site_cutoffs_are_the_backtests_own_groups():
-    """Round H2: the site labels with plain scores; they must be the backtest's validated groups
-    (1.0 and 0.4 starter spreads above its middle starter), so the two can't drift apart again."""
+def test_site_labels_separate_runs_in_every_season():
+    """Round H5: graded on 2023-2026 with the scores the site shows (in-season), the site's
+    cut-offs must split offenses in order -- Tough < Slight < the rest -- every season, and the
+    results file must describe the cut-offs the site uses."""
     r = json.load(open(os.path.join(REPO, "edges_results.json")))
-    mid, sd = r["scale"]["mid"], r["scale"]["sd"]
-    assert abs(be.STARTER_TOUGH - (mid + 1.0 * sd)) < 1.0
-    assert abs(be.STARTER_SLIGHT - (mid + 0.4 * sd)) < 1.0
     assert r["site_cutoffs"] == {"tough": be.STARTER_TOUGH, "slight": be.STARTER_SLIGHT}
-    bands = {b["band"]: b for b in r["site_bands"]}
-    assert bands["tough"]["runs"] < bands["slight"]["runs"] < bands["none"]["runs"]
+    assert len(r["site_bands_by_season"]) >= 4
+    for season, bands in [("all", r["site_bands"])] + list(r["site_bands_by_season"].items()):
+        b = {x["band"]: x for x in bands}
+        assert b["tough"]["runs"] < b["slight"]["runs"] < b["none"]["runs"], season
+    tough = {x["band"]: x for x in r["site_bands"]}["tough"]
+    assert tough["ci"][1] < {x["band"]: x for x in r["site_bands"]}["none"]["ci"][0]   # clearly apart
 
 
 @pytest.mark.parametrize("page", ["index.html", "mobile.html"])
@@ -80,3 +82,37 @@ def test_pages_use_the_same_numbers_as_the_backtest(page):
     assert num(r"STARTER_SLIGHT = (\d+(?:\.\d+)?);") == be.STARTER_SLIGHT
     assert "Tough matchup" in html and "(lv.wrc - 100) / 12" not in html   # label = starter score only
     assert "starterScale" not in html                                     # no separate site yardstick
+
+
+
+# ── Round H5: the multi-season pieces ───────────────────────────────────────
+
+def test_month_cutoffs_never_look_ahead(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(be, "season_dates", lambda y: (date(2025, 3, 27), date(2025, 9, 28)))
+    c = be.cutoffs(2025, [3, 4, 5, 9])
+    assert c[3] is None and c[4] == date(2025, 3, 31) and c[5] == date(2025, 4, 30) and c[9] == date(2025, 8, 31)
+
+
+def _games():
+    import pandas as pd
+    rows = []
+    for pk, home, away, hr, ar, hl, al in [(1, "COL", "SDP", 9, 7, 100, 110), (2, "SDP", "COL", 3, 2, 110, 100),
+                                         (3, "COL", "LAD", 8, 6, 100, 120), (4, "SDP", "LAD", 2, 4, 110, 120)]:
+        rows.append({"season": 2025, "game_pk": pk, "home": home, "offense": away, "runs": ar, "lineup": al, "sp_in": 60.0, "month": 5})
+        rows.append({"season": 2025, "game_pk": pk, "home": home, "offense": home, "runs": hr, "lineup": hl, "sp_in": 80.0, "month": 5})
+    return pd.DataFrame(rows)
+
+
+def test_park_adjustment_divides_by_the_parks_run_rate():
+    df = _games()
+    adj = be.park_adjusted(df)
+    # COL games average 15 runs, SDP 5.5, league 10.25 -> COL factor 1.46, SDP 0.54
+    col = df["home"] == "COL"
+    assert adj[col].mean() < df.loc[col, "runs"].mean() and adj[~col].mean() > df.loc[~col, "runs"].mean()
+
+
+def test_same_game_pairs_away_minus_home():
+    sg = be.same_game(_games()).set_index("game_pk")
+    assert sg.loc[1, "d_runs"] == 7 - 9 and sg.loc[1, "d_lineup"] == 110 - 100 and sg.loc[1, "d_sp"] == 60 - 80
+    assert len(sg) == 4

@@ -7,6 +7,7 @@ Skips when Playwright or a browser isn't available (CI installs both).
 """
 
 import os
+import re
 import sys
 from urllib.parse import unquote
 
@@ -81,7 +82,7 @@ def test_todays_edges_render_with_labels(run):
     for text in (run["desktop_edges"], run["phone_edges"]):
         up = text.upper()
         assert "TOUGH MATCHUP" in up or "SLIGHT EDGE" in up or "NO CLEAR EDGE" in up, text[:200]
-        assert "3.86" in text or "No lineups" in text   # the note reads edges_results.json
+        assert re.search(r"scored \d\.\d\d runs a game, vs \d\.\d\d", text) or "No lineups" in text, text[-300:]   # numbers from edges_results.json
 
 
 def test_pitcher_drawer_opens(run):
