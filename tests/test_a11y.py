@@ -1,4 +1,6 @@
-"""Accessibility basics on both pages (Round G4) — static checks of the HTML."""
+"""Accessibility basics on both pages (Round G4): the checks that suit the source (alt text,
+skip link, focus ring, colour contrast). Keyboard reach, named controls and the ticker's pause
+button are checked in a real browser by tests/test_browser.py (Round H4)."""
 
 import os
 import re
@@ -25,24 +27,6 @@ def contrast(a, b):
 
 
 @pytest.mark.parametrize("page", PAGES)
-def test_every_form_control_has_a_name(page):
-    s = html(page)
-    labelled = set(re.findall(r'<label[^>]*\bfor="([^"]+)"', s))
-    missing = []
-    for m in re.finditer(r"<(select|input)\b([^>]*)>", s):
-        attrs = m.group(2)
-        line = s[s.rfind("\n", 0, m.start()) + 1:m.start()]
-        if line.lstrip().startswith("//"):          # a code comment that mentions <select>
-            continue
-        if "aria-label" in attrs or 'type="hidden"' in attrs:
-            continue
-        mid = re.search(r'\bid="([^"]+)"', attrs)
-        if not mid or mid.group(1) not in labelled:
-            missing.append(m.group(0)[:70])
-    assert not missing, missing
-
-
-@pytest.mark.parametrize("page", PAGES)
 def test_every_image_has_alt_text(page):
     assert not re.findall(r"<img\b(?![^>]*\balt=)[^>]*>", html(page))
 
@@ -64,13 +48,3 @@ def test_text_colors_meet_4_5_to_1(page):
         for fg in ("text", "text2", "muted"):
             for bg in ("bg", "surface", "surface2", "surface3"):
                 assert contrast(v[fg], v[bg]) >= 4.5, (page, fg, bg, round(contrast(v[fg], v[bg]), 2))
-
-
-def test_shared_js_makes_clickables_keyboard_reachable():
-    js = open(os.path.join(REPO, "assets", "js", "shared.js")).read()
-    assert "function a11yEnhance" in js and "MutationObserver" in js and "aria-sort" in js
-
-
-def test_ticker_has_a_pause_button():
-    s = html("index.html")
-    assert 'id="ticker-pause"' in s and "_tickerUserPaused" in s

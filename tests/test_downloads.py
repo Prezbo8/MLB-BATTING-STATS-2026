@@ -1,44 +1,15 @@
-"""Round G5: the pages download what they show, not whole tables."""
+"""Round G5 download rules. The behaviour (home page size, one pitcher-split slice at a time,
+core batter lines on the home page, sorted batter downloads, one schedule download) is checked
+in a real browser by tests/test_browser.py (Round H4). What stays here can't be seen from the
+network: which key the split-score columns use."""
 
 import os
-import re
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-html = lambda p: open(os.path.join(REPO, p)).read()
-
-
-def test_pitcher_splits_load_one_season_and_split_at_a_time():
-    d, m = html("index.html"), html("mobile.html")
-    # up front, only which seasons exist (and how many rated rows each has)
-    assert "sbFetchAll(PS_TABLE, 'select=period&season_score=not.is.null')" in d
-    assert "sbFetchSel(PSPL_TABLE, 'select=period&season_score=not.is.null')" in m
-    # the full columns only ever with a season and split filter (or one pitcher for Compare)
-    assert re.search(r"\$\{PS_SELECT\}&period=eq\.\$\{encodeURIComponent\(_period\)\}&split=eq\.", d)
-    assert re.search(r"\$\{PSPL_SELECT\}&period=eq\.\$\{encodeURIComponent\(period\)\}&split=eq\.", m)
-    assert "sbFetchAll(PS_TABLE, PS_SELECT)" not in d and "sbFetchSel(PSPL_TABLE, PSPL_SELECT)" not in m
 
 
 def test_split_scores_are_matched_by_player_id():
-    d = html("index.html")
+    """Two pitchers can share a name (two Jose Rodriguez): the previous-season and career
+    columns of the pitcher Splits table must look scores up by player id."""
+    d = open(os.path.join(REPO, "index.html")).read()
     assert "prevSznMap[r.playerid || r.name]" in d and "prevCareerMap[r.playerid || r.name]" in d
-
-
-def test_home_page_loads_only_the_core_batter_lines():
-    for page in ("index.html", "mobile.html"):
-        s = html(page)
-        assert "date_range=eq.season&split=in.(no_split,vs_lhp,vs_rhp)" in s
-        assert "renderTodayEdges" in s and re.search(r"Promise\.all\(\[ensureLineups\(\), ensurePlayerCore\(\)", s)
-
-
-def test_batter_downloads_are_sorted():
-    """Paging through an unsorted table can repeat a row and skip another."""
-    m = html("mobile.html")
-    assert "const PLAYER_ORDER = '&order=name.asc,tm.asc,split.asc,date_range.asc';" in m
-    assert "+ PLAYER_ORDER" in m
-
-
-def test_no_repeat_schedule_or_lineup_downloads():
-    d, m = html("index.html"), html("mobile.html")
-    for s in (d, m):
-        assert "(_slateP = _slateP || loadSlateOnce())" in s
-    assert "lineupsStale()" in d and "Date.now() - lineupLastFetched > 5 * 60e3" in d
