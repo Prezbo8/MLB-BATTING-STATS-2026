@@ -1237,7 +1237,7 @@ th[tabindex]:focus-visible, tr[tabindex]:focus-visible, td[tabindex]:focus-visib
     </button>
 </nav>
 
-<script src="assets/js/shared.js?v=bfbe184c"></script>
+<script src="assets/js/shared.js?v=13562746"></script>
 <script>
 // ── SUPABASE CONFIG ─────────────────────────────────────────────────────────
 const SUPABASE_URL   = 'https://mfliuasrygxkembqmrkr.supabase.co';
@@ -3276,7 +3276,7 @@ async function renderTodayEdges() {
     const bats = rec => { const bo = rec?.batting_order; return Array.isArray(bo) ? bo : (() => { try { return bo ? JSON.parse(bo) : []; } catch (e) { return []; } })(); };
     const games = pairLineupGames(lineupGames).map(({ away, home }) => {
         const a = offenseEdge(bats(away), away?.team, home, home?.team), h = offenseEdge(bats(home), home?.team, away, away?.team);
-        return { a, h, size: -Math.min(a?.z ?? 0, h?.z ?? 0) };   // toughest starter matchup first
+        return { a, h, size: Math.max(a?.score ?? -1, h?.score ?? -1) };   // toughest starter matchup first
     }).filter(g => g.a || g.h).sort((x, y) => y.size - x.size);
     if (!games.length) { el.innerHTML = '<div class="m-sb-empty">No lineups posted yet</div>'; return; }
     const _cp = games.flatMap(g => [g.a, g.h]).filter(Boolean).flatMap(e => e.lv.curPas || []);
@@ -3285,11 +3285,12 @@ async function renderTodayEdges() {
             <span class="m-edge-part">${handLabel(e.hand)} <b class="t-${getTier(WRC_META, e.lv.wrc)}">${e.lv.wrc}</b> · <span${pdAttr(e.sp, e.def)}>${esc(lastName(e.sp))}</span></span>
             ${e.ps && e.ps.composite_score != null ? `<span class="tier-pill ${tierCls(e.ps.tier)}">${esc(e.ps.tier)} ${Math.round(e.ps.composite_score)}</span>` : '<span class="m-edge-na">no score</span>'}
         </div>`;
-    const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => x.z - y.z)[0];   // the side facing the tougher starter
+    const top = g => [g.a, g.h].filter(Boolean).sort((x, y) => (y.score ?? -1) - (x.score ?? -1))[0];   // the side facing the tougher starter
     el.innerHTML = games.map(g => { const t = top(g); return `<div class="m-edge" onclick="switchPanel('lineups')">
-            <div class="m-edge-label ${t.z <= -STARTER_STRONG ? 'strong' : t.z <= -STARTER_LEAN ? 'lean' : ''}">${esc(t.label)}</div>${side(g.a)}${side(g.h)}</div>`; }).join('')
-        + (early ? `<div class="m-edge-early">Early season: batter numbers still lean on last season's lines; starters are measured against last season's 100+ IP starters.</div>` : '')
-        + `<div class="m-edge-note">Label = the starter matchup. In 2026, offenses facing a much better starter scored 3.86 runs vs 4.66 against an average one; lineup wRC+ is context only. <a href="https://github.com/Prezbo8/MLB-BATTING-STATS-2026/blob/main/EDGES.md" target="_blank" rel="noopener">How this was tested</a></div>`;
+            <div class="m-edge-label ${t.level === 'tough' ? 'strong' : t.level === 'slight' ? 'lean' : ''}">${esc(t.label)}</div>${side(g.a)}${side(g.h)}</div>`; }).join('')
+        + (early ? `<div class="m-edge-early">Early season: batter numbers still lean on last season's lines.</div>` : '')
+        + `<div class="m-edge-note"><span class="edge-note-text">${esc(edgeNoteText(null))}</span> <a href="https://github.com/Prezbo8/MLB-BATTING-STATS-2026/blob/main/EDGES.md" target="_blank" rel="noopener">How this was tested</a></div>`;
+    loadEdgesResults().then(r => { const t = el.querySelector('.edge-note-text'); if (t) t.textContent = edgeNoteText(r); });
 }
 function renderShell() {
     renderScoreboard();

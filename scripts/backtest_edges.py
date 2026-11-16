@@ -49,7 +49,9 @@ PRIOR_PA = 60                 # his current-season line leans on last season's
 LAST_SEASON_SHRINK_PA = 100   # last season's line leans on 100
 LINEUP_DIV = 12               # wRC+ points per unit of edge
 STRONG, LEAN = 1.0, 0.4       # cut-offs on |z| (the pre-G2 combined edge, graded below)
-STARTER_STRONG, STARTER_LEAN = 1.0, 0.4   # the site's labels since G2: starter part only
+# The site's labels (Round H2): the starter's plain score. 90 = Elite tier = this backtest's
+# "1 spread above the middle starter" (62.5 + 27.4); 73.5 = 0.4 spread above it.
+STARTER_TOUGH, STARTER_SLIGHT = 90.0, 73.5
 
 
 def batter_prior(last_wrc, last_pa):
@@ -101,13 +103,25 @@ def edge_label(z):
     return "Even"
 
 
-def site_label(starter_part):
-    """The site's label since Round G2 (starter matchup only; see EDGES.md)."""
-    if starter_part <= -STARTER_STRONG:
+def site_label(score):
+    """The site's label (Round H2): from the starter's score only (see EDGES.md)."""
+    if score is None or (isinstance(score, float) and np.isnan(score)):
+        return "No clear edge"
+    if score >= STARTER_TOUGH:
         return "Tough matchup"
-    if starter_part <= -STARTER_LEAN:
+    if score >= STARTER_SLIGHT:
         return "Slight edge: starter"
     return "No clear edge"
+
+
+SITE_BANDS = [("tough", "Tough matchup (starter 90+)"), ("slight", "Slight edge (73.5–90)"),
+              ("none", "No clear edge (under 73.5)"), ("unscored", "No starter score")]
+
+
+def site_band(score):
+    if score is None or (isinstance(score, float) and np.isnan(score)):
+        return "unscored"
+    return "tough" if score >= STARTER_TOUGH else "slight" if score >= STARTER_SLIGHT else "none"
 
 
 def starter_scale(scores):
@@ -341,6 +355,14 @@ def grade(df):
     X = np.column_stack([np.ones(len(df)), df["lineup_part"], df["starter_part"]])
     coef = np.linalg.lstsq(X, df["runs"].to_numpy(float), rcond=None)[0]
     r["runs_per_lineup_unit"], r["runs_per_starter_unit"] = float(coef[1]), float(coef[2])
+    df = df.assign(site_band=df["sp_score"].map(site_band))
+    bands = []
+    for key, name in SITE_BANDS:
+        sub = df[df["site_band"] == key]
+        lo, hi = cluster_bootstrap(df, lambda d, k=key: d.loc[d["site_band"] == k, "runs"].mean())
+        bands.append({"band": key, "label": name, "n": len(sub), "share": len(sub) / len(df),
+                      "runs": float(sub["runs"].mean()), "ci": [lo, hi]})
+    r["site_bands"] = bands
     for key, col in (("labels", "label"), ("starter_labels", "starter_label")):
         out = []
         for lab in LABELS:
@@ -375,9 +397,12 @@ def write_report(r, season, scale):
         "score as of Opening Day. The edge is then compared with the runs that offense scored.",
         f"Starter yardstick: last season's 100+ IP starters (median {scale[0]:.1f}, spread {scale[1]:.1f}).", "",
         "## Verdict", "",
-        "**What the site does with this:** since Round G2 the edges card labels each game from the "
-        "starter matchup only (the part with evidence) — \"Tough matchup\" at 1.0 starter spreads, "
-        "\"Slight edge\" at 0.4 — and shows lineup wRC+ as context.", "",
+        f"**What the site does with this:** the edges card labels each game from the starter's score only "
+        f"(the part with evidence): \"Tough matchup\" for a starter scoring {STARTER_TOUGH:g}+ (the Elite tier), "
+        f"\"Slight edge\" for {STARTER_SLIGHT:g}–{STARTER_TOUGH:g}, and shows lineup wRC+ as context. Those cut-offs "
+        f"are this backtest's own groups written as plain scores ({scale[0]:.1f} + 1.0 × {scale[1]:.1f} ≈ "
+        f"{scale[0] + scale[1]:.1f}; + 0.4 × spread ≈ {scale[0] + 0.4 * scale[1]:.1f}), so they mean the same "
+        "preseason and in-season.", "",
     ]
     if lo > 0:
         lines.append(f"- **The edge predicts runs, weakly.** Rank correlation with runs scored: {rho:.3f} "
@@ -397,7 +422,11 @@ def write_report(r, season, scale):
                  f"(each batter's full-season line) a lineup's wRC+ predicts one game's runs at only "
                  f"{r['rho_lineup_hindsight']:.3f}: wRC+ is adjusted for ballparks and the run environment, raw runs are not, "
                  "and a lineup also faces the bullpen.")
-    lines += ["", "## Runs by label", "",
+    lines += ["", "## Runs by the site's labels", "",
+              "| Site label | Team-games | Share | Runs scored | 95% range |", "|---|---|---|---|---|"]
+    for x in r["site_bands"]:
+        lines.append(f"| {x['label']} | {x['n']} | {x['share']:.0%} | {x['runs']:.2f} | {x['ci'][0]:.2f} to {x['ci'][1]:.2f} |")
+    lines += ["", "## Runs by label (the combined edge as first built)", "",
               "| Label | Team-games | Share | Runs scored | 95% range |", "|---|---|---|---|---|"]
     for x in r["labels"]:
         lines.append(f"| {x['label']} | {x['n']} | {x['share']:.0%} | {x['runs']:.2f} | {x['ci'][0]:.2f} to {x['ci'][1]:.2f} |")
@@ -433,7 +462,8 @@ def main():
     df, scale = build(SEASON)
     r = grade(df)
     r.update({"season": SEASON, "scale": {"mid": scale[0], "sd": scale[1]},
-              "cutoffs": {"strong": STRONG, "lean": LEAN, "lineup_div": LINEUP_DIV}})
+              "cutoffs": {"strong": STRONG, "lean": LEAN, "lineup_div": LINEUP_DIV},
+              "site_cutoffs": {"tough": STARTER_TOUGH, "slight": STARTER_SLIGHT}})
     json.dump(r, open(os.path.join(REPO, "edges_results.json"), "w"), indent=1)
     df.to_csv(os.path.join(CACHE, "edges", f"edges_{SEASON}.csv"), index=False)
     write_report(r, SEASON, scale)

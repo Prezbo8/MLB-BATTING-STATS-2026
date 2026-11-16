@@ -10,14 +10,23 @@ Starter yardstick: last season's 100+ IP starters (median 62.5, spread 27.4).
 
 ## Verdict
 
-**What the site does with this:** since Round G2 the edges card labels each game from the starter matchup only (the part with evidence) — "Tough matchup" at 1.0 starter spreads, "Slight edge" at 0.4 — and shows lineup wRC+ as context.
+**What the site does with this:** the edges card labels each game from the starter's score only (the part with evidence): "Tough matchup" for a starter scoring 90+ (the Elite tier), "Slight edge" for 73.5–90, and shows lineup wRC+ as context. Those cut-offs are this backtest's own groups written as plain scores (62.5 + 1.0 × 27.4 ≈ 90.0; + 0.4 × spread ≈ 73.5), so they mean the same preseason and in-season.
 
 - **No clear signal.** Rank correlation with runs scored: 0.018 (95% range -0.010 to 0.048).
 - Offenses labelled **Strong (bats)** scored 4.47 runs; **Even** 4.38; **Strong (starter)** 4.28 — league average 4.48.
 - **The starter part carries the signal:** 0.086 (0.055 to 0.115), in line with BACKTEST.md's game test. Offenses facing a much better starter score fewer runs.
 - **The lineup part does not:** -0.066 (-0.096 to -0.036). Even with hindsight (each batter's full-season line) a lineup's wRC+ predicts one game's runs at only 0.035: wRC+ is adjusted for ballparks and the run environment, raw runs are not, and a lineup also faces the bullpen.
 
-## Runs by label
+## Runs by the site's labels
+
+| Site label | Team-games | Share | Runs scored | 95% range |
+|---|---|---|---|---|
+| Tough matchup (starter 90+) | 859 | 18% | 3.86 | 3.66 to 4.06 |
+| Slight edge (73.5–90) | 895 | 18% | 4.37 | 4.17 to 4.56 |
+| No clear edge (under 73.5) | 2324 | 48% | 4.68 | 4.53 to 4.83 |
+| No starter score | 780 | 16% | 4.70 | 4.49 to 4.92 |
+
+## Runs by label (the combined edge as first built)
 
 | Label | Team-games | Share | Runs scored | 95% range |
 |---|---|---|---|---|
