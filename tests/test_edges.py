@@ -1,5 +1,6 @@
 """The edge math in scripts/backtest_edges.py, and that both pages use the same numbers."""
 
+import json
 import os
 import re
 
@@ -47,9 +48,22 @@ def test_starter_scale_needs_twenty_starters():
     assert mid == 80.0 and sd == pytest.approx(((10 * 20 ** 2) / 20) ** 0.5)
 
 
-def test_site_labels_come_from_the_starter_part():
-    assert [be.site_label(v) for v in (-1.2, -0.5, 0.0, 1.5)] == \
-        ["Tough matchup", "Slight edge: starter", "No clear edge", "No clear edge"]
+def test_site_labels_come_from_the_starter_score():
+    assert [be.site_label(v) for v in (97.0, 90.0, 89.9, 73.5, 60.0, None, float("nan"))] == \
+        ["Tough matchup", "Tough matchup", "Slight edge: starter", "Slight edge: starter",
+         "No clear edge", "No clear edge", "No clear edge"]
+
+
+def test_site_cutoffs_are_the_backtests_own_groups():
+    """Round H2: the site labels with plain scores; they must be the backtest's validated groups
+    (1.0 and 0.4 starter spreads above its middle starter), so the two can't drift apart again."""
+    r = json.load(open(os.path.join(REPO, "edges_results.json")))
+    mid, sd = r["scale"]["mid"], r["scale"]["sd"]
+    assert abs(be.STARTER_TOUGH - (mid + 1.0 * sd)) < 1.0
+    assert abs(be.STARTER_SLIGHT - (mid + 0.4 * sd)) < 1.0
+    assert r["site_cutoffs"] == {"tough": be.STARTER_TOUGH, "slight": be.STARTER_SLIGHT}
+    bands = {b["band"]: b for b in r["site_bands"]}
+    assert bands["tough"]["runs"] < bands["slight"]["runs"] < bands["none"]["runs"]
 
 
 @pytest.mark.parametrize("page", ["index.html", "mobile.html"])
@@ -62,6 +76,7 @@ def test_pages_use_the_same_numbers_as_the_backtest(page):
     assert num(r"LAST_SEASON_SHRINK_PA = (\d+)") == be.LAST_SEASON_SHRINK_PA
     slots = re.search(r"const PA_BY_SLOT = \[([^\]]+)\]", html).group(1)
     assert [float(x) for x in slots.split(",")] == be.PA_BY_SLOT
-    assert num(r"const STARTER_STRONG = (\d+(?:\.\d+)?)") == be.STARTER_STRONG
-    assert num(r"STARTER_LEAN = (\d+(?:\.\d+)?);") == be.STARTER_LEAN
-    assert "Tough matchup" in html and "(lv.wrc - 100) / 12" not in html   # label = starter part only
+    assert num(r"const STARTER_TOUGH = (\d+(?:\.\d+)?)") == be.STARTER_TOUGH
+    assert num(r"STARTER_SLIGHT = (\d+(?:\.\d+)?);") == be.STARTER_SLIGHT
+    assert "Tough matchup" in html and "(lv.wrc - 100) / 12" not in html   # label = starter score only
+    assert "starterScale" not in html                                     # no separate site yardstick

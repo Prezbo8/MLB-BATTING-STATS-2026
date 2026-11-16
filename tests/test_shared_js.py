@@ -81,11 +81,11 @@ def test_prior_matches_backtest():
 
 
 @needs_node
-def test_starter_yardstick_matches_backtest():
-    pools = [[70.0] * 19, [60.0] * 10 + [80.0] * 10, [float(x) for x in range(30, 100, 3)]]
-    for pool, g in zip(pools, js("scaleFrom", [[p] for p in pools])):
-        mid, sd = be.starter_scale(pool)
-        assert g["mid"] == pytest.approx(mid) and g["sd"] == pytest.approx(sd)
+def test_edge_labels_match_backtest():
+    scores = [97.0, 90.0, 89.99, 80.0, 73.5, 73.4, 40.0, None]
+    want = {"Tough matchup": "tough", "Slight edge: starter": "slight", "No clear edge": None}
+    for sc, got in zip(scores, js("edgeLevel", [[x] for x in scores])):
+        assert got == want[be.site_label(sc)], sc
 
 
 @needs_node

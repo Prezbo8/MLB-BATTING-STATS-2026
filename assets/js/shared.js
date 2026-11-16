@@ -10,7 +10,9 @@
 // the scoring can't quietly drift apart.
 const SPLIT_PRIOR_PA = 100;                 // a vs-hand split leans on the overall line
 const PRIOR_PA = 60, LAST_SEASON_SHRINK_PA = 100, EARLY_PA = 100;
-const STARTER_STRONG = 1.0, STARTER_LEAN = 0.4;   // edge labels, in starter spreads (EDGES.md)
+// Edge labels from the starter's score (Round H2): the same cut-offs the backtest graded
+// (EDGES.md). 90 = Elite tier = the backtest's "1 spread above the middle starter".
+const STARTER_TOUGH = 90, STARTER_SLIGHT = 73.5;
 // Last season's line pulled toward 100; rookies (no line) start at 100
 function priorFromLast(lastWrc, lastPa) {
     return lastWrc != null && lastPa ? (lastWrc * lastPa + 100 * LAST_SEASON_SHRINK_PA) / (lastPa + LAST_SEASON_SHRINK_PA) : 100;
@@ -24,13 +26,10 @@ function blendBatter(curWrc, curPa, splitWrc, splitPa, priorWrc, hasLast) {
     if (curPa || hasLast) return { wrc: overall, overall, fallback: true };
     return null;
 }
-// Median and spread of established starters' scores (fallback 50/25 under 20)
-function scaleFrom(scores) {
-    const v = scores.filter(x => x != null && !isNaN(x)).map(Number).sort((a, b) => a - b);
-    if (v.length < 20) return { mid: 50, sd: 25 };
-    const mid = v[Math.floor(v.length / 2)];
-    const sd = Math.sqrt(v.reduce((a, x) => a + (x - mid) ** 2, 0) / v.length) || 25;
-    return { mid, sd };
+// 'tough' | 'slight' | null for a starter's score (pure; tested against backtest_edges.site_label)
+function edgeLevel(score) {
+    if (score == null || isNaN(score)) return null;
+    return score >= STARTER_TOUGH ? 'tough' : score >= STARTER_SLIGHT ? 'slight' : null;
 }
 // The drawer's "how the score is built": mirrors compute_composite_scores —
 // season score × year weight × min(1, IP/60), plus 50 at weight 0.10
@@ -192,7 +191,7 @@ function loadPitcherIndex() {
             const rows = await r.json();
             const cur = Array.isArray(rows) ? rows : [];
             // Early season (under 20 starters at 100 IP): also load last season's rows,
-            // for the starter yardstick and for starters who haven't pitched yet
+            // so starters who haven't pitched yet still get their score
             if (cur.filter(p => +p.ip >= 100).length < 20) {
                 const q2 = await fetch(`${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,playerid&season=eq.${season - 1}`, { headers: _trendHdr() });
                 const prev = await q2.json();
@@ -203,18 +202,6 @@ function loadPitcherIndex() {
         return _pitcherIdx;
     })();
     return _pitcherIdxPromise;
-}
-// Starters as a group score well above the all-pitcher middle (50), so a starter's
-// edge is measured against other starters (100+ IP): their median and spread
-function starterScale() {
-    if (starterScale._v) return starterScale._v;
-    // Until 20 starters reach 100 IP this season (about June), use last season's
-    // 100+ IP starters — nearly the same group, scored with their history (Round G1)
-    const pool = rows => (rows || []).filter(p => +p.ip >= 100 && p.composite_score != null).map(p => +p.composite_score);
-    let v = pool(_pitcherIdx);
-    if (v.length < 20) v = pool(_pitcherPrev);
-    if (v.length < 20) return { mid: 50, sd: 25 };
-    return (starterScale._v = scaleFrom(v));
 }
 function findPitcherScore(name, team) {
     if (!_pitcherIdx || !name) return null;
@@ -235,14 +222,24 @@ function offenseEdge(offRec, offAbbr, defRec, defAbbr) {
     const lv = lineupVsHand(offRec, offAbbr, hand);
     const ps = findPitcherScore(defRec?.pitcher_name, defAbbr);
     if (!lv) return null;
-    const sc = starterScale();
-    // Label from the starter matchup only (Round G2). The 2026 backtest (EDGES.md) found
-    // the lineup part adds nothing to one game's runs, while offenses facing a much
-    // better starter scored 3.86 runs vs 4.66 against an average one.
-    const z = ps && ps.composite_score != null ? (sc.mid - ps.composite_score) / sc.sd : 0;   // < 0: tougher starter
+    // Label from the starter's score only: the 2026 backtest (EDGES.md) found the lineup part
+    // adds nothing to one game's runs, while offenses facing an Elite (90+) starter scored
+    // clearly fewer runs (Round G2; plain-score cut-offs since Round H2)
+    const score = ps && ps.composite_score != null ? +ps.composite_score : null;
+    const level = edgeLevel(score);
     const spLast = lastName(defRec?.pitcher_name) || 'starter';
-    const label = z <= -STARTER_STRONG ? `Tough matchup: ${offAbbr} bats` : z <= -STARTER_LEAN ? `Slight edge: ${spLast}` : 'No clear edge';
-    return { off: offAbbr, def: defAbbr, hand, lv, ps, sp: defRec?.pitcher_name || 'TBD', z, label };
+    const label = level === 'tough' ? `Tough matchup: ${offAbbr} bats` : level === 'slight' ? `Slight edge: ${spLast}` : 'No clear edge';
+    return { off: offAbbr, def: defAbbr, hand, lv, ps, sp: defRec?.pitcher_name || 'TBD', score, level, label };
+}
+
+// The edges card's note, with numbers read from edges_results.json, so rerunning the
+// backtest updates them (Round H2)
+let _edgesP = null;
+const loadEdgesResults = () => _edgesP || (_edgesP = fetch('edges_results.json').then(r => r.ok ? r.json() : null).catch(() => null));
+function edgeNoteText(r) {
+    const b = r && r.site_bands ? Object.fromEntries(r.site_bands.map(x => [x.band, x])) : {};
+    const nums = b.tough && b.none ? ` In ${r.season}, offenses facing one scored ${b.tough.runs.toFixed(2)} runs a game, vs ${b.none.runs.toFixed(2)} against starters under ${STARTER_SLIGHT}.` : '';
+    return `Tough matchup = facing an Elite starter (score ${STARTER_TOUGH}+); Slight edge = ${STARTER_SLIGHT}–${STARTER_TOUGH}.${nums} Lineup wRC+ is shown for context; it didn't predict single games.`;
 }
 
 // ── PITCHER DRAWER + TIER CARDS (Round F3) ──────────────────────────────
