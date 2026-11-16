@@ -235,6 +235,10 @@ def tour(browser, base, net, frozen_at):
     out["desktop_hover"] = not page.evaluate("matchMedia('(hover: none)').matches")
     # the site shows tier cards on hover where the device can hover, on tap where it can't;
     # a headless Linux browser may report no hover, so do what a user there would do
+    # scroll first and let it settle: the site closes tier cards on any scroll, and the scroll
+    # Playwright does inside hover() can land just after the card opened (seen on CI runners)
+    pill.scroll_into_view_if_needed()
+    page.wait_for_timeout(400)
     (pill.hover if out["desktop_hover"] else pill.click)()
     _wait_for_tip(page)
     out["desktop_tiertip"] = page.evaluate("(document.getElementById('tier-tip') || {}).innerText || ''")
@@ -258,7 +262,10 @@ def tour(browser, base, net, frozen_at):
     view(page, "phone390", "drawer")
     out["phone_drawer"] = page.inner_text("#pd-body")[:600]
     page.keyboard.press("Escape")
-    page.locator("#today-pitchers .tier-pill").first.tap()
+    tpill = page.locator("#today-pitchers .tier-pill").first
+    tpill.scroll_into_view_if_needed()
+    page.wait_for_timeout(400)
+    tpill.tap()
     _wait_for_tip(page)
     out["phone_tiertip"] = page.evaluate("(document.getElementById('tier-tip') || {}).innerText || ''")
     ctx.close()
