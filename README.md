@@ -102,10 +102,12 @@ xFIP, K-BB%, Pitching+ and ERA, with 95% ranges. Rerun with
 `python scripts/backtest.py` (downloads cached in `backtest_cache/`, not committed;
 read-only — changes no scores).
 
-`EDGES.md` answers "do Today's edges predict runs?": every regular-season game of the
-last season is rebuilt from what was known before it (MLB box-score lineups, batters'
-earlier months + previous season, Opening-Day starter scores) and compared with runs
-scored. It found the starter matchup predicts and the lineup part doesn't, so the site
-labels games from the starter matchup only. Rerun with `python scripts/backtest_edges.py`
-(needs `backtest.py`'s cache; read-only).
+`EDGES.md` answers "do Today's edges predict runs?": every regular-season game of 2023 through
+the last finished season is rebuilt from what was known before it (MLB box-score lineups, batters'
+exact season-to-date FanGraphs lines + previous season, starter scores as of Opening Day and as the
+live site would have shown them that month) and compared with runs scored, also within the same
+game (park, weather and day shared). The starter matchup predicts every season; the lineup adds
+little, so the site labels games from the starter only. Rerun with
+`python scripts/backtest_edges.py` (first run downloads for a while, then cached; read-only), or
+`--report-only` to rewrite EDGES.md from `edges_results.json`.
 
