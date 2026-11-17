@@ -188,7 +188,10 @@ def tour(browser, base, net, frozen_at):
     frozen = datetime.fromisoformat(frozen_at)
 
     def new_page(width, height, mobile=False):
-        ctx = browser.new_context(viewport={"width": width, "height": height}, is_mobile=mobile, has_touch=mobile)
+        # the browser's "today" comes from its time zone: pin it to the site's (Eastern), or a recording
+        # made at 11 PM in New York replays as tomorrow on GitHub's UTC runners (seen in CI)
+        ctx = browser.new_context(viewport={"width": width, "height": height}, is_mobile=mobile, has_touch=mobile,
+                                  timezone_id="America/New_York")
         page = ctx.new_page()
         page.clock.set_fixed_time(frozen)
         page.route("**/*", net.handle)

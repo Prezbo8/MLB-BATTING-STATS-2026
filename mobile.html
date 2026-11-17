@@ -3215,14 +3215,12 @@ async function loadPitcherLeaders() {
     if (_pitchLeaders || !CUR_SEASON) return _pitchLeaders;
     const H = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
     const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,season_score,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
-    // Leaders = THIS season's score (the Pitcher Rankings table's "<season> Score"), 60+ IP; early in
-    // the season, before five pitchers reach 60 IP, 20+ IP so the list isn't empty. The composite
-    // (multi-season blend, ranked as a percentile) stays the model's number: edges, pills, drawer.
-    const seasonLeaders = async () => {
-        const q = ip => fetch(`${base}&season_score=not.is.null&ip=gte.${ip}&order=season_score.desc&limit=10`, { headers: H }).then(r => r.json());
-        const top = await q(60);
-        return Array.isArray(top) && top.length >= 5 ? top : q(20);
-    };
+    // Leaders = THIS season's score (the Pitcher Rankings table's "<season> Score"). Minimum innings:
+    // 20 IP through May (the first two months: few pitchers have more yet), 40 IP from June on.
+    // The composite (multi-season blend, ranked as a percentile) stays the model's number:
+    // edges, pills, drawer.
+    const leadersMinIp = () => (new Date().getMonth() + 1 <= 5 ? 20 : 40);
+    const seasonLeaders = () => fetch(`${base}&season_score=not.is.null&ip=gte.${leadersMinIp()}&order=season_score.desc&limit=10`, { headers: H }).then(r => r.json());
     try {
         const [score, era] = await Promise.all([
             seasonLeaders(),
