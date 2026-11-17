@@ -708,20 +708,23 @@ th[tabindex]:focus-visible, tr[tabindex]:focus-visible, td[tabindex]:focus-visib
 <header class="m-header">
     <div class="m-brand">
         <div class="m-brand-icon">
-            <svg viewBox="0 0 48 52" xmlns="http://www.w3.org/2000/svg" aria-label="Flaming baseball">
-                <!-- flames -->
-                <path fill="#ef4444" d="M24 2c3 8 10 10 9 18 3-2 6 1 6 6 3 4 1 12-5 15-3 2-4 3-10 3s-8-1-11-4c-6-4-7-13-3-16-1-6 3-9 6-7-1-6 5-9 4-14 2 2 4 1 4-2 0-1 0-2 0-2z"/>
-                <path fill="#f97316" d="M24 9c2 6 7 7 6 13 2-1 4 1 4 5 2 3 1 9-4 11-2 2-3 2-6 2s-5-1-7-3c-4-3-4-9-1-11-1-4 2-6 4-5-1-4 4-7 3-10 1 1 1 0 1-2z"/>
-                <path fill="#facc15" d="M24 17c1 4 4 5 4 9 2 2 1 7-4 9-4-2-5-6-3-9-1-3 2-4 3-5-1-2 0-3 0-4z"/>
-                <!-- baseball -->
-                <circle cx="24" cy="34" r="13" fill="#fdfdfd" stroke="#14171f" stroke-width="2"/>
-                <path d="M14.5 25.5c5 4 5 13 0 17" fill="none" stroke="#e63946" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M33.5 25.5c-5 4-5 13 0 17" fill="none" stroke="#e63946" stroke-width="1.8" stroke-linecap="round"/>
-                <g stroke="#e63946" stroke-width="1.3" stroke-linecap="round">
-                    <path d="M16.5 28l-2.2 1M17.6 31.5l-2.4 .4M17.6 36.5l-2.4-.4M16.5 40l-2.2-1"/>
-                    <path d="M31.5 28l2.2 1M30.4 31.5l2.4 .4M30.4 36.5l2.4-.4M31.5 40l2.2-1"/>
-                </g>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="3 2 58 62" role="img" aria-label="MLB Database logo">
+                <defs>
+                <radialGradient id="hpBall" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#f1ece0"/><stop offset="1" stop-color="#cfc6b2"/></radialGradient>
+                <linearGradient id="hpFire" x1="1" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef4444"/><stop offset="1" stop-color="#b91c1c"/></linearGradient>
+                <path id="hpBlaze" d="M15 44C12 34 14 26 20 20C20 25 22 27 24 28C23 20 26 10 33 3C33 11 36 16 40 19C41 15 43 12 46 10C48 18 50 26 49 34C51 32 52 30 53 28C55 34 54 40 49 44Z"/>
+                </defs>
+                <path d="M7 5H57V37L32 61L7 37Z" fill="#1e293b" stroke="#f97316" stroke-width="3" stroke-linejoin="round"/>
+                <g transform="translate(32 30) scale(.6) translate(-32 -38)">
+                <use href="#hpBlaze" fill="url(#hpFire)"/>
+                <use href="#hpBlaze" fill="#f97316" transform="translate(32 42) scale(.78) translate(-32 -42)"/>
+                <use href="#hpBlaze" fill="#fbbf24" transform="translate(32 42) scale(.56) translate(-32 -42)"/>
+                <g transform="translate(32 44) scale(1.25) rotate(-20)">
+                <circle r="16" fill="url(#hpBall)" stroke="#111827" stroke-width="1.6"/>
+                <g fill="none" stroke="#dc2626" stroke-linecap="round"><path d="M-11-11.5Q-4 0-11 11.5M11-11.5Q4 0 11 11.5" stroke-width="1.7"/>
+                <path d="M-11-9.2L-7.4-6.9M-9.6-4.6L-6-2.3M-9.6 2.3L-6 4.6M-11 6.9L-7.4 9.2M11-9.2L7.4-6.9M9.6-4.6L6-2.3M9.6 2.3L6 4.6M11 6.9L7.4 9.2" stroke-width="1.2"/></g>
+                </g></g>
+                </svg>
         </div>
         <div>
             <div class="m-brand-name">MLB Database</div>
