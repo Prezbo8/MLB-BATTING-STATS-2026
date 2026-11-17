@@ -111,8 +111,23 @@ def test_a_refused_start_is_retried_then_reported_and_the_loop_survives(keeper):
     assert f"couldn't start {want}" in summary and "backup schedule will run it" in summary
 
 
-def test_dry_run_starts_nothing(keeper):
+def test_dry_run_starts_no_data_job_but_hands_off_for_real(keeper):
+    """A dry run reports the slot, starts no data job, then starts a fresh keeper for real
+    (proving on GitHub that the keeper may start workflows)."""
     want = next_workflow()
     p, starts, summary, _ = keeper(DRY_RUN=1, MAX_SLOTS=1)
     assert p.returncode == 0, p.stderr
-    assert starts == [] and f"would have started {want}" in summary
+    assert starts == ["keeper.yml"] and f"would have started {want}" in summary
+    assert "started a fresh keeper for real" in summary
+
+
+def test_dry_run_in_the_offseason_still_checks_the_slot_and_hand_off(keeper):
+    p, starts, summary, _ = keeper(disabled=SEASONAL, DRY_RUN=1, MAX_SLOTS=1)
+    assert p.returncode == 0, p.stderr
+    assert "checking the next slot and the hand-off anyway" in summary
+    assert starts == ["keeper.yml"]                      # no data job, just the real hand-off
+
+
+def test_dry_run_fails_loudly_if_the_keeper_cannot_start_workflows(keeper):
+    p, starts, summary, _ = keeper(run_fail=True, DRY_RUN=1, MAX_SLOTS=1)
+    assert p.returncode == 1 and "couldn't start a fresh keeper" in summary

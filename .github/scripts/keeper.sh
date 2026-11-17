@@ -4,7 +4,8 @@
 # limit starts a fresh keeper. A disabled workflow is skipped; when all six seasonal workflows are
 # disabled (offseason) the keeper stops without handing off, so pausing/unpausing those six is all
 # it takes. (scrape_results.yml stays on all year and has its own schedule.)
-# Test knobs: DRY_RUN=1 (print, start nothing), MAX_SLOTS=n (stop after n), FAKE_WAIT=s (don't sleep long),
+# Test knobs: DRY_RUN=1 (no data job is started; checks the next slot even in the offseason, then
+# does one real hand-off to prove the keeper may start workflows), MAX_SLOTS=n (stop after n), FAKE_WAIT=s (don't sleep long),
 # AFTER_START=s, KEEPER_BUDGET=s, RETRY_TRIES / RETRY_WAIT (tests/test_keeper_loop.py runs it against a fake gh).
 set -u
 START=$(date +%s); BUDGET=${KEEPER_BUDGET:-19800}   # 5.5 h
@@ -22,8 +23,12 @@ start() {
 any=""
 for wf in $(python3 "$DIR/next_slot.py" --seasonal); do active "$wf" && { any=1; break; }; done   # scores job stays on all year: not counted
 if [ -z "$any" ]; then
-  note "•" "every daily job is paused (offseason): nothing to start, not handing off"
-  exit 0
+  if [ -n "${DRY_RUN:-}" ]; then   # a dry run checks the slot and the hand-off even in the offseason
+    note "•" "dry run: every daily job is paused (offseason); checking the next slot and the hand-off anyway"
+  else
+    note "•" "every daily job is paused (offseason): nothing to start, not handing off"
+    exit 0
+  fi
 fi
 
 n=0
@@ -37,7 +42,20 @@ while true; do
     elif start "$WF"; then note "✓" "${DRY_RUN:+(dry run) would have }started $WF ($WHEN)"
     else echo "::error::could not start $WF"; note "✗" "couldn't start $WF ($WHEN); its backup schedule will run it"; fi
     n=$((n + 1))
-    if [ -n "${MAX_SLOTS:-}" ] && [ "$n" -ge "$MAX_SLOTS" ]; then echo "test: stopping after $n slot(s)"; exit 0; fi
+    if [ -n "${MAX_SLOTS:-}" ] && [ "$n" -ge "$MAX_SLOTS" ]; then
+      if [ -n "${DRY_RUN:-}" ]; then
+        # proves on GitHub that the keeper may start workflows, without starting any data job:
+        # one real hand-off; the fresh keeper runs normally (in the offseason it stops at once)
+        if retry gh workflow run keeper.yml -R "$REPO"; then
+          note "✓" "dry run: started a fresh keeper for real (it runs normally; in the offseason it stops at once)"
+        else
+          echo "::error::the keeper could not start a workflow"
+          note "✗" "dry run: couldn't start a fresh keeper - check keeper.yml's 'actions: write' permission"
+          exit 1
+        fi
+      fi
+      echo "test: stopping after $n slot(s)"; exit 0
+    fi
     sleep "${AFTER_START:-90}"
   else
     REST=$(( BUDGET - ELAPSED ))
