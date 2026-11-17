@@ -101,6 +101,7 @@ def test_multi_year_history_main_swaps_one_season_at_a_time(net, workdir):
     swaps = swaps_for(net, "fangraphs_player_history")
     assert [s["p_where_val"] for s in swaps] == [str(y) for y in range(2021, 2027)]
     check_swap_sizes(swaps)
+    assert net.deletes == [("fangraphs_player_history", {"season": "lt.2021"})]
 
 
 def test_results_main(net, workdir):

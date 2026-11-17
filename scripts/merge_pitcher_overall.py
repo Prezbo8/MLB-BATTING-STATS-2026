@@ -1,6 +1,6 @@
 """
 MLB Pitcher Model — Merger (Local, with Career)
-Combines all annual CSVs (9 tabs x every season since 2021) + 9 career CSVs into:
+Combines all annual CSVs (9 tabs x each of the last 6 seasons) + 9 career CSVs into:
   - master_YYYY.csv per year
   - master_career.csv
   - master_all.csv (all years + career, season='career')
@@ -11,7 +11,7 @@ import gc
 import pandas as pd
 import numpy as np
 
-from season import SEASON
+from season import SEASON, FIRST_SEASON
 
 # Scrapers write fresh current-season/career CSVs here; the workflow copies
 # every earlier season's CSVs in (data/pitcher/historical/ for 2021-2025,
@@ -19,7 +19,7 @@ from season import SEASON
 UPLOAD_DIR = "pitcher_data"
 OUTPUT_DIR = "pitcher_data"
 
-YEARS = list(range(2021, SEASON + 1))
+YEARS = list(range(FIRST_SEASON, SEASON + 1))
 
 ANNUAL_TAB_FILES = [
     ("Dashboard",      "Stats_Dashboard"),

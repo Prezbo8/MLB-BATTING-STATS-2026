@@ -54,7 +54,7 @@ def keeper(tmp_path):
         for f in (log, summary):
             f.write_text("")
         env = dict(os.environ, PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}",
-                   GITHUB_REPOSITORY="Prezbo8/MLB-BATTING-STATS-2026", RUN_SUMMARY=str(summary),
+                   GITHUB_REPOSITORY="Prezbo8/MLB-Database", RUN_SUMMARY=str(summary),
                    FAKE_LOG=str(log), FAKE_DISABLED=" ".join(disabled), FAKE_RUN_FAIL="1" if run_fail else "",
                    FAKE_WAIT="0", AFTER_START="0", RETRY_TRIES="3", RETRY_WAIT="0")
         env.update({k: str(v) for k, v in knobs.items()})             # a test's own knobs win

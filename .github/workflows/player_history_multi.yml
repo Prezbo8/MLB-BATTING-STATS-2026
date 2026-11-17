@@ -1,7 +1,8 @@
 name: Player Multi-Year History Backfill
 
-# Manual-only. Scrapes 2021-2026 per-year player batting stats (season + month
-# buckets × handedness) into fangraphs_player_history. Re-run to refresh 2026.
+# Manual-only. Scrapes the last 6 seasons (2021-2026 now, 2022-2027 from Opening Day
+# 2027) of per-year player batting stats (season + month buckets × handedness) into
+# fangraphs_player_history, and drops the season that left the window. Re-run to refresh.
 on:
   workflow_dispatch:
 

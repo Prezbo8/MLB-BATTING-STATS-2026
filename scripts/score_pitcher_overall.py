@@ -2,7 +2,7 @@
 MLB Pitcher Model — Scorer (with Career)
 ==========================================
 Scoring flow:
-1. Load master_all.csv (annual 2021-current season + career rows)
+1. Load master_all.csv (annual, last 6 seasons + career rows)
 2. Per-season percentile ranks within each season group, among pitchers
    with at least MIN_IP innings (rows below it get no season score, but
    keep the pitcher's composite + tier from his other seasons)
@@ -21,8 +21,8 @@ import math
 import numpy as np
 import pandas as pd
 from datetime import date
-from sb_replace import replace_rows
-from season import SEASON
+from sb_replace import replace_rows, drop_old_seasons
+from season import SEASON, FIRST_SEASON
 
 # ─────────────────────────────────────────
 # PATHS
@@ -347,7 +347,7 @@ def upsert_to_supabase(df):
         return True
 
     all_ok = True
-    for season_val in list(range(2021, SEASON + 1)) + ["career"]:
+    for season_val in list(range(FIRST_SEASON, SEASON + 1)) + ["career"]:
         df_yr = df_san[df_san["season"] == season_val]
         if df_yr.empty:
             print(f"   ⏭️  season={season_val} — no data, skipping")
@@ -356,6 +356,8 @@ def upsert_to_supabase(df):
                           clean_records(df_yr), where_col="season",
                           where_val=season_val, label=f"season={season_val}")
         all_ok = all_ok and ok
+    if all_ok:
+        all_ok = drop_old_seasons(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, "season", FIRST_SEASON)
     return all_ok
 
 

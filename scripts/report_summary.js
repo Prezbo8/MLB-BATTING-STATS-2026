@@ -10,7 +10,7 @@ const TOKEN   = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const DRY_RUN = process.env.DRY_RUN === '1' || !TOKEN;
 const REPORT_URL = process.env.REPORT_URL
-  || 'https://prezbo8.github.io/MLB-BATTING-STATS-2026/index.html#tab=8';
+  || 'https://prezbo8.github.io/MLB-Database/index.html#tab=8';
 
 const STATS  = ['wrcPlus', 'ops', 'avg', 'obp', 'slg', 'woba', 'iso', 'babip', 'kPct', 'bbPct'];
 const RANGES = [['season', 'SZN'], ['last_30', 'L30'], ['last_14', 'L14'], ['last_7', 'L7']];

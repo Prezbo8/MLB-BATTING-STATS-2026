@@ -9,11 +9,11 @@
             var isIPhone = /iPhone|iPod/i.test(ua);
             var isAndroid = /Android/i.test(ua);
             if (isIPhone || isAndroid) {
-                window.location.replace('/MLB-BATTING-STATS-2026/mobile.html');
+                window.location.replace('/MLB-Database/mobile.html');
             }
         })();
     </script>
-    <title>MLB • Team Offense Analyzer</title>
+    <title>MLB Database</title>
     <script>
     // Theme before first paint: saved choice, else the device setting
     (function () {
@@ -22,17 +22,17 @@
         document.documentElement.setAttribute('data-theme', t);
     })();
     </script>
-    <link rel="apple-touch-icon" sizes="180x180" href="/MLB-BATTING-STATS-2026/assets/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/MLB-BATTING-STATS-2026/assets/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/MLB-BATTING-STATS-2026/assets/favicon-16x16.png">
-    <link rel="icon" type="image/x-icon" href="/MLB-BATTING-STATS-2026/assets/favicon.ico">
-    <link rel="shortcut icon" href="/MLB-BATTING-STATS-2026/assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/MLB-Database/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/MLB-Database/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/MLB-Database/assets/favicon-16x16.png">
+    <link rel="icon" type="image/x-icon" href="/MLB-Database/assets/favicon.ico">
+    <link rel="shortcut icon" href="/MLB-Database/assets/favicon.ico">
 
     <!-- PWA support -->
-    <link rel="manifest" href="/MLB-BATTING-STATS-2026/manifest.json">
+    <link rel="manifest" href="/MLB-Database/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MLB">
+    <meta name="apple-mobile-web-app-title" content="MLB Database">
     <meta name="theme-color" content="#080a0f">
     <meta name="mobile-web-app-capable" content="yes">
 
@@ -41,64 +41,64 @@
            OFL-1.1 — see assets/fonts/OFL.txt. font-display:swap keeps text
            visible while they load. */
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:400; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-400-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-400-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:400; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-400-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-400-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:600; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-600-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-600-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:600; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-600-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-600-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:700; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-700-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-700-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:700; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-700-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-700-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:800; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-800-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-800-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:800; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-800-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-800-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:900; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-900-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-900-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'Barlow Condensed'; font-style:normal; font-weight:900; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/barlow-condensed-900-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/barlow-condensed-900-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'DM Mono'; font-style:normal; font-weight:400; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-mono-400-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-mono-400-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'DM Mono'; font-style:normal; font-weight:400; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-mono-400-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-mono-400-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'DM Mono'; font-style:normal; font-weight:500; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-mono-500-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-mono-500-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'DM Mono'; font-style:normal; font-weight:500; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-mono-500-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-mono-500-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'DM Sans'; font-style:normal; font-weight:400; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-sans-400-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-sans-400-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'DM Sans'; font-style:normal; font-weight:400; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-sans-400-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-sans-400-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'DM Sans'; font-style:normal; font-weight:500; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-sans-500-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-sans-500-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'DM Sans'; font-style:normal; font-weight:500; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-sans-500-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-sans-500-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
         @font-face { font-family:'DM Sans'; font-style:normal; font-weight:600; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-sans-600-latin.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-sans-600-latin.woff2') format('woff2');
             unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family:'DM Sans'; font-style:normal; font-weight:600; font-display:swap;
-            src:url('/MLB-BATTING-STATS-2026/assets/fonts/dm-sans-600-latin-ext.woff2') format('woff2');
+            src:url('/MLB-Database/assets/fonts/dm-sans-600-latin-ext.woff2') format('woff2');
             unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
     </style>
     <style>
@@ -1321,7 +1321,7 @@
                 <path d="M26 34 Q24 28 28 22 Q28 28 32 26 Q30 20 34 14 Q38 20 36 26 Q40 22 40 16 Q44 22 42 32" fill="#f97316" opacity="0.65"/>
             </svg></div>
             <div>
-                <div class="brand-name">MLB <span class="season-cur"></span></div>
+                <div class="brand-name">MLB Database</div>
                 <div class="brand-sub">Team Offense Analyzer</div>
             </div>
         </div>
@@ -1642,7 +1642,7 @@
     <!-- PANEL 12: LINEUP HISTORY -->
     <div id="panel-12" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-12">
         <div class="section-header">
-            <div class="section-title">📅 Lineup History <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0;text-transform:none;">2021–<span class="season-cur"></span></span></div>
+            <div class="section-title">📅 Lineup History <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0;text-transform:none;"><span class="season-first"></span>–<span class="season-cur"></span></span></div>
             <div class="lineup-controls">
                 <div class="filter-group">
                     <label class="filter-label" for="lh-game">Game</label>
@@ -2168,7 +2168,7 @@ async function renderTodayEdges() {
             ${side(g.a)}${side(g.h)}
         </a>`).join('')}</div>
         ${early ? `<div class="edge-early">Early season: most batters have under ${EARLY_PA} PA, so batter numbers still lean on last season's lines.</div>` : ''}
-        <div class="edge-note"><span class="edge-note-text">${esc(edgeNoteText(null))}</span> <a href="https://github.com/Prezbo8/MLB-BATTING-STATS-2026/blob/main/EDGES.md" target="_blank" rel="noopener">How this was tested →</a></div>`;
+        <div class="edge-note"><span class="edge-note-text">${esc(edgeNoteText(null))}</span> <a href="https://github.com/Prezbo8/MLB-Database/blob/main/EDGES.md" target="_blank" rel="noopener">How this was tested →</a></div>`;
     loadEdgesResults().then(r => { const t = el.querySelector('.edge-note-text'); if (t) t.textContent = edgeNoteText(r); });
 }
 
@@ -2424,6 +2424,8 @@ function toggleTheme() {
 // The newest season found in the data. The scrapers decide when a new season
 // starts (the day after Opening Day, scripts/season.py); the site follows.
 let CUR_SEASON = null;
+// 6-season window, same rule as scripts/season.py FIRST_SEASON (2021–2026 now, 2022–2027 from Opening Day 2027)
+const firstSeason = () => CUR_SEASON - 5;
 function noteSeason(y) {
     y = parseInt(y, 10);
     if (!y || (CUR_SEASON && y <= CUR_SEASON)) return;
@@ -2431,14 +2433,15 @@ function noteSeason(y) {
     const yy = String(y).slice(2);
     document.querySelectorAll('.season-cur').forEach(el => el.textContent = y);
     document.querySelectorAll('.season-prev').forEach(el => el.textContent = y - 1);
+    document.querySelectorAll('.season-first').forEach(el => el.textContent = y - 5);
     const lt = document.getElementById('lt-range');
     if (lt) {
         lt.querySelector('option[value="monthly"]').textContent = `Monthly (${y})`;
-        lt.querySelector('option[value="yearly"]').textContent  = `Yearly (2021–${yy})`;
+        lt.querySelector('option[value="yearly"]').textContent  = `Yearly (${y - 5}–${yy})`;
     }
     LH_YEARS = [];
-    for (let s = 2021; s <= y; s++) LH_YEARS.push(s);
-    document.title = `MLB ${y} • Team Offense Analyzer`;
+    for (let s = y - 5; s <= y; s++) LH_YEARS.push(s);
+    document.title = 'MLB Database';
 }
 // Newest season among values like 2026 / '2025' / 'career'
 const newestSeason = vals => Math.max(0, ...vals.map(v => parseInt(v, 10)).filter(v => v > 0));
@@ -3520,7 +3523,7 @@ function renderLineupTrends() {
 
     const colors = teamPairColors(awayTm, homeTm);
     const splitLbl = { no_split: 'Overall', vs_lhp: 'vs LHP', vs_rhp: 'vs RHP', home: 'Home', away: 'Away' }[split] || split;
-    const rangeLbl = mode === 'yearly' ? `Season 2021–${String(CUR_SEASON).slice(2)}` : `Monthly ${CUR_SEASON}`;
+    const rangeLbl = mode === 'yearly' ? `Season ${firstSeason()}–${String(CUR_SEASON).slice(2)}` : `Monthly ${CUR_SEASON}`;
     const legend = (bs, tm, tc) => `<div class="lt-legend"><div class="lt-legend-team" style="color:${tc}">${tm}</div><div class="lt-legend-items">${bs.length ? bs.map((p, i) => `<div class="lt-leg"><span class="lt-leg-sw" style="background:${LINEUP_PALETTE[i % LINEUP_PALETTE.length]}"></span>${p.order ? p.order + '. ' : ''}${esc(p.name)}</div>`).join('') : '<span style="color:var(--muted)">No lineup posted</span>'}</div></div>`;
 
     let html = `<div class="lt-game-head"><img src="${teamLogos[awayTm] || ''}" onerror="this.style.opacity='.15'" alt=""> ${awayTm} <span style="color:var(--muted)">@</span> ${homeTm} <img src="${teamLogos[homeTm] || ''}" onerror="this.style.opacity='.15'" alt=""></div>`;
@@ -3535,12 +3538,12 @@ function renderLineupTrends() {
     wireLineupTips();
 }
 
-// ── LINEUP HISTORY (2021–current season per-player season/month line charts) ──
+// ── LINEUP HISTORY (last 6 seasons per-player season/month line charts) ──
 // For a game's two lineups, a 9 batters × 6 stat grid (AVG/K%/ISO/BABIP/wOBA/
 // wRC+), each cell a line chart across the years. Reads fangraphs_player_history
 // (keyed by playerid), resolving each batter → playerid via the live player data.
 const SUPABASE_PLAYER_HIST_TABLE = 'fangraphs_player_history';
-let   LH_YEARS   = [];                       // 2021 … CUR_SEASON (set by noteSeason)
+let   LH_YEARS   = [];                       // firstSeason() … CUR_SEASON (set by noteSeason)
 const LH_MIN_PA  = 10;                       // skip low-sample points (noisy rate stats)
 const LH_DBCOL   = { avg:'avg', kPct:'k_pct', iso:'iso', babip:'babip', woba:'woba', wrcPlus:'wrcplus', ops:'ops', obp:'obp', slg:'slg', bbPct:'bb_pct' };
 const _pn = v => parseFloat(v) || 0;
@@ -3718,14 +3721,14 @@ function renderPlayerCard() {
     if (!body || !id) return;
     const store = playerHist[id] || {};
     let tm = '';
-    for (let y = CUR_SEASON; y >= 2021; y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
+    for (let y = CUR_SEASON; y >= firstSeason(); y--) { const r = store[`no_split-season-${y}`]; if (r) { tm = (r.tm || '').trim(); break; } }
     const logo = teamLogos[tm] ? `<img src="${teamLogos[tm]}" onerror="this.style.opacity='.15'" alt="">` : '';
     const legend = CARD_SPLITS.map(([sp, lbl, col]) => `<div class="lh-card-leg"><span class="lh-card-sw" style="background:${col || 'var(--text)'}"></span>${lbl}</div>`).join('') +
         `<div class="lh-card-leg"><span class="lh-card-sw dashed"></span>LG avg</div>`;
     const charts = LS_STATS.map((sk, i) =>
         `<div class="lh-card-stat"><div class="lh-card-statlbl">${LS_STAT_LABELS[i]}</div>${buildPlayerCardChart(id, sk)}</div>`).join('');
     body.innerHTML = `<div class="lh-card-title">${logo}${esc(name)}${tm ? ` <span style="color:var(--muted);font-size:0.8rem;font-weight:700;">${tm}</span>` : ''}</div>` +
-        `<div class="lh-card-sub">Season 2021–${CUR_SEASON} · handedness splits</div>` +
+        `<div class="lh-card-sub">Season ${firstSeason()}–${CUR_SEASON} · handedness splits</div>` +
         `<div class="lh-card-legend">${legend}</div><div class="lh-card-grid">${charts}</div>`;
 }
 function closePlayerCard() { document.getElementById('lh-card-overlay').classList.remove('open'); lhCardId = null; }
@@ -5499,7 +5502,7 @@ function reportExportPDF(btn) {
 
     var attr = document.createElement('div');
     attr.style.cssText = 'font-family:system-ui,sans-serif;font-size:10px;color:#5a6278;margin-top:8px;text-align:right;letter-spacing:0.08em;';
-    attr.textContent = 'prezbo8.github.io/MLB-BATTING-STATS-2026';
+    attr.textContent = 'prezbo8.github.io/MLB-Database';
     root.appendChild(attr);
 
     document.body.appendChild(root);
@@ -6585,7 +6588,7 @@ function pcCapture(btn, container) {
 
     var attr = document.createElement('div');
     attr.style.cssText = 'font-family:system-ui,sans-serif;font-size:10px;color:#555;margin-top:8px;text-align:right;letter-spacing:0.08em;';
-    attr.textContent = 'prezbo8.github.io/MLB-BATTING-STATS-2026';
+    attr.textContent = 'prezbo8.github.io/MLB-Database';
     wrap.appendChild(attr);
 
     document.body.appendChild(wrap);

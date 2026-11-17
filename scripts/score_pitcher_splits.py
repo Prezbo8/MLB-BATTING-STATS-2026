@@ -18,8 +18,8 @@ import os, math
 import numpy as np
 import pandas as pd
 from datetime import date
-from sb_replace import replace_rows
-from season import SEASON
+from sb_replace import replace_rows, drop_old_seasons
+from season import SEASON, FIRST_SEASON
 
 # ─────────────────────────────────────────
 # PATHS
@@ -256,7 +256,7 @@ def upsert_to_supabase(df):
     df = df.drop(columns=["player_key"], errors="ignore")
 
     all_ok = True
-    for period in [str(y) for y in range(2021, SEASON + 1)] + ["career"]:
+    for period in [str(y) for y in range(FIRST_SEASON, SEASON + 1)] + ["career"]:
         df_p = df[df["period"] == period].copy()
         # Drop rows where name is null or empty
         df_p = df_p[df_p["name"].notna() & (df_p["name"].str.strip() != "")]
@@ -272,6 +272,8 @@ def upsert_to_supabase(df):
                               where_col2="split", where_val2=split,
                               label=f"splits_{period}_{split}")
             all_ok = all_ok and ok
+    if all_ok:
+        all_ok = drop_old_seasons(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, "period", FIRST_SEASON)
     return all_ok
 
 # ─────────────────────────────────────────

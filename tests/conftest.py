@@ -53,6 +53,7 @@ class Network:
 
     def __init__(self):
         self.swaps   = []      # replace_rows bodies sent to Supabase
+        self.deletes = []      # (table, params) of old-season deletes
         self.github  = []      # paths PUT to the GitHub contents API
         self.calls   = []      # (method, url) of everything
         self.season_dates = {}             # year -> (start, end), override per test
@@ -95,6 +96,10 @@ class Network:
         if url.startswith("https://supabase.test/rest/v1/rpc/replace_rows"):
             self.swaps.append(json)
             return response(200, len(json["p_rows"]))
+
+        if method == "DELETE" and url.startswith("https://supabase.test/rest/v1/"):
+            self.deletes.append((url.rsplit("/", 1)[1], params))
+            return response(204)
 
         if "api.github.com" in url:
             if method == "GET":
