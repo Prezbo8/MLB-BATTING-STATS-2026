@@ -1360,7 +1360,7 @@
             <section class="today-card today-games"><h3 class="today-h">Today's edges <span class="today-sub" id="today-edges-date"></span></h3><div id="today-edges"><div class="side-empty">Loading lineups…</div></div></section>
             <section class="today-card today-games"><h3 class="today-h">Games</h3><div id="today-games"><div class="side-empty">Loading…</div></div></section>
             <section class="today-card"><h3 class="today-h">Top offenses · season wRC+ <a class="today-more" href="#tab=0" onclick="switchTab(0);return false;">Full rankings →</a></h3><div id="today-offense"><div class="side-empty">Loading…</div></div></section>
-            <section class="today-card"><h3 class="today-h">Top pitchers · score <a class="today-more" href="#tab=10" onclick="switchTab(10);return false;">All pitchers →</a></h3><div id="today-pitchers"><div class="side-empty">Loading…</div></div></section>
+            <section class="today-card"><h3 class="today-h">Top pitchers · <span class="season-cur">2026</span> score <a class="today-more" href="#tab=10" onclick="switchTab(10);return false;">All pitchers →</a></h3><div id="today-pitchers"><div class="side-empty">Loading…</div></div></section>
         </div>
     </div>
 
@@ -2241,10 +2241,18 @@ async function renderScoreboard() {
 let _pitchLeaders = null;
 async function loadPitcherLeaders() {
     if (_pitchLeaders || !CUR_SEASON) return _pitchLeaders;
-    const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
+    const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,season_score,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
+    // Leaders = THIS season's score (the Pitcher Rankings table's "<season> Score"), 60+ IP; early in
+    // the season, before five pitchers reach 60 IP, 20+ IP so the list isn't empty. The composite
+    // (multi-season blend, ranked as a percentile) stays the model's number: edges, pills, drawer.
+    const seasonLeaders = async () => {
+        const q = ip => fetch(`${base}&season_score=not.is.null&ip=gte.${ip}&order=season_score.desc&limit=10`, { headers: _sbHeaders() }).then(r => r.json());
+        const top = await q(60);
+        return Array.isArray(top) && top.length >= 5 ? top : q(20);
+    };
     try {
         const [score, era] = await Promise.all([
-            fetch(`${base}&composite_score=not.is.null&ip=gte.20&order=composite_score.desc&limit=10`, { headers: _sbHeaders() }).then(r => r.json()),
+            seasonLeaders(),
             fetch(`${base}&ip=gte.100&order=era.asc&limit=3`, { headers: _sbHeaders() }).then(r => r.json()),
         ]);
         _pitchLeaders = { score: Array.isArray(score) ? score : [], era: Array.isArray(era) ? era : [] };
@@ -2267,8 +2275,8 @@ async function renderSidebar() {
     lead.innerHTML =
         block('wRC+', top(season, 'wrcPlus').map(t => sideRow(t.tm, name(t.tm), Math.round(t.wrcPlus)))) +
         block('OPS', top(season, 'ops').map(t => sideRow(t.tm, name(t.tm), t.ops.toFixed(3).replace(/^0/, '')))) +
-        (pl.score.length ? block('Pitcher score', pl.score.slice(0, 3).map(p =>
-            sideRow(p.team, p.name, `<span class="tier-pill ${ptTierCls(p.tier)}">${(+p.composite_score).toFixed(0)}</span>`, '', pdAttr(p.name, p.team)))) : '') +
+        (pl.score.length ? block(`${CUR_SEASON} pitcher score`, pl.score.slice(0, 3).map(p =>
+            sideRow(p.team, p.name, `<span class="tier-pill ${ptTierCls(pdTier(+p.season_score))}">${(+p.season_score).toFixed(1)}</span>`, '', pdAttr(p.name, p.team)))) : '') +
         (pl.era.length ? block('ERA · 100+ IP', pl.era.map(p => sideRow(p.team, p.name, (+p.era).toFixed(2), '', pdAttr(p.name, p.team)))) : '');
     const l7 = allData['no_split-last_7'] || [];
     const bySeason = Object.fromEntries(season.map(t => [t.tm, t.wrcPlus]));
@@ -2306,7 +2314,7 @@ async function renderToday() {
     if (pit && pl) {
         pit.innerHTML = pl.score.length ? `<table class="today-table"><tbody>${pl.score.map((p, i) =>
             `<tr><td class="tt-rank">${i + 1}</td><td>${logoImg(p.team, 'side-logo')}<span class="tt-name"${pdAttr(p.name, p.team)}>${esc(p.name)}</span></td>
-             <td class="num"><span class="tier-pill ${ptTierCls(p.tier)}">${esc(p.tier || '')}</span></td><td class="num">${(+p.composite_score).toFixed(1)}</td></tr>`).join('')}</tbody></table>`
+             <td class="num"><span class="tier-pill ${ptTierCls(pdTier(+p.season_score))}">${esc(pdTier(+p.season_score))}</span></td><td class="num">${(+p.season_score).toFixed(1)}</td></tr>`).join('')}</tbody></table>`
             : '<div class="side-empty">No pitcher scores yet</div>';
     }
 }

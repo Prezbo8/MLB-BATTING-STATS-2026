@@ -759,7 +759,7 @@ th[tabindex]:focus-visible, tr[tabindex]:focus-visible, td[tabindex]:focus-visib
             <section class="m-card"><h3 class="m-card-h" id="today-title">Today</h3><div id="today-games"><div class="m-sb-empty">Loading…</div></div></section>
             <section class="m-card"><h3 class="m-card-h">Today's edges <span class="m-card-sub" id="today-edges-date"></span></h3><div id="today-edges"><div class="m-sb-empty">Loading…</div></div></section>
             <section class="m-card"><h3 class="m-card-h">Top offenses · season wRC+</h3><div id="today-offense"></div></section>
-            <section class="m-card"><h3 class="m-card-h">Top pitchers · score</h3><div id="today-pitchers"></div></section>
+            <section class="m-card"><h3 class="m-card-h">Top pitchers · <span class="season-cur">2026</span> score</h3><div id="today-pitchers"></div></section>
             <section class="m-card"><h3 class="m-card-h">Leaders</h3><div id="side-leaders"></div></section>
             <section class="m-card"><h3 class="m-card-h">Hot &amp; cold · last 7 days</h3><div id="side-hot"></div></section>
         </div>
@@ -3214,10 +3214,18 @@ let _pitchLeaders = null;
 async function loadPitcherLeaders() {
     if (_pitchLeaders || !CUR_SEASON) return _pitchLeaders;
     const H = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
-    const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
+    const base = `${SUPABASE_URL}/rest/v1/pitcher_scores?select=name,team,season_score,composite_score,tier,ip,era&season=eq.${CUR_SEASON}`;
+    // Leaders = THIS season's score (the Pitcher Rankings table's "<season> Score"), 60+ IP; early in
+    // the season, before five pitchers reach 60 IP, 20+ IP so the list isn't empty. The composite
+    // (multi-season blend, ranked as a percentile) stays the model's number: edges, pills, drawer.
+    const seasonLeaders = async () => {
+        const q = ip => fetch(`${base}&season_score=not.is.null&ip=gte.${ip}&order=season_score.desc&limit=10`, { headers: H }).then(r => r.json());
+        const top = await q(60);
+        return Array.isArray(top) && top.length >= 5 ? top : q(20);
+    };
     try {
         const [score, era] = await Promise.all([
-            fetch(`${base}&composite_score=not.is.null&ip=gte.20&order=composite_score.desc&limit=10`, { headers: H }).then(r => r.json()),
+            seasonLeaders(),
             fetch(`${base}&ip=gte.100&order=era.asc&limit=3`, { headers: H }).then(r => r.json()),
         ]);
         _pitchLeaders = { score: Array.isArray(score) ? score : [], era: Array.isArray(era) ? era : [] };
@@ -3244,7 +3252,7 @@ async function renderToday() {
     const pl = await loadPitcherLeaders();
     const pit = document.getElementById('today-pitchers');
     if (pit && pl) pit.innerHTML = pl.score.length ? pl.score.map((p, i) =>
-        sRow(p.team, `${i + 1}. ${p.name}`, `<span class="tier-pill ${tierCls(p.tier)}">${esc(p.tier || '')}</span> ${(+p.composite_score).toFixed(1)}`, '', pdAttr(p.name, p.team))).join('')
+        sRow(p.team, `${i + 1}. ${p.name}`, `<span class="tier-pill ${tierCls(pdTier(+p.season_score))}">${esc(pdTier(+p.season_score))}</span> ${(+p.season_score).toFixed(1)}`, '', pdAttr(p.name, p.team))).join('')
         : '<div class="m-sb-empty">No pitcher scores yet</div>';
     const lead = document.getElementById('side-leaders');
     const top = (k, n = 3) => [...season].sort((a, b) => b[k] - a[k]).slice(0, n);
