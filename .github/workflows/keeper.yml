@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run: print what would start at the next slot (in ~5 s), start nothing, then stop"
+        description: "Dry run: report the next slot (in ~5 s, even in the offseason), start no data job, then hand off to a fresh keeper for real"
         type: boolean
         default: false
   schedule:
