@@ -63,3 +63,4 @@ def current_season(on=None):
 
 SEASON       = current_season()
 SEASON_START = opening_day(SEASON)          # date the current season began
+FIRST_SEASON = SEASON - 5                   # 6-season window: 2021-2026 now, 2022-2027 from the day after Opening Day 2027

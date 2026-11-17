@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import next_slot as ns   # noqa: E402
 
 ET = ZoneInfo("America/New_York")
-REPO = "Prezbo8/MLB-BATTING-STATS-2026"
+REPO = "Prezbo8/MLB-Database"
 
 
 def slot_times(wf):

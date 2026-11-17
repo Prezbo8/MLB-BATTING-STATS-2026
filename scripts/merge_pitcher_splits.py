@@ -8,7 +8,7 @@ import os
 import gc
 import pandas as pd
 
-from season import SEASON
+from season import SEASON, FIRST_SEASON
 
 # Earlier seasons' raw CSVs are committed in this repo dir (the season scraper
 # freezes each finished season once); the two splits scrapers write fresh
@@ -16,7 +16,7 @@ from season import SEASON
 INPUT_DIR   = "data/pitcher_splits_data"
 OUTPUT_PATH = "data/pitcher_splits_data/master_splits.csv"
 
-PERIODS = [str(y) for y in range(2021, SEASON + 1)] + ["career"]
+PERIODS = [str(y) for y in range(FIRST_SEASON, SEASON + 1)] + ["career"]
 
 def run():
     print("=" * 60)

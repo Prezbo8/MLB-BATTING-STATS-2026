@@ -1,9 +1,9 @@
 """
-FanGraphs Player MULTI-YEAR History Scraper (2021 to current season)
+FanGraphs Player MULTI-YEAR History Scraper (last 6 seasons: FIRST_SEASON to current)
 =======================================================
 Backfills per-YEAR player batting stats so the site can chart a player's
-season-over-season trajectory (regular 2021→current) or the same month across
-years (e.g. June 2021 → June 2027).
+season-over-season trajectory (regular FIRST_SEASON→current) or the same month across
+years (e.g. June 2022 → June 2027).
 
 Uses FanGraphs' month-of-season split codes (so the buckets match the site
 exactly, including the combined Mar/Apr and Sep/Oct groupings):
@@ -28,8 +28,8 @@ import requests
 import pandas as pd
 from datetime import date
 
-from season import SEASON, today as season_today
-from sb_replace import replace_rows
+from season import SEASON, FIRST_SEASON, today as season_today
+from sb_replace import replace_rows, drop_old_seasons
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
@@ -45,7 +45,7 @@ COMBINED_CSV        = os.path.join(OUTPUT_DIR, "_ALL_PLAYER_HISTORY.csv")
 DELAY_BETWEEN_CALLS = 3
 RETRY_BACKOFFS      = [15, 30, 60, 120, 300, 600]
 RETRY_BUDGET_SECONDS = 60 * 60
-YEARS               = range(2021, SEASON + 1)   # 2021 … current season
+YEARS               = range(FIRST_SEASON, SEASON + 1)   # last 6 seasons
 
 API_URL = "https://www.fangraphs.com/api/leaders/splits/splits-leaders"
 HEADERS = {
@@ -219,6 +219,8 @@ def push_to_supabase(csv_path):
         rows = [r for r in records if r["season"] == season]
         ok = replace_rows(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, rows,
                           where_col="season", where_val=int(season), label=f"season {int(season)}") and ok
+    if ok:
+        ok = drop_old_seasons(SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE, "season", FIRST_SEASON)
     return ok
 
 # ── Main ──────────────────────────────────────────────────────────────────────

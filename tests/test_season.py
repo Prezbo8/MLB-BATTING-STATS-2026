@@ -53,3 +53,11 @@ def test_history_months_stop_at_the_last_regular_season_day(net, monkeypatch, mo
     assert windows[0][0] == "2026-03"
     assert windows[-1] == last
     assert not any(w[0] == "2026-10" for w in windows)
+
+
+def test_six_season_window(net):
+    # every multi-year range is FIRST_SEASON..SEASON: 6 seasons, never a fixed 2021
+    assert season.FIRST_SEASON == season.SEASON - 5
+    net.season_dates[2027] = ("2027-03-25", "2027-09-26")
+    assert season.current_season(date(2027, 3, 25)) - 5 == 2021   # still 2021-2026
+    assert season.current_season(date(2027, 3, 26)) - 5 == 2022   # now 2022-2027

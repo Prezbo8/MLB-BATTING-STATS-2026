@@ -38,7 +38,7 @@ SUPABASE_KEY     = os.environ.get("SUPABASE_KEY", "")
 
 # ── GitHub ────────────────────────────────────────────────────────────────────
 GITHUB_USERNAME = "Prezbo8"
-GITHUB_REPO     = "MLB-BATTING-STATS-2026"
+GITHUB_REPO     = "MLB-Database"
 GITHUB_BRANCH   = "main"
 GITHUB_CSV_PATH = "data/_RPG.csv"
 

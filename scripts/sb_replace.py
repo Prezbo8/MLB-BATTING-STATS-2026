@@ -54,3 +54,23 @@ def replace_rows(url, key, table, rows, where_col=None, where_val=None,
             return False          # bad request / bad data: retrying won't help
     print(f"   ❌ {label}: failed after 3 attempts — old rows left in place")
     return False
+
+
+def drop_old_seasons(url, key, table, col, first_season, timeout=60):
+    """Delete `table` rows whose `col` is a season before `first_season`, so the
+    season that leaves the 6-season window (e.g. 2021 once 2027 starts) is gone
+    from the site too. 'career' is kept ('career' > '2022' as text).
+    Returns True when the delete succeeded (deleting nothing counts)."""
+    headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+    try:
+        r = requests.delete(f"{url}/rest/v1/{table}",
+                            params={col: f"lt.{first_season}"},
+                            headers=headers, timeout=timeout)
+    except requests.RequestException as e:
+        print(f"   ⚠️  {table}: dropping seasons before {first_season} failed ({e})")
+        return False
+    if r.status_code in (200, 204):
+        print(f"   🧹 {table}: seasons before {first_season} removed")
+        return True
+    print(f"   ⚠️  {table}: dropping seasons before {first_season} [{r.status_code}] {r.text[:300]}")
+    return False
