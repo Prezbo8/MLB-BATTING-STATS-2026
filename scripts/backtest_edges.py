@@ -308,6 +308,78 @@ def inseason_scores(y, end):
     return scores
 
 
+def preseason_split_scores(y):
+    """Every pitcher's split scores (vsLHH / vsRHH / Home / Away) as of Opening Day of y:
+    the seasons before y only (no career line, which would include y), scored with the live
+    split code and Opening-Day year weights. {"playerid|split": score}, cached."""
+    import score_pitcher_splits as ssp
+    path = f"edges/split_pre_{y}.json"
+    if os.path.exists(os.path.join(CACHE, path)):
+        return bt.cached_json(path, dict)
+    frames = [pd.read_csv(os.path.join(REPO, "data", "pitcher_splits_data", f"splits_{p}_raw.csv"), low_memory=False)
+              for p in range(max(2021, y - 5), y)]
+    df = pd.concat(frames, ignore_index=True)
+    df["period"] = df["period"].astype(str)
+    df = bt.quiet(ssp.assign_player_key, df)
+    df = bt.quiet(ssp.compute_season_scores, df)
+    old = ssp.YEAR_WEIGHTS
+    ssp.YEAR_WEIGHTS = {str(y - 1 - i): w for i, w in enumerate([0.39, 0.15, 0.10, 0.06, 0.04])}
+    try:
+        df = bt.quiet(ssp.compute_composite_scores, df)
+    finally:
+        ssp.YEAR_WEIGHTS = old
+    per = df.dropna(subset=["composite_split_score"]).drop_duplicates(["player_key", "split"])
+    out = {f"{re.sub(r'[.]0$', '', str(k))}|{sp}": float(v)
+           for k, sp, v in zip(per["player_key"], per["split"], per["composite_split_score"])}
+    os.makedirs(os.path.dirname(os.path.join(CACHE, path)), exist_ok=True)
+    json.dump(out, open(os.path.join(CACHE, path), "w"))
+    return out
+
+
+def partial_siera(y, end):
+    """{playerid: season-to-date SIERA} from the in-season files inseason_scores() downloaded."""
+    f = os.path.join(CACHE, "edges", "inseason_raw", f"{y}_{end}", f"Stats_Advanced{y}.csv")
+    if not os.path.exists(f):
+        return {}
+    d = pd.read_csv(f, usecols=lambda c: c in ("playerid", "SIERA"))
+    return {re.sub(r"[.]0$", "", str(k)): float(v) for k, v in zip(d["playerid"], d["SIERA"]) if pd.notna(v) and pd.notna(k)}
+
+
+def bat_sides(y, ids):
+    """{mlbam id: 'L' | 'R' | 'S'} for batters, from MLB's API, cached."""
+    path = f"edges/bats_{y}.json"
+    have = bt.cached_json(path, lambda: {})
+    missing = [i for i in ids if str(i) not in have]
+    for k in range(0, len(missing), 150):
+        def get():
+            resp = requests.get(f"{MLB}/people", params={"personIds": ",".join(str(i) for i in missing[k:k + 150])}, timeout=30)
+            resp.raise_for_status()
+            return resp
+        for p in retry(get).json().get("people", []):
+            have[str(p["id"])] = (p.get("batSide") or {}).get("code")
+        time.sleep(0.3)
+    if missing:
+        json.dump(have, open(os.path.join(CACHE, path), "w"))
+    return have
+
+
+def hand_weights(bats, sides, sp_hand):
+    """Share of the lineup's expected PA batting left / right against this starter (switch
+    hitters bat from the side opposite his throwing hand), weighted by batting slot. Pure."""
+    left = right = 0.0
+    for k, b in enumerate(bats):
+        side = sides.get(str(b["id"]))
+        if side == "S":
+            side = "L" if sp_hand == "R" else "R" if sp_hand == "L" else None
+        w = PA_BY_SLOT[k] if k < 9 else 4.2
+        if side == "L":
+            left += w
+        elif side == "R":
+            right += w
+    tot = left + right
+    return (left / tot, right / tot) if tot else (None, None)
+
+
 def boxscore(y, pk):
     def fetch():
         def get():
@@ -368,6 +440,9 @@ def build(y):
     inseason = {m: (inseason_scores(y, c) if c is not None else None) for m, c in cut.items()}
     print(f"   in-season pitcher scores rebuilt for {sum(v is not None for v in inseason.values())} month starts")
     book = BatterBook(y, months)
+    split_pre = preseason_split_scores(y)
+    siera_pre = {re.sub(r"[.]0$", "", str(k)): float(v) for k, v in zip(pre["playerid"], pre["prior_SIERA"]) if pd.notna(v) and pd.notna(k)}
+    siera_in = {m: (partial_siera(y, c) if c is not None else None) for m, c in cut.items()}
 
     rows = []
     for i, g in enumerate(games.itertuples(), 1):
@@ -375,6 +450,7 @@ def build(y):
             print(f"   box scores {i}/{len(games)}")
         rows.append((g, boxscore(y, int(g.game_pk))))
     hands = pitch_hands(y, sorted({b[s]["sp"] for _, b in rows for s in ("away", "home") if b[s]["sp"]}))
+    sides = bat_sides(y, sorted({p["id"] for _, b in rows for s in ("away", "home") for p in b[s]["bats"]}))
 
     out = []
     for g, box in rows:
@@ -393,11 +469,22 @@ def build(y):
             sp_in = (ins.get(fg) if (ins and fg) else None)
             if sp_in is None:
                 sp_in = sp_pre               # before any current-season stats the site shows the preseason score
+            si = siera_in.get(month)
+            sp_siera_pre = siera_pre.get(fg) if fg else None
+            sp_siera_in = (si.get(fg) if (si and fg) else None)
+            if sp_siera_in is None:
+                sp_siera_in = sp_siera_pre       # hasn't pitched yet this season: last season's SIERA
+            wl, wr = hand_weights(o["bats"], sides, hand)
+            s_l, s_r = (split_pre.get(f"{fg}|vsLHH"), split_pre.get(f"{fg}|vsRHH")) if fg else (None, None)
+            sp_hand = (wl * s_l + wr * s_r) if (wl is not None and s_l is not None and s_r is not None) else None
+            sp_venue = split_pre.get(f"{fg}|{'Home' if dfn == 'home' else 'Away'}") if fg else None
             z, lp, spp = edge_z(lw, sp_pre, mid, sd)
             out.append({"season": y, "date": str(g.date), "game_pk": int(g.game_pk), "month": month,
                         "offense": getattr(g, off), "defense": getattr(g, dfn), "home": g.home,
                         "lineup": lw, "lineup_hindsight": hind, "matched": sum(v is not None for _, v in vals),
                         "sp": d["sp_name"], "hand": hand, "sp_score": sp_pre, "sp_in": sp_in,
+                        "sp_siera_pre": sp_siera_pre, "sp_siera_in": sp_siera_in,
+                        "sp_hand_split": sp_hand, "sp_venue_split": sp_venue, "lineup_left": wl,
                         "lineup_part": lp, "starter_part": spp, "z": z, "label": edge_label(z),
                         "starter_label": edge_label(spp), "runs": int(o["runs"])})
     df = pd.DataFrame(out)
@@ -455,6 +542,42 @@ def same_game(df):
     return g.reset_index()
 
 
+# (name, column, sign: +1 if a higher value means a better starter, i.e. fewer runs)
+STARTER_MEASURES = [
+    ("Pitcher score, Opening Day", "sp_score", 1),
+    ("SIERA, last season", "sp_siera_pre", -1),
+    ("Pitcher score, in-season (what the site shows)", "sp_in", 1),
+    ("SIERA, season to date", "sp_siera_in", -1),
+    ("Split score vs this lineup's left/right mix (Opening Day)", "sp_hand_split", 1),
+    ("Split score, home or away (Opening Day)", "sp_venue_split", 1),
+]
+
+
+def starter_measures(df):
+    """Every starter measure graded on the same team-games (all measures present), each as the
+    rank correlation of 'better starter' with fewer runs, plus differences that matter."""
+    cols = [c for _, c, _ in STARTER_MEASURES]
+    d = df.dropna(subset=cols).copy()
+    for _, c, sign in STARTER_MEASURES:
+        d[c + "_good"] = sign * d[c]
+    d["blend_hand"] = (d["sp_score_good"] + d["sp_hand_split_good"]) / 2
+    rho = lambda x, col: spearman(x[col], -x["runs"])
+    out = {"team_games": len(d), "measures": []}
+    for name, c, _ in STARTER_MEASURES + [("Opening-Day score + lineup split, averaged", "blend", 1)]:
+        col = "blend_hand" if c == "blend" else c + "_good"
+        out["measures"].append({"name": name, "col": col, "rho": rho(d, col),
+                                "ci": list(cluster_bootstrap(d, lambda x, k=col: rho(x, k)))})
+    pairs = [("in-season score minus season-to-date SIERA", "sp_in_good", "sp_siera_in_good"),
+             ("Opening-Day score minus last-season SIERA", "sp_score_good", "sp_siera_pre_good"),
+             ("lineup split minus Opening-Day score", "sp_hand_split_good", "sp_score_good"),
+             ("home/away split minus Opening-Day score", "sp_venue_split_good", "sp_score_good"),
+             ("score + lineup split minus Opening-Day score", "blend_hand", "sp_score_good")]
+    out["differences"] = [{"name": n, "diff": rho(d, a) - rho(d, b),
+                           "ci": list(cluster_bootstrap(d, lambda x, a=a, b=b: rho(x, a) - rho(x, b)))}
+                          for n, a, b in pairs]
+    return out
+
+
 def grade(df):
     r = {"team_games": len(df), "games": int(df["game_pk"].nunique()), "league_runs": float(df["runs"].mean()),
          "team_months": int(df.groupby(["season", "offense", "month"]).ngroups)}
@@ -493,6 +616,7 @@ def grade(df):
     r["by_season"] = [{"season": int(y), "team_games": len(g), "rho_lineup": spearman(g["lineup"], g["runs"]),
                        "rho_sp_in": spearman(-g["sp_in"].fillna(g["sp_in"].median()), g["runs"])}
                       for y, g in df.groupby("season")]
+    r["starter_measures"] = starter_measures(df)
     for key, col in (("labels", "label"), ("starter_labels", "starter_label")):
         out = []
         for lab in LABELS:
@@ -540,6 +664,18 @@ def write_report(r, seasons, scales):
          f"{_ci(r, 'rho_same_game_lineup')}, about half the starter's in those games, {_ci(r, 'rho_same_game_sp')}. "
          f"Even with hindsight (full-season lines) a lineup predicts one game's runs at only {r['rho_lineup_hindsight']:.3f}, "
          "so the site keeps it as context, not in the label.",
+    ]
+    sm = r.get("starter_measures")
+    if sm:
+        dd = {x["name"]: x for x in sm["differences"]}
+        a, b2 = dd["in-season score minus season-to-date SIERA"], dd["lineup split minus Opening-Day score"]
+        c = dd["home/away split minus Opening-Day score"]
+        L += [f"- **The pitcher score beats SIERA; split scores add nothing.** On the same games, the in-season score "
+              f"beats season-to-date SIERA by {a['diff']:+.3f} ({a['ci'][0]:+.3f} to {a['ci'][1]:+.3f}). A starter's "
+              f"left/right split weighted to that day's lineup ties his overall score ({b2['diff']:+.3f}, "
+              f"{b2['ci'][0]:+.3f} to {b2['ci'][1]:+.3f}), and so does his home/away split ({c['diff']:+.3f}), so the "
+              "site keeps using the overall score."]
+    L += [
          "", "## Runs by the site's labels (in-season scores, as the site shows them)", "",
          "| Site label | Team-games | Share | Runs scored | 95% range |", "|---|---|---|---|---|"]
     for x in r["site_bands"]:
@@ -564,6 +700,20 @@ def write_report(r, seasons, scales):
           "### By season", "", "| Season | Team-games | Lineup vs runs | Starter (in-season) vs runs |", "|---|---|---|---|"]
     for x in r["by_season"]:
         L.append(f"| {x['season']} | {x['team_games']} | {x['rho_lineup']:.3f} | {x['rho_sp_in']:.3f} |")
+    sm = r.get("starter_measures")
+    if sm:
+        L += ["", "## Which starter measure predicts best?", "",
+              f"All on the same {sm['team_games']} team-games (every measure available). Rank correlation of a",
+              "better starter with fewer runs scored against him (higher = better).", "",
+              "| Measure | Correlation | 95% range |", "|---|---|---|"]
+        for x in sm["measures"]:
+            L.append(f"| {x['name']} | {x['rho']:.3f} | {x['ci'][0]:.3f} to {x['ci'][1]:.3f} |")
+        L += ["", "| Difference | Value | 95% range |", "|---|---|---|"]
+        for x in sm["differences"]:
+            L.append(f"| {x['name']} | {x['diff']:+.3f} | {x['ci'][0]:+.3f} to {x['ci'][1]:+.3f} |")
+        L += ["", "A difference whose range sits entirely above 0 is a real improvement; one that spans 0 is a tie.",
+              "Split scores are rebuilt as of Opening Day from earlier seasons only (no career line, which",
+              "would include the season being tested); batters' sides come from MLB's API.", ""]
     L += ["", "## The combined edge as first built (Round F2)", "",
           "| Label | Team-games | Share | Runs scored | 95% range |", "|---|---|---|---|---|"]
     for x in r["labels"]:

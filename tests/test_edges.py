@@ -116,3 +116,22 @@ def test_same_game_pairs_away_minus_home():
     sg = be.same_game(_games()).set_index("game_pk")
     assert sg.loc[1, "d_runs"] == 7 - 9 and sg.loc[1, "d_lineup"] == 110 - 100 and sg.loc[1, "d_sp"] == 60 - 80
     assert len(sg) == 4
+
+
+def test_lineup_hand_weights_count_switch_hitters_from_the_opposite_side():
+    bats = [{"id": 1}, {"id": 2}, {"id": 3}]                     # slots 1-3: 4.6, 4.5, 4.4
+    sides = {"1": "L", "2": "R", "3": "S"}
+    vs_rhp = be.hand_weights(bats, sides, "R")                    # switch hitter bats left vs a righty
+    assert vs_rhp == pytest.approx(((4.6 + 4.4) / 13.5, 4.5 / 13.5))
+    vs_lhp = be.hand_weights(bats, sides, "L")
+    assert vs_lhp == pytest.approx((4.6 / 13.5, (4.5 + 4.4) / 13.5))
+    assert be.hand_weights(bats, {}, "R") == (None, None)
+
+
+def test_starter_measures_are_compared_on_the_same_games():
+    """Round I: the results keep the starter-measure comparison (score vs SIERA vs split scores)."""
+    r = json.load(open(os.path.join(REPO, "edges_results.json")))
+    sm = r["starter_measures"]
+    assert sm["team_games"] > 10000 and len(sm["measures"]) == 7
+    d = {x["name"]: x for x in sm["differences"]}
+    assert d["in-season score minus season-to-date SIERA"]["ci"][0] > 0     # the score beats SIERA

@@ -353,6 +353,116 @@
    "rho_sp_in": 0.09336423287989841
   }
  ],
+ "starter_measures": {
+  "team_games": 14768,
+  "measures": [
+   {
+    "name": "Pitcher score, Opening Day",
+    "col": "sp_score_good",
+    "rho": 0.11207090267361798,
+    "ci": [
+     0.09620737757225876,
+     0.12653049071946665
+    ]
+   },
+   {
+    "name": "SIERA, last season",
+    "col": "sp_siera_pre_good",
+    "rho": 0.10154499285875734,
+    "ci": [
+     0.0846315728682313,
+     0.11713048585061407
+    ]
+   },
+   {
+    "name": "Pitcher score, in-season (what the site shows)",
+    "col": "sp_in_good",
+    "rho": 0.12348230092330509,
+    "ci": [
+     0.10834381520189365,
+     0.1379822232985239
+    ]
+   },
+   {
+    "name": "SIERA, season to date",
+    "col": "sp_siera_in_good",
+    "rho": 0.09351026230278853,
+    "ci": [
+     0.07667686065155695,
+     0.10959711023784442
+    ]
+   },
+   {
+    "name": "Split score vs this lineup's left/right mix (Opening Day)",
+    "col": "sp_hand_split_good",
+    "rho": 0.11298271699691576,
+    "ci": [
+     0.09690178104170111,
+     0.12849593457586325
+    ]
+   },
+   {
+    "name": "Split score, home or away (Opening Day)",
+    "col": "sp_venue_split_good",
+    "rho": 0.10653368711268532,
+    "ci": [
+     0.09025022458686535,
+     0.12198417439083392
+    ]
+   },
+   {
+    "name": "Opening-Day score + lineup split, averaged",
+    "col": "blend_hand",
+    "rho": 0.11395610403610708,
+    "ci": [
+     0.09810918679171904,
+     0.12886345625792278
+    ]
+   }
+  ],
+  "differences": [
+   {
+    "name": "in-season score minus season-to-date SIERA",
+    "diff": 0.02997203862051656,
+    "ci": [
+     0.015937133801546016,
+     0.044636226466538725
+    ]
+   },
+   {
+    "name": "Opening-Day score minus last-season SIERA",
+    "diff": 0.010525909814860637,
+    "ci": [
+     0.0016276039179751246,
+     0.01988527771503099
+    ]
+   },
+   {
+    "name": "lineup split minus Opening-Day score",
+    "diff": 0.0009118143232977743,
+    "ci": [
+     -0.006676075834928343,
+     0.008349096088454867
+    ]
+   },
+   {
+    "name": "home/away split minus Opening-Day score",
+    "diff": -0.0055372155609326595,
+    "ci": [
+     -0.016018848458621383,
+     0.004896438231384781
+    ]
+   },
+   {
+    "name": "score + lineup split minus Opening-Day score",
+    "diff": 0.0018852013624890973,
+    "ci": [
+     -0.0020522607952836638,
+     0.005521259820818886
+    ]
+   }
+  ]
+ },
  "labels": [
   {
    "label": "Strong: bats",
