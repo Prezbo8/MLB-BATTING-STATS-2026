@@ -65,11 +65,17 @@ scheduled workflows — `mlb_pitcher_pipeline`, `scrape_team_splits`,
 when all of them are disabled, so it needs no separate step. `scrape_results` can stay on; it commits nothing
 until scores change.
 
-**Unpause** on or after the day after Opening Day (2027: **Mar 26**) — earlier,
-the last-30/14/7-day windows have no games and the splits runs go red:
-`gh workflow enable <file>` for the six above, and re-enable `scrape_results`
-too if GitHub disabled it for inactivity (it does that after 60 days without
-repo activity).
+**Unpause — automatic.** `season_start.yml` runs daily in March and April: on the day after
+Opening Day (from MLB's API; 2027: **Mar 26**) it re-enables the six above (and `scrape_results`),
+starts the keeper and opens a reminder issue; a week later it reports whether every job started
+on time and re-records the browser-test data (committed only if the browser test passes on it).
+Earlier than the day after Opening Day the last-30/14/7-day windows have no games and the splits
+runs go red, so it never acts before then (or more than 30 days after). By hand, as before:
+`gh workflow enable <file>` for the six above.
+
+**Keepalive.** GitHub disables a public repo's scheduled workflows after 60 days without
+commits; `keepalive.yml` (1st and 15th of each month) re-enables every scheduled workflow that
+isn't paused on purpose and, after 45 quiet days, commits a one-line `.github/keepalive`.
 
 **One-time database setup** (already applied; re-run only on a new project):
 `sql/replace_rows.sql` (one-transaction table swaps used by every writer),

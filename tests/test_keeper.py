@@ -61,7 +61,7 @@ def test_offseason_is_judged_by_the_six_seasonal_workflows():
                          capture_output=True, text=True, check=True).stdout.split()
     assert sorted(out) == sorted(w for w in DAILY_WORKFLOWS if w != "scrape_results.yml")
     readme = open(os.path.join(REPO, "README.md")).read()
-    pause = readme[readme.index("**Pause**"):readme.index("**Unpause**")]
+    pause = readme[readme.index("**Pause**"):readme.index("**Unpause")]
     assert all(w.replace(".yml", "") in pause for w in out)
 
 

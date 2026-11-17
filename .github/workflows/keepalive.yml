@@ -1,0 +1,50 @@
+name: Keepalive (scheduled workflows survive the offseason)
+
+# GitHub disables a public repo's scheduled workflows after 60 days with no commits. The
+# offseason has none, so without this the keeper's restart schedule, the scores job and
+# season_start.yml would be off by March. Twice a month this re-enables every scheduled workflow
+# that isn't paused on purpose (state 'disabled_manually' = the six seasonal ones, left alone),
+# and when the newest commit is 45+ days old it commits a one-line timestamp
+# (.github/keepalive) to reset GitHub's 60-day clock.
+on:
+  schedule:
+    - cron: '41 9 1,15 * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write     # re-enable workflows
+  contents: write    # the occasional keepalive commit
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Re-enable scheduled workflows GitHub turned off for inactivity (never the paused ones)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in .github/workflows/*.yml; do
+            grep -q '^  schedule:' "$f" || continue
+            wf=$(basename "$f")
+            state=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf" --jq .state)
+            case "$state" in
+              disabled_manually) echo "• $wf: paused on purpose - left alone" ;;
+              *) gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/enable" && echo "✓ $wf: enabled (was $state)" ;;
+            esac
+          done | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Reset GitHub's 60-day clock with a small commit when the repo has been quiet
+        run: |
+          LAST=$(git log -1 --format=%cI)
+          eval "$(python3 .github/scripts/keepalive_check.py "$LAST")"
+          echo "newest commit: $LAST -> commit=$commit" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$commit" = "true" ]; then
+            date -u +%FT%TZ > .github/keepalive
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/keepalive && git commit -q -m "keepalive: reset GitHub's 60-day schedule clock (offseason)"
+            for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 10; done
+          fi
