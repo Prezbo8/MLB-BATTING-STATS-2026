@@ -448,7 +448,7 @@ def same_game(df):
     """One row per game: away minus home for runs, lineup and the starter each faced."""
     a = df[df["offense"] != df["home"]].set_index("game_pk")
     h = df[df["offense"] == df["home"]].set_index("game_pk")
-    j = a.join(h, lsuffix="_a", rsuffix="_h", how="inner")
+    j = a.merge(h, left_index=True, right_index=True, how="inner", suffixes=("_a", "_h"))
     g = pd.DataFrame({"season": j["season_a"], "home": j["home_a"], "month": j["month_a"],
                       "d_runs": j["runs_a"] - j["runs_h"], "d_lineup": j["lineup_a"] - j["lineup_h"],
                       "d_sp": j["sp_in_a"] - j["sp_in_h"]})
