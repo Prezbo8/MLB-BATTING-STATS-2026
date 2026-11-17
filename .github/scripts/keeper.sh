@@ -4,14 +4,15 @@
 # limit starts a fresh keeper. A disabled workflow is skipped; when all six seasonal workflows are
 # disabled (offseason) the keeper stops without handing off, so pausing/unpausing those six is all
 # it takes. (scrape_results.yml stays on all year and has its own schedule.)
-# Test knobs: DRY_RUN=1 (print, start nothing), MAX_SLOTS=n (stop after n), FAKE_WAIT=s (don't sleep long).
+# Test knobs: DRY_RUN=1 (print, start nothing), MAX_SLOTS=n (stop after n), FAKE_WAIT=s (don't sleep long),
+# AFTER_START=s, KEEPER_BUDGET=s, RETRY_TRIES / RETRY_WAIT (tests/test_keeper_loop.py runs it against a fake gh).
 set -u
 START=$(date +%s); BUDGET=${KEEPER_BUDGET:-19800}   # 5.5 h
 REPO=${GITHUB_REPOSITORY:?}; SUMMARY=${RUN_SUMMARY:-/dev/null}
 DIR=$(cd "$(dirname "$0")" && pwd)
 
 note() { echo "$1 $(TZ=America/New_York date '+%-I:%M %p'): $2" | tee -a "$SUMMARY"; }
-retry() { for i in $(seq 1 20); do "$@" && return 0; sleep 30; done; return 1; }   # keep trying ~10 min
+retry() { for i in $(seq 1 "${RETRY_TRIES:-20}"); do "$@" && return 0; sleep "${RETRY_WAIT:-30}"; done; return 1; }   # keep trying ~10 min
 active() { [ "$(gh api "repos/$REPO/actions/workflows/$1" --jq .state 2>/dev/null)" = "active" ]; }
 start() {
   if [ -n "${DRY_RUN:-}" ]; then echo "DRY RUN: would start $1"; return 0; fi
