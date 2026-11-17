@@ -396,6 +396,7 @@
         th[data-tip]:hover::before { opacity: 1; }
         th[data-tip]::after { content: attr(data-tip); position: absolute; top: calc(100% + 12px); left: 50%; transform: translateX(-50%); background: #1a1f2e; border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: var(--body); font-size: 0.76rem; font-weight: 400; letter-spacing: 0; text-transform: none; padding: 8px 13px; z-index: 300; pointer-events: none; box-shadow: 0 6px 20px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.15s 0.25s; max-width: 260px; white-space: normal; text-align: center; line-height: 1.5; }
         th[data-tip]:hover::after, th[data-tip]:hover::before { opacity: 1; }
+        [data-theme="light"] th[data-tip]::after { background: var(--surface); box-shadow: 0 6px 20px rgba(15,23,42,0.15); }
         tbody tr { border-bottom: 1px solid rgba(30,35,51,0.7); transition: background 0.1s; }
         tbody tr:last-child { border-bottom: none; }
         tbody tr:hover { background: var(--surface2); }
@@ -582,6 +583,7 @@
         .lt-chart-team { text-align: center; font-family: var(--display); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
         .lt-tip { position: fixed; z-index: 200; pointer-events: none; display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 9px; font-family: var(--mono); font-size: 0.76rem; color: var(--text); white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,0.55); }
         .lt-tip b { color: #fff; }
+        [data-theme="light"] .lt-tip b { color: var(--text); }
         /* ── LINEUP HISTORY (9 batters × 6 stat line charts) ──────────────── */
         .lh-team-head { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 1.05rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin: 1.5rem 0 0.6rem; }
         .lh-team-head img { width: 30px; height: 30px; object-fit: contain; }
