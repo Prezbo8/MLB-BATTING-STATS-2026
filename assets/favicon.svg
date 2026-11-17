@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="3 2 58 62" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 3 54 60" width="64" height="64">
 <defs>
 <radialGradient id="hpBall" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#f1ece0"/><stop offset="1" stop-color="#cfc6b2"/></radialGradient>
 <linearGradient id="hpFire" x1="1" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef4444"/><stop offset="1" stop-color="#b91c1c"/></linearGradient>
 <path id="hpBlaze" d="M15 44C12 34 14 26 20 20C20 25 22 27 24 28C23 20 26 10 33 3C33 11 36 16 40 19C41 15 43 12 46 10C48 18 50 26 49 34C51 32 52 30 53 28C55 34 54 40 49 44Z"/>
 </defs>
 <path d="M7 5H57V37L32 61L7 37Z" fill="#1e293b" stroke="#f97316" stroke-width="3" stroke-linejoin="round"/>
-<g transform="translate(32 30) scale(.6) translate(-32 -38)">
+<g transform="translate(32 30) scale(.66) translate(-32 -38)">
 <use href="#hpBlaze" fill="url(#hpFire)"/>
 <use href="#hpBlaze" fill="#f97316" transform="translate(32 42) scale(.78) translate(-32 -42)"/>
 <use href="#hpBlaze" fill="#fbbf24" transform="translate(32 42) scale(.56) translate(-32 -42)"/>
