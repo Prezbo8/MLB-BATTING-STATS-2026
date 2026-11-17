@@ -15,6 +15,7 @@ with the runs that offense scored.
 
 - **The starter matchup predicts, every season.** Offenses facing a Tough-matchup starter scored **3.81** runs (3.70 to 3.91), Slight 4.30, others 4.69 (league 4.48). Starter score vs runs: in-season 0.114 (0.099 to 0.127), Opening Day only 0.102 (0.087 to 0.118).
 - **The lineup matters a little, far less than the starter.** Across all games it shows almost nothing: raw runs 0.011 (-0.006 to 0.027), park-adjusted 0.012 (-0.004 to 0.029). Comparing the two offenses within the same game (same park, weather and day) shows a small real effect, 0.061 (0.039 to 0.083), about half the starter's in those games, 0.129 (0.107 to 0.153). Even with hindsight (full-season lines) a lineup predicts one game's runs at only 0.085, so the site keeps it as context, not in the label.
+- **The pitcher score beats SIERA; split scores add nothing.** On the same games, the in-season score beats season-to-date SIERA by +0.030 (+0.016 to +0.045). A starter's left/right split weighted to that day's lineup ties his overall score (+0.001, -0.007 to +0.008), and so does his home/away split (-0.006), so the site keeps using the overall score.
 
 ## Runs by the site's labels (in-season scores, as the site shows them)
 
@@ -63,6 +64,34 @@ In the same game, 12 points of lineup wRC+ are worth +0.14 runs and 25 points of
 | 2024 | 4858 | 0.038 | 0.109 |
 | 2025 | 4860 | 0.032 | 0.105 |
 | 2026 | 4858 | -0.065 | 0.093 |
+
+## Which starter measure predicts best?
+
+All on the same 14768 team-games (every measure available). Rank correlation of a
+better starter with fewer runs scored against him (higher = better).
+
+| Measure | Correlation | 95% range |
+|---|---|---|
+| Pitcher score, Opening Day | 0.112 | 0.096 to 0.127 |
+| SIERA, last season | 0.102 | 0.085 to 0.117 |
+| Pitcher score, in-season (what the site shows) | 0.123 | 0.108 to 0.138 |
+| SIERA, season to date | 0.094 | 0.077 to 0.110 |
+| Split score vs this lineup's left/right mix (Opening Day) | 0.113 | 0.097 to 0.128 |
+| Split score, home or away (Opening Day) | 0.107 | 0.090 to 0.122 |
+| Opening-Day score + lineup split, averaged | 0.114 | 0.098 to 0.129 |
+
+| Difference | Value | 95% range |
+|---|---|---|
+| in-season score minus season-to-date SIERA | +0.030 | +0.016 to +0.045 |
+| Opening-Day score minus last-season SIERA | +0.011 | +0.002 to +0.020 |
+| lineup split minus Opening-Day score | +0.001 | -0.007 to +0.008 |
+| home/away split minus Opening-Day score | -0.006 | -0.016 to +0.005 |
+| score + lineup split minus Opening-Day score | +0.002 | -0.002 to +0.006 |
+
+A difference whose range sits entirely above 0 is a real improvement; one that spans 0 is a tie.
+Split scores are rebuilt as of Opening Day from earlier seasons only (no career line, which
+would include the season being tested); batters' sides come from MLB's API.
+
 
 ## The combined edge as first built (Round F2)
 
