@@ -1,0 +1,134 @@
+name: Season start (unpause + first-week check)
+
+# Runs the March checklist by itself (OPENING_DAY_NOTE.md). Every day in March and April it asks
+# .github/scripts/season_ops.py what today calls for; Opening Day comes from MLB's API, so no date
+# is ever edited:
+#   the day after Opening Day (2027: Mar 26)  -> re-enable the six seasonal workflows, start the
+#       keeper, open an issue for the pitcher-score work (with the Opening Day note), Telegram
+#   a week later (2027: Apr 2)                -> schedule report (did every job start on time?),
+#       re-record the browser-test data, commit it if the browser test passes on it, issue, Telegram
+# Each stage is recorded as a GitHub issue, so it happens once per season; a missed day catches up
+# the next day (within 30 days of Opening Day). Dry run: does everything except change anything.
+on:
+  schedule:
+    - cron: '23 12 * 3,4 *'     # daily in March and April (GitHub fires late; any hour that day is fine)
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "auto = what today calls for; start / week = run that stage now"
+        type: choice
+        options: [auto, start, week]
+        default: auto
+      dry_run:
+        description: "Dry run: show what it would do; enable nothing, commit nothing, open no issue"
+        type: boolean
+        default: true
+
+permissions:
+  actions: write     # re-enable workflows, start the keeper
+  contents: write    # commit the re-recorded browser-test data
+  issues: write      # one issue per stage per season (also the 'done' marker)
+
+concurrency:
+  group: season-start
+  cancel-in-progress: false
+
+env:
+  SEASONAL: "mlb_pitcher_pipeline.yml scrape_team_splits.yml scrape_player_splits.yml scrape_rpg.yml scrape_lineups.yml report_pdf.yml"
+
+jobs:
+  season:
+    runs-on: ubuntu-24.04   # pinned: Playwright can't install Chromium on ubuntu-latest (Ubuntu 26.04)
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: What does today call for?
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STAGE: ${{ inputs.stage || 'auto' }}
+        run: |
+          pip install -q requests==2.34.2
+          Y=$(date -u +%Y)
+          has() { [ "$(gh issue list -R "$GITHUB_REPOSITORY" --state all --search "\"$1\" in:title" --json number --jq length)" -gt 0 ] && echo 1 || echo 0; }
+          STARTED=$(has "Season $Y started"); CHECKED=$(has "Season $Y: first-week check")
+          python3 .github/scripts/season_ops.py plan --started "$STARTED" --checked "$CHECKED" --stage "$STAGE" | tee -a "$GITHUB_OUTPUT"
+          echo "dry=${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: "Stage start: re-enable the six seasonal workflows and start the keeper"
+        if: steps.plan.outputs.stage == 'start'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY: ${{ steps.plan.outputs.dry }}
+          YEAR: ${{ steps.plan.outputs.year }}
+          OPENING: ${{ steps.plan.outputs.opening }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          run() { if [ -n "$DRY" ]; then echo "DRY RUN: $*"; else "$@"; fi; }
+          for wf in $SEASONAL scrape_results.yml; do
+            echo "enable $wf (now: $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf" --jq .state))"
+            run gh workflow enable "$wf" -R "$GITHUB_REPOSITORY"
+          done
+          run gh workflow run keeper.yml -R "$GITHUB_REPOSITORY"
+          { echo "Opening Day was **$OPENING**. Today the six seasonal workflows were re-enabled and the keeper was started"
+            echo "(\`season_start.yml\`). The first-week check runs on its own a week from now."
+            echo; echo "---"; echo; cat OPENING_DAY_NOTE.md; } > /tmp/issue.md
+          run gh issue create -R "$GITHUB_REPOSITORY" --title "Season $YEAR started: pitcher-score work" --body-file /tmp/issue.md
+          MSG="⚾ Season $YEAR started: the six daily jobs are back on and the keeper is running. Reminder: pitcher-score work (see the GitHub issue)."
+          if [ -n "$TELEGRAM_TOKEN" ]; then run curl -s -o /dev/null "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" --data-urlencode "text=$MSG"; fi
+          echo "### Season $YEAR started${DRY:+ (dry run)}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "Stage week: schedule report, re-record the browser-test data"
+        id: week
+        if: steps.plan.outputs.stage == 'week'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pip install -q requests==2.34.2 pytest==8.4.2 PyYAML==6.0.3 pandas==3.1.1 numpy==2.4.6 lxml==6.1.3 playwright==1.58.0
+          python -m playwright install --with-deps chromium
+          python3 scripts/schedule_report.py --days 8 | tee /tmp/schedule.txt
+          python3 tests/record_browser_fixtures.py | tee /tmp/record.txt
+          if python -m pytest -q tests/test_browser.py > /tmp/browser.txt 2>&1; then echo "browser=pass" >> "$GITHUB_OUTPUT"; else echo "browser=fail" >> "$GITHUB_OUTPUT"; fi
+          tail -15 /tmp/browser.txt
+
+      - name: "Stage week: commit the new recording (only if the browser test passes on it), issue, Telegram"
+        if: steps.plan.outputs.stage == 'week'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY: ${{ steps.plan.outputs.dry }}
+          YEAR: ${{ steps.plan.outputs.year }}
+          BROWSER: ${{ steps.week.outputs.browser }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          run() { if [ -n "$DRY" ]; then echo "DRY RUN: $*"; else "$@"; fi; }
+          if [ "$BROWSER" = "pass" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add tests/fixtures/browser
+            if git diff --cached --quiet; then echo "recording unchanged"; else
+              run git commit -q -m "Re-record the browser-test data (first week of $YEAR)"
+              run git push -q
+            fi
+            REC="✓ re-recorded and committed (the browser test passes on live $YEAR data)"
+          else
+            REC="✗ NOT committed: the browser test fails on live $YEAR data - see this run's log"
+          fi
+          { echo "Automatic first-week check (\`season_start.yml\`)."; echo
+            echo "**Browser-test data:** $REC"; echo
+            echo "**Did every job start on time?** (minutes after its keeper time)"; echo; echo '```'; cat /tmp/schedule.txt; echo '```'
+            echo; echo "<details><summary>Browser test output</summary>"; echo; echo '```'; tail -40 /tmp/browser.txt; echo '```'; echo "</details>"; } > /tmp/issue.md
+          run gh issue create -R "$GITHUB_REPOSITORY" --title "Season $YEAR: first-week check" --body-file /tmp/issue.md
+          MSG="⚾ Season $YEAR first-week check: browser data $( [ "$BROWSER" = pass ] && echo re-recorded || echo 'NOT re-recorded (test failed)'). Start times are in the GitHub issue."
+          if [ -n "$TELEGRAM_TOKEN" ]; then run curl -s -o /dev/null "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" --data-urlencode "text=$MSG"; fi
+          cat /tmp/issue.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Nothing to do today
+        if: steps.plan.outputs.stage == 'none'
+        run: echo "Nothing today (Opening Day ${{ steps.plan.outputs.opening }}; this runs only around the season start)." | tee -a "$GITHUB_STEP_SUMMARY"
